@@ -1,0 +1,10 @@
+<Project>
+
+  <PropertyGroup>
+    <Company>C.H. Robinson</Company>
+    <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix>rc.0</VersionSuffix>
+  </PropertyGroup>
+
+</Project>
