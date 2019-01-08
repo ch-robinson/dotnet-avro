@@ -37,9 +37,9 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// The number of digits.
         /// </summary>
-        /// <throws cref="ArgumentOutOfRangeException">
+        /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the precision is set to a value less than one or less than the scale.
-        /// </throws>
+        /// </exception>
         public int Precision
         {
             get
@@ -65,9 +65,9 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// The number of digits to the right of the decimal point.
         /// </summary>
-        /// <throws cref="ArgumentOutOfRangeException">
+        /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the scale is set to a value less than zero or greater than the precision.
-        /// </throws>
+        /// </exception>
         public int Scale
         {
             get
@@ -99,10 +99,10 @@ namespace Chr.Avro.Abstract
         /// <param name="scale">
         /// The number of digits to the right of the decimal point.
         /// </param>
-        /// <throws cref="ArgumentOutOfRangeException">
+        /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the precision is less than one or less than the scale or the scale is less
         /// than zero or greater than the precision.
-        /// </throws>
+        /// </exception>
         public DecimalLogicalType(int precision, int scale)
         {
             Precision = precision;

@@ -51,7 +51,8 @@ namespace Chr.Avro.Tests
 
         [Theory]
         [MemberData(nameof(InvalidSymbolData))]
-        public void ThrowsWhenInvalidSymbolIsAdded(string symbol)
+        public void 
+            WhenInvalidSymbolIsAdded(string symbol)
         {
             var schema = new EnumSchema("test");
             Assert.Throws<InvalidSymbolException>(() => schema.Symbols.Add(symbol));
