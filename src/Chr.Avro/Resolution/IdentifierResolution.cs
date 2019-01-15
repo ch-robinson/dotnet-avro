@@ -71,7 +71,15 @@ namespace Chr.Avro.Resolution
         {
             return IsSetExplicitly
                 ? Value == other
-                : fuzzyCharacters.Replace(Value, string.Empty) == fuzzyCharacters.Replace(other, string.Empty);
+                : Normalize(Value) == Normalize(other);
+        }
+
+        /// <summary>
+        /// Normalizes a string for fuzzy comparison.
+        /// </summary>
+        protected virtual string Normalize(string value)
+        {
+            return fuzzyCharacters.Replace(value, string.Empty).ToUpperInvariant();
         }
     }
 }
