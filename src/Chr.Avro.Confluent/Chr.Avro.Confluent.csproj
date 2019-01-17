@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../../Chr.Avro.Build.props" />
+
+  <PropertyGroup>
+    <Description>Integration tools for the Confluent Kafka and Schema Registry clients</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TargetFrameworks>netstandard2.0;net452;</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" Version="1.0.0-beta2" />
+    <PackageReference Include="Confluent.SchemaRegistry" Version="1.0.0-beta2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Chr.Avro.Binary\Chr.Avro.Binary.csproj" />
+    <ProjectReference Include="..\Chr.Avro.Json\Chr.Avro.Json.csproj" />
+  </ItemGroup>
+
+</Project>
