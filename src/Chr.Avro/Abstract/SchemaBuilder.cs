@@ -94,11 +94,11 @@ namespace Chr.Avro.Abstract
         /// </param>
         /// <param name="typeResolver">
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
-        /// builder will use the default <see cref="ReflectionResolver" />.
+        /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
         public SchemaBuilder(ICollection<ISchemaBuilderCase> cases = null, ITypeResolver typeResolver = null)
         {
-            Resolver = typeResolver ?? new ReflectionResolver();
+            Resolver = typeResolver ?? new DataContractResolver();
 
             Cases = cases ?? new List<ISchemaBuilderCase>()
             {

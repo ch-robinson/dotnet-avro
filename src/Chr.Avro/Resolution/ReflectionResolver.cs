@@ -17,7 +17,7 @@ namespace Chr.Avro.Resolution
         /// </summary>
         public ReflectionResolver()
         {
-            var additional = new ITypeResolverCase[]
+            Cases = new ITypeResolverCase[]
             {
                 // nullables:
                 new NullableResolverCase(this),
@@ -56,15 +56,52 @@ namespace Chr.Avro.Resolution
                 // classes and structs:
                 new ObjectResolverCase()
             };
-
-            Cases = additional.Concat(Cases).ToList();
         }
     }
 
     /// <summary>
     /// An <see cref="ITypeResolverCase" /> that gets its information from type reflection.
     /// </summary>
-    public abstract class ReflectionResolverCase : TypeResolverCase { }
+    public abstract class ReflectionResolverCase : TypeResolverCase
+    {
+        /// <summary>
+        /// Gets an attribute on a type member.
+        /// </summary>
+        /// <returns>
+        /// The attribute, or null if the attribute is not present.
+        /// </returns>
+        protected virtual T GetAttribute<T>(MemberInfo member) where T : Attribute
+        {
+            return member.GetCustomAttributes(typeof(T), true)
+                .OfType<T>()
+                .SingleOrDefault();
+        }
+
+        /// <summary>
+        /// Gets an attribute on a type.
+        /// </summary>
+        /// <returns>
+        /// The attribute, or null if the attribute is not present.
+        /// </returns>
+        protected virtual T GetAttribute<T>(Type type) where T : Attribute
+        {
+            return type.GetCustomAttributes(typeof(T), true)
+                .OfType<T>()
+                .SingleOrDefault();
+        }
+
+        /// <summary>
+        /// Gets fields an properties on a type.
+        /// </summary>
+        protected virtual IEnumerable<(MemberInfo MemberInfo, Type Type)> GetMembers(Type type, BindingFlags visibility)
+        {
+            return Enumerable
+                .Concat(
+                    type.GetFields(visibility).Select(f => (f as MemberInfo, f.FieldType)),
+                    type.GetProperties(visibility).Select(p => (p as MemberInfo, p.PropertyType))
+                );
+        }
+    }
 
     /// <summary>
     /// A type resolver case that matches <see cref="bool" />.
@@ -386,23 +423,20 @@ namespace Chr.Avro.Resolution
                 ? null
                 : new IdentifierResolution(type.Namespace);
 
-            var hasFlagsAttribute = type.GetCustomAttributes(typeof(FlagsAttribute), true)
-                .Any();
+            var isFlagEnum = GetAttribute<FlagsAttribute>(type) != null;
 
             var symbols = type.GetFields(BindingFlags.Public | BindingFlags.Static)
-                .Select(f =>
-                {
-                    // FieldInfo.GetRawConstantValue is arguably nicer than Enum.Parse, but it’s
-                    // easier to sort and test the enum values than the underlying constants:
-                    var value = Enum.Parse(type, f.Name);
-
-                    return new SymbolResolution(f, new IdentifierResolution(f.Name), value);
-                })
-                .OrderBy(s => s.Value)
-                .ThenBy(s => s.Name.Value)
+                .Select(f => (
+                    MemberInfo: f as MemberInfo,
+                    Name: new IdentifierResolution(f.Name),
+                    Value: Enum.Parse(type, f.Name)
+                ))
+                .OrderBy(f => f.Value)
+                .ThenBy(f => f.Name.Value)
+                .Select(f => new SymbolResolution(f.MemberInfo, f.Name, f.Value))
                 .ToList();
 
-            return new EnumResolution(type, name, @namespace, hasFlagsAttribute, symbols);
+            return new EnumResolution(type, name, @namespace, isFlagEnum, symbols);
         }
     }
 
@@ -669,8 +703,7 @@ namespace Chr.Avro.Resolution
     public class ObjectResolverCase : ReflectionResolverCase
     {
         /// <summary>
-        /// The binding flags that will be used to select fields and properties. Only public instance
-        /// member are selected by default.
+        /// The binding flags that will be used to select fields and properties.
         /// </summary>
         protected readonly BindingFlags MemberVisibility;
 
@@ -722,13 +755,14 @@ namespace Chr.Avro.Resolution
                 ? null
                 : new IdentifierResolution(type.Namespace);
 
-            var fields = Enumerable
-                .Concat(
-                    type.GetFields(MemberVisibility).Select(f => (f as MemberInfo, f.FieldType)),
-                    type.GetProperties(MemberVisibility).Select(p => (p as MemberInfo, p.PropertyType))
-                )
-                .Select(r => new FieldResolution(r.Item1, r.Item2, new IdentifierResolution(r.Item1.Name)))
-                .OrderBy(f => f.Name.Value)
+            var fields = GetMembers(type, MemberVisibility)
+                .Select(m => (
+                    MemberInfo: m.MemberInfo,
+                    Type: m.Type,
+                    Name: new IdentifierResolution(m.MemberInfo.Name)
+                ))
+                .OrderBy(m => m.Name.Value)
+                .Select(m => new FieldResolution(m.MemberInfo, m.Type, m.Name))
                 .ToList();
 
             return new RecordResolution(type, name, @namespace, fields);

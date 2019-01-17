@@ -119,7 +119,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public BinaryDeserializerBuilder(IReadOnlyCollection<IBinaryDeserializerBuilderCase> cases = null, IBinaryCodec codec = null, ITypeResolver resolver = null)
         {
-            Resolver = resolver ?? new ReflectionResolver();
+            Resolver = resolver ?? new DataContractResolver();
 
             if (codec == null)
             {

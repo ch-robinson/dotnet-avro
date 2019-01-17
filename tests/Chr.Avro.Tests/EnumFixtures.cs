@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Serialization;
 
 namespace Chr.Avro.Tests
 {
@@ -37,5 +38,42 @@ namespace Chr.Avro.Tests
         Second,
         Third,
         Fourth,
+    }
+
+    [DataContract(Name = "annotated", Namespace = "chr.tests")]
+    internal enum DataContractAnnotatedEnum
+    {
+        None,
+
+        [EnumMember]
+        Default,
+
+        [EnumMember(Value = "Different")]
+        Custom = 2,
+
+        [NonSerialized]
+        Ignored,
+
+        [EnumMember]
+        [NonSerialized]
+        Conflicting = 1
+    }
+
+    internal enum DataContractNonAnnotatedEnum
+    {
+        None,
+
+        [EnumMember]
+        Default,
+
+        [EnumMember(Value = "Different")]
+        Custom = 2,
+
+        [NonSerialized]
+        Ignored,
+
+        [EnumMember]
+        [NonSerialized]
+        Conflicting = 1
     }
 }

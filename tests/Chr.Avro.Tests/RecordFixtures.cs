@@ -1,5 +1,8 @@
 #pragma warning disable CS0169, CS0649 // unused fields
 
+using System;
+using System.Runtime.Serialization;
+
 namespace Chr.Avro.Tests
 {
     public interface IEmptyInterface { }
@@ -61,5 +64,58 @@ namespace Chr.Avro.Tests
     public class CircularClassB
     {
         public CircularClassA A { get; set; }
+    }
+
+    [DataContract(Name = "annotated", Namespace = "chr.tests")]
+    public class DataContractAnnotatedClass
+    {
+        public int UnannotatedField;
+
+        [DataMember]
+        public int AnnotatedDefaultField;
+
+        [DataMember(Name = "DifferentField", Order = 5)]
+        public int AnnotatedCustomField;
+
+        [NonSerialized]
+        public int IgnoredField;
+
+        [DataMember]
+        [NonSerialized]
+        public int ConflictingField;
+
+        public int UnannotatedProperty { get; set; }
+
+        [DataMember]
+        public int AnnotatedDefaultProperty { get; set; }
+
+        [DataMember(Name = "DifferentProperty", Order = 1)]
+        public int AnnotatedCustomProperty { get; set; }
+    }
+
+    public class DataContractNonAnnotatedClass
+    {
+        public int UnannotatedField;
+
+        [DataMember]
+        public int AnnotatedDefaultField;
+
+        [DataMember(Name = "DifferentField", Order = 5)]
+        public int AnnotatedCustomField;
+
+        [NonSerialized]
+        public int IgnoredField;
+
+        [DataMember]
+        [NonSerialized]
+        public int ConflictingField;
+
+        public int UnannotatedProperty { get; set; }
+
+        [DataMember]
+        public int AnnotatedDefaultProperty { get; set; }
+
+        [DataMember(Name = "DifferentProperty", Order = 1)]
+        public int AnnotatedCustomProperty { get; set; }
     }
 }
