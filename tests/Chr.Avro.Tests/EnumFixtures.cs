@@ -40,6 +40,10 @@ namespace Chr.Avro.Tests
         Fourth,
     }
 
+    internal enum LongEnum : long { }
+
+    internal enum UIntEnum : uint { }
+
     [DataContract(Name = "annotated", Namespace = "chr.tests")]
     internal enum DataContractAnnotatedEnum
     {

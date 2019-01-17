@@ -14,7 +14,10 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// Creates a new data contract resolver.
         /// </summary>
-        public DataContractResolver()
+        /// <param name="resolveUnderlyingEnumTypes">
+        /// Whether to resolve enum types as their underlying integral types.
+        /// </param>
+        public DataContractResolver(bool resolveUnderlyingEnumTypes = false)
         {
             Cases = new ITypeResolverCase[]
             {
@@ -38,7 +41,9 @@ namespace Chr.Avro.Resolution
                 new UInt64ResolverCase(),
 
                 // enums:
-                new DataContractEnumResolverCase(),
+                resolveUnderlyingEnumTypes
+                    ? new EnumUnderlyingTypeResolverCase(this)
+                    : new DataContractEnumResolverCase() as ITypeResolverCase,
 
                 // dictionaries:
                 new DictionaryResolverCase(),

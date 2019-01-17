@@ -15,7 +15,10 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// Creates a new reflection resolver.
         /// </summary>
-        public ReflectionResolver()
+        /// <param name="resolveUnderlyingEnumTypes">
+        /// Whether to resolve enum types as their underlying integral types.
+        /// </param>
+        public ReflectionResolver(bool resolveUnderlyingEnumTypes = false)
         {
             Cases = new ITypeResolverCase[]
             {
@@ -39,7 +42,9 @@ namespace Chr.Avro.Resolution
                 new UInt64ResolverCase(),
 
                 // enums:
-                new EnumResolverCase(),
+                resolveUnderlyingEnumTypes
+                    ? new EnumUnderlyingTypeResolverCase(this)
+                    : new EnumResolverCase() as ITypeResolverCase,
 
                 // dictionaries:
                 new DictionaryResolverCase(),
@@ -437,6 +442,68 @@ namespace Chr.Avro.Resolution
                 .ToList();
 
             return new EnumResolution(type, name, @namespace, isFlagEnum, symbols);
+        }
+    }
+
+    /// <summary>
+    /// A type resolver case that matches <see cref="Enum" /> types and resolves underlying integral
+    /// types.
+    /// </summary>
+    public class EnumUnderlyingTypeResolverCase : ReflectionResolverCase
+    {
+        /// <summary>
+        /// The resolver instance to use to resolve underlying types.
+        /// </summary>
+        protected readonly ITypeResolver Resolver;
+
+        /// <summary>
+        /// Creates a new nullable resolver case.
+        /// </summary>
+        /// <param name="resolver">
+        /// The resolver instance to use to resolve underlying types.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the resolver is null.
+        /// </exception>
+        public EnumUnderlyingTypeResolverCase(ITypeResolver resolver)
+        {
+            Resolver = resolver ?? throw new ArgumentNullException(nameof(resolver), "Resolver cannot be null.");
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is an enum type.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type.IsEnum;
+        }
+
+        /// <summary>
+        /// Resolves underlying enum type information.
+        /// </summary>
+        /// <param name="type">
+        /// The type to resolve.
+        /// </param>
+        /// <returns>
+        /// A <see cref="TypeResolution" /> for the underlying type.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when the type is not an enum type.
+        /// </exception>
+        public override TypeResolution Resolve(Type type)
+        {
+            if (!IsMatch(type))
+            {
+                throw new ArgumentException($"The enum case can only be applied to enum types.", nameof(type));
+            }
+
+            var resolution = Resolver.ResolveType(type.GetEnumUnderlyingType());
+            resolution.Type = type;
+
+            return resolution;
         }
     }
 

@@ -41,10 +41,10 @@ namespace Chr.Avro.Cli
         [Option('a', "assembly", HelpText = "The name of or path to an assembly that contains the type.")]
         public string AssemblyName { get; set; }
 
-        [Option("enums-as-ints", HelpText = "Whether enums should be represented as integers.")]
-        public bool EnumsAsInts { get; set; }
+        [Option("enums-as-integers", HelpText = "Whether enums should be represented with \"int\" or \"long\" schemas.")]
+        public bool EnumsAsIntegers { get; set; }
 
-        [Option("nullable-references", HelpText = "Whether reference types should be nullable.")]
+        [Option("nullable-references", HelpText = "Whether reference types should be represented with nullable union schemas.")]
         public bool NullableReferences { get; set; }
 
         [Option('t', "type", Required = true, HelpText = "The type to build a schema for.")]
@@ -75,7 +75,12 @@ namespace Chr.Avro.Cli
         protected Schema CreateSchema()
         {
             var type = this.ResolveType();
-            var builder = new SchemaBuilder();
+
+            var resolver = new DataContractResolver(
+                resolveUnderlyingEnumTypes: EnumsAsIntegers
+            );
+
+            var builder = new SchemaBuilder(typeResolver: resolver);
 
             try
             {

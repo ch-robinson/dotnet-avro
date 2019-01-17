@@ -5,14 +5,9 @@ using Xunit;
 
 namespace Chr.Avro.Tests
 {
-    public abstract class CommonResolverTests<T> where T : ReflectionResolver, new()
+    public abstract class CommonResolverTests<T> where T : ITypeResolver
     {
-        protected readonly T Resolver;
-
-        public CommonResolverTests()
-        {
-            Resolver = new T();
-        }
+        protected abstract T Resolver { get; }
 
         [Theory]
         [InlineData(typeof(ICollection<string>), typeof(string), false)]
