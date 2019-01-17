@@ -86,15 +86,20 @@ namespace Chr.Avro.Resolution
         protected ICollection<ITypeResolverCase> Cases;
 
         /// <summary>
+        /// Whether to resolve reference types as nullable.
+        /// </summary>
+        protected bool ResolveReferenceTypesAsNullable;
+
+        /// <summary>
         /// Creates a new type resolver.
         /// </summary>
-        /// <param name="cases">
-        /// An optional collection of cases. If no case collection is provided, an empty list will
-        /// be used.
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
         /// </param>
-        public TypeResolver(ICollection<ITypeResolverCase> cases = null)
+        public TypeResolver(bool resolveReferenceTypesAsNullable = false)
         {
-            Cases = cases ?? new List<ITypeResolverCase>();
+            Cases = new ITypeResolverCase[0];
+            ResolveReferenceTypesAsNullable = resolveReferenceTypesAsNullable;
         }
 
         /// <summary>
@@ -137,7 +142,14 @@ namespace Chr.Avro.Resolution
                 throw new UnsupportedTypeException(type, $"No type resolver case could be applied to {type.FullName}.");
             }
 
-            return match.Resolve(type);
+            var resolution = match.Resolve(type);
+
+            if (ResolveReferenceTypesAsNullable && !type.IsValueType)
+            {
+                resolution.IsNullable = true;
+            }
+
+            return resolution;
         }
     }
 

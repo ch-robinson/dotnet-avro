@@ -24,5 +24,16 @@ namespace Chr.Avro.Tests
             Assert.Equal(size, resolution.Size);
             Assert.Equal(type, resolution.Type);
         }
+
+        [Theory]
+        [InlineData(typeof(object))]
+        public void ResolvesReferenceTypesAsNullable(Type type)
+        {
+            var resolver = new ReflectionResolver(resolveReferenceTypesAsNullable: true);
+            var resolution = resolver.ResolveType(type);
+
+            Assert.True(resolution.IsNullable);
+            Assert.Equal(type, resolution.Type);
+        }
     }
 }

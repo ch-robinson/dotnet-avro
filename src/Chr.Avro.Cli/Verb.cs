@@ -77,6 +77,7 @@ namespace Chr.Avro.Cli
             var type = this.ResolveType();
 
             var resolver = new DataContractResolver(
+                resolveReferenceTypesAsNullable: NullableReferences,
                 resolveUnderlyingEnumTypes: EnumsAsIntegers
             );
 

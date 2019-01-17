@@ -15,10 +15,14 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// Creates a new reflection resolver.
         /// </summary>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         /// <param name="resolveUnderlyingEnumTypes">
         /// Whether to resolve enum types as their underlying integral types.
         /// </param>
-        public ReflectionResolver(bool resolveUnderlyingEnumTypes = false)
+        public ReflectionResolver(bool resolveReferenceTypesAsNullable = false, bool resolveUnderlyingEnumTypes = false)
+            : base(resolveReferenceTypesAsNullable)
         {
             Cases = new ITypeResolverCase[]
             {

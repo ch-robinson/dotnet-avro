@@ -203,5 +203,16 @@ namespace Chr.Avro.Tests
                 }
             );
         }
+
+        [Theory]
+        [InlineData(typeof(object))]
+        public void ResolvesReferenceTypesAsNullable(Type type)
+        {
+            var resolver = new DataContractResolver(resolveReferenceTypesAsNullable: true);
+            var resolution = resolver.ResolveType(type);
+
+            Assert.True(resolution.IsNullable);
+            Assert.Equal(type, resolution.Type);
+        }
     }
 }

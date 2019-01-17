@@ -14,10 +14,14 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// Creates a new data contract resolver.
         /// </summary>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         /// <param name="resolveUnderlyingEnumTypes">
         /// Whether to resolve enum types as their underlying integral types.
         /// </param>
-        public DataContractResolver(bool resolveUnderlyingEnumTypes = false)
+        public DataContractResolver(bool resolveReferenceTypesAsNullable = false, bool resolveUnderlyingEnumTypes = false)
+            : base(resolveReferenceTypesAsNullable, resolveUnderlyingEnumTypes)
         {
             Cases = new ITypeResolverCase[]
             {
