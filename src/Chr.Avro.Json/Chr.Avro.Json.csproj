@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../../Chr.Avro.Build.props" />
+
+  <PropertyGroup>
+    <Description>Avro JSON serialization and deserialization</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TargetFrameworks>netstandard2.0;net452;</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Chr.Avro\Chr.Avro.csproj" />
+  </ItemGroup>
+
+</Project>
