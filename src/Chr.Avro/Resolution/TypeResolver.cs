@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Chr.Avro.Resolution
 {
@@ -52,6 +53,11 @@ namespace Chr.Avro.Resolution
     public interface ITypeResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        bool IsMatch(Type type);
+
+        /// <summary>
         /// Resolves information for a .NET type. If the case does not apply to the provided type,
         /// this method should throw an exception.
         /// </summary>
@@ -61,7 +67,7 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
         /// </returns>
-        TypeResolution Apply(Type type);
+        TypeResolution Resolve(Type type);
     }
 
     /// <summary>
@@ -73,33 +79,18 @@ namespace Chr.Avro.Resolution
     /// </remarks>
     public class TypeResolver : ITypeResolver
     {
-        private ICollection<ITypeResolverCase> cases;
-
         /// <summary>
         /// A list of cases that the resolver will attempt to apply. If the first case fails, the
         /// resolver will try the next case, and so on until all cases have been attempted.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the case collection is set to null.
-        /// </exception>
-        public virtual ICollection<ITypeResolverCase> Cases
-        {
-            get
-            {
-                return cases ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                cases = value ?? throw new ArgumentNullException(nameof(value), "The resolver case collection cannot be null.");
-            }
-        }
+        protected ICollection<ITypeResolverCase> Cases;
 
         /// <summary>
         /// Creates a new type resolver.
         /// </summary>
         /// <param name="cases">
-        /// An optional collection of cases. If no case collection is provided, <see cref="Cases" />
-        /// will be empty.
+        /// An optional collection of cases. If no case collection is provided, an empty list will
+        /// be used.
         /// </param>
         public TypeResolver(ICollection<ITypeResolverCase> cases = null)
         {
@@ -135,27 +126,18 @@ namespace Chr.Avro.Resolution
         /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no matching case is found for the type. <see cref="Exception.InnerException" />
-        /// will be an <see cref="AggregateException" /> containing the exceptions thrown by each
-        /// attempted case.
+        /// Thrown when no matching case is found for the type.
         /// </exception>
         public virtual TypeResolution ResolveType(Type type)
         {
-            var exceptions = new List<Exception>();
+            var match = Cases.FirstOrDefault(c => c.IsMatch(type));
 
-            foreach (var @case in Cases)
+            if (match == null)
             {
-                try
-                {
-                    return @case.Apply(type);
-                }
-                catch (Exception exception)
-                {
-                    exceptions.Add(exception);
-                }
+                throw new UnsupportedTypeException(type, $"No type resolver case could be applied to {type.FullName}.");
             }
 
-            throw new UnsupportedTypeException(type, $"No type resolver case could be applied to {type.FullName}.", new AggregateException(exceptions));
+            return match.Resolve(type);
         }
     }
 
@@ -169,6 +151,11 @@ namespace Chr.Avro.Resolution
     public abstract class TypeResolverCase : ITypeResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        public abstract bool IsMatch(Type type);
+
+        /// <summary>
         /// Resolves information for a .NET type. If the case does not apply to the provided type,
         /// this method should throw an exception.
         /// </summary>
@@ -178,6 +165,6 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
         /// </returns>
-        public abstract TypeResolution Apply(Type type);
+        public abstract TypeResolution Resolve(Type type);
     }
 }

@@ -74,7 +74,7 @@ namespace Chr.Avro.Serialization
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object. Since
         /// this is not a typed method, the general <see cref="Delegate" /> type is used.
         /// </returns>
-        Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache);
+        Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache);
 
         /// <summary>
         /// Determines whether the case can be applied to a schema.
@@ -209,7 +209,7 @@ namespace Chr.Avro.Serialization
                 throw new UnsupportedTypeException(resolution.Type, $"No deserializer builder case matched {resolution.GetType().Name}.");
             }
 
-            return match.Apply(resolution, schema, cache) as Func<Stream, T>;
+            return match.BuildDelegate(resolution, schema, cache) as Func<Stream, T>;
         }
 
         /// <summary>
@@ -256,7 +256,7 @@ namespace Chr.Avro.Serialization
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object. Since
         /// this is not a typed method, the general <see cref="Delegate" /> type is used.
         /// </returns>
-        public abstract Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache);
+        public abstract Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache);
 
         /// <summary>
         /// Determines whether the case can be applied to a schema.
@@ -323,7 +323,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when the resolved type is neither an array type nor a type assignable from
         /// <see cref="List{T}" />.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is ArrayResolution arrayResolution))
             {
@@ -459,7 +459,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="bool" /> exists.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is BooleanSchema))
             {
@@ -562,7 +562,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="T:System.Byte[]" /> exists.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is BytesSchema))
             {
@@ -671,7 +671,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="decimal" /> exists.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema.LogicalType is DecimalLogicalType decimalLogicalType))
             {
@@ -856,7 +856,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="double" /> exists.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is DoubleSchema))
             {
@@ -957,7 +957,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when the schema is not a <see cref="FixedSchema" /> with size 12 and logical
         /// type <see cref="DurationLogicalType" /> or when the type is not <see cref="TimeSpan" />.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema.LogicalType is DurationLogicalType))
             {
@@ -1076,7 +1076,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type does not contain a matching symbol for each symbol in the schema.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is EnumResolution enumResolution))
             {
@@ -1192,7 +1192,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="T:System.Byte[]" /> exists.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is FixedSchema fixedSchema))
             {
@@ -1295,7 +1295,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="float" /> exists.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is FloatSchema))
             {
@@ -1398,7 +1398,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="long" /> exists.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is IntSchema || schema is LongSchema))
             {
@@ -1511,7 +1511,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type is not assignable from <see cref="Dictionary{TKey, TValue}" />.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is MapResolution mapResolution))
             {
@@ -1635,7 +1635,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="ArgumentException">
         /// Thrown when the schema is not a <see cref="NullSchema" />.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is NullSchema))
             {
@@ -1718,7 +1718,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when the schema is not a <see cref="RecordSchema" /> or the resolution is not a
         /// <see cref="RecordResolution" />.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is RecordResolution recordResolution))
             {
@@ -1868,7 +1868,7 @@ namespace Chr.Avro.Serialization
         /// <see cref="Guid" />, <see cref="TimeSpan"/>, <see cref="Uri" />) can be applied and no
         /// conversion from <see cref="string" /> exists.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is StringSchema))
             {
@@ -2028,7 +2028,7 @@ namespace Chr.Avro.Serialization
         /// <see cref="MicrosecondTimestampLogicalType" /> or <see cref="MillisecondTimestampLogicalType" />
         /// or the type is not <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is LongSchema))
             {
@@ -2160,7 +2160,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type cannot be mapped to each schema in the union.
         /// </exception>
-        public override Delegate Apply(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is UnionSchema unionSchema))
             {

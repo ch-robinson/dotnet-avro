@@ -1,6 +1,7 @@
 using Chr.Avro.Resolution;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Chr.Avro.Abstract
 {
@@ -60,7 +61,12 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A subclass of <see cref="Schema" />.
         /// </returns>
-        Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache);
+        Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache);
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        bool IsMatch(TypeResolution resolution);
     }
 
     /// <summary>
@@ -68,53 +74,23 @@ namespace Chr.Avro.Abstract
     /// </summary>
     public class SchemaBuilder : ISchemaBuilder
     {
-        private ICollection<ISchemaBuilderCase> cases;
-
-        private ITypeResolver typeResolver;
-
         /// <summary>
         /// A list of cases that the schema builder will attempt to apply. If the first case fails,
         /// the schema builder will try the next case, and so on until all cases have been attempted.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the case collection is set to null.
-        /// </exception>
-        public virtual ICollection<ISchemaBuilderCase> Cases
-        {
-            get
-            {
-                return cases ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                cases = value ?? throw new ArgumentNullException(nameof(value), "The resolver case collection cannot be null.");
-            }
-        }
+        protected ICollection<ISchemaBuilderCase> Cases;
 
         /// <summary>
         /// A resolver to retrieve type information from.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the resolver is set to null.
-        /// </exception>
-        public virtual ITypeResolver TypeResolver
-        {
-            get
-            {
-                return typeResolver ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                typeResolver = value ?? throw new ArgumentNullException(nameof(value), "The type resolver cannot be null.");
-            }
-        }
+        protected ITypeResolver Resolver;
 
         /// <summary>
         /// Creates a new schema builder.
         /// </summary>
         /// <param name="cases">
-        /// An optional collection of cases. If no case collection is provided, <see cref="Cases" />
-        /// will be empty.
+        /// An optional collection of cases. If provided, this collection will replace the default
+        /// list.
         /// </param>
         /// <param name="typeResolver">
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
@@ -122,7 +98,7 @@ namespace Chr.Avro.Abstract
         /// </param>
         public SchemaBuilder(ICollection<ISchemaBuilderCase> cases = null, ITypeResolver typeResolver = null)
         {
-            TypeResolver = typeResolver ?? new ReflectionResolver();
+            Resolver = typeResolver ?? new ReflectionResolver();
 
             Cases = cases ?? new List<ISchemaBuilderCase>()
             {
@@ -183,35 +159,28 @@ namespace Chr.Avro.Abstract
                 cache = new Dictionary<Type, Schema>();
             }
 
-            var resolution = TypeResolver.ResolveType(type);
+            var resolution = Resolver.ResolveType(type);
 
             if (cache.TryGetValue(resolution.Type, out var existing))
             {
                 return existing;
             }
 
-            var exceptions = new List<Exception>();
-            
-            foreach (var @case in Cases)
+            var match = Cases.FirstOrDefault(c => c.IsMatch(resolution));
+
+            if (match == null)
             {
-                try
-                {
-                    var schema = @case.Apply(resolution, cache);
-
-                    if (resolution.IsNullable)
-                    {
-                        return new UnionSchema(new Schema[] { new NullSchema(), schema });
-                    }
-
-                    return schema;
-                }
-                catch (Exception exception)
-                {
-                    exceptions.Add(exception);
-                }
+                throw new UnsupportedTypeException(type, $"No schema builder case could be applied to {resolution.Type.FullName} ({resolution.GetType().Name}).");
             }
 
-            throw new UnsupportedTypeException(type, $"No schema builder case could be applied to {resolution.Type.FullName} ({resolution.GetType().Name}).", new AggregateException(exceptions));
+            var schema = match.BuildSchema(resolution, cache);
+
+            if (resolution.IsNullable)
+            {
+                return new UnionSchema(new Schema[] { new NullSchema(), schema });
+            }
+
+            return schema;
         }
     }
 
@@ -234,7 +203,12 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A subclass of <see cref="Schema" />.
         /// </returns>
-        public abstract Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache);
+        public abstract Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache);
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        public abstract bool IsMatch(TypeResolution resolution);
     }
 
     /// <summary>
@@ -242,25 +216,13 @@ namespace Chr.Avro.Abstract
     /// </summary>
     public class ArraySchemaBuilderCase : SchemaBuilderCase
     {
-        private ISchemaBuilder schemaBuilder;
-
         /// <summary>
         /// A schema builder instance that will be used to resolve array item types.
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the schema builder is set to null.
         /// </exception>
-        public ISchemaBuilder SchemaBuilder
-        {
-            get
-            {
-                return schemaBuilder ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                schemaBuilder = value ?? throw new ArgumentNullException(nameof(value), "Building an array schema requires a schema builder instance.");
-            }
-        }
+        protected readonly ISchemaBuilder SchemaBuilder;
 
         /// <summary>
         /// Creates a new array schema builder case.
@@ -273,7 +235,7 @@ namespace Chr.Avro.Abstract
         /// </exception>
         public ArraySchemaBuilderCase(ISchemaBuilder schemaBuilder)
         {
-            SchemaBuilder = schemaBuilder;
+            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder is null.");
         }
 
         /// <summary>
@@ -291,7 +253,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not an <see cref="ArrayResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is ArrayResolution array))
             {
@@ -302,6 +264,17 @@ namespace Chr.Avro.Abstract
             cache.Add(array.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is an <see cref="ArrayResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is ArrayResolution;
         }
     }
 
@@ -325,7 +298,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a <see cref="BooleanResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is BooleanResolution boolean))
             {
@@ -336,6 +309,17 @@ namespace Chr.Avro.Abstract
             cache.Add(boolean.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="BooleanResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is BooleanResolution;
         }
     }
 
@@ -359,7 +343,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a <see cref="ByteArrayResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is ByteArrayResolution bytes))
             {
@@ -370,6 +354,17 @@ namespace Chr.Avro.Abstract
             cache.Add(bytes.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="ByteArrayResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is ByteArrayResolution;
         }
     }
 
@@ -394,7 +389,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a <see cref="DecimalResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is DecimalResolution @decimal))
             {
@@ -409,6 +404,17 @@ namespace Chr.Avro.Abstract
             cache.Add(@decimal.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="DecimalResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is DecimalResolution;
         }
     }
 
@@ -432,7 +438,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a 16-bit <see cref="FloatingPointResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is FloatingPointResolution @double) || @double.Size != 16)
             {
@@ -443,6 +449,17 @@ namespace Chr.Avro.Abstract
             cache.Add(@double.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a 16-bit <see cref="FloatingPointResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is FloatingPointResolution @double && @double.Size == 16;
         }
     }
 
@@ -466,7 +483,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a <see cref="DurationResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is DurationResolution duration))
             {
@@ -477,6 +494,17 @@ namespace Chr.Avro.Abstract
             cache.Add(duration.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="DurationResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is DurationResolution;
         }
     }
 
@@ -500,7 +528,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not an <see cref="EnumResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is EnumResolution @enum))
             {
@@ -531,6 +559,17 @@ namespace Chr.Avro.Abstract
                 return schema;
             }
         }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is an <see cref="EnumResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is EnumResolution;
+        }
     }
 
     /// <summary>
@@ -553,7 +592,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not an 8-bit <see cref="FloatingPointResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is FloatingPointResolution @float) || @float.Size != 8)
             {
@@ -564,6 +603,17 @@ namespace Chr.Avro.Abstract
             cache.Add(@float.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is an 8-bit <see cref="FloatingPointResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is FloatingPointResolution @float && @float.Size == 8;
         }
     }
 
@@ -588,7 +638,7 @@ namespace Chr.Avro.Abstract
         /// Thrown when the resolution is not an <see cref="IntegerResolution" /> or specifies a
         /// size greater than 32 bits.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is IntegerResolution @int) || @int.Size > 32)
             {
@@ -599,6 +649,18 @@ namespace Chr.Avro.Abstract
             cache.Add(@int.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is an <see cref="IntegerResolution" /> with a size less than or
+        /// equal to 32 bits.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is IntegerResolution @int && @int.Size <= 32;
         }
     }
 
@@ -623,7 +685,7 @@ namespace Chr.Avro.Abstract
         /// Thrown when the resolution is not an <see cref="IntegerResolution" /> or specifies a
         /// size less than or equal to 32 bits.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is IntegerResolution @long) || @long.Size <= 32)
             {
@@ -635,6 +697,18 @@ namespace Chr.Avro.Abstract
 
             return schema;
         }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is an <see cref="IntegerResolution" /> with a size greater than
+        /// 32 bits.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is IntegerResolution @long && @long.Size > 32;
+        }
     }
 
     /// <summary>
@@ -642,25 +716,10 @@ namespace Chr.Avro.Abstract
     /// </summary>
     public class MapSchemaBuilderCase : SchemaBuilderCase
     {
-        private ISchemaBuilder schemaBuilder;
-
         /// <summary>
         /// A schema builder instance that will be used to resolve map value types.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema builder is set to null.
-        /// </exception>
-        public ISchemaBuilder SchemaBuilder
-        {
-            get
-            {
-                return schemaBuilder ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                schemaBuilder = value ?? throw new ArgumentNullException(nameof(value), "Building a map schema requires a schema builder instance.");
-            }
-        }
+        protected readonly ISchemaBuilder SchemaBuilder;
 
         /// <summary>
         /// Creates a new map schema builder case.
@@ -673,7 +732,7 @@ namespace Chr.Avro.Abstract
         /// </exception>
         public MapSchemaBuilderCase(ISchemaBuilder schemaBuilder)
         {
-            SchemaBuilder = schemaBuilder;
+            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder cannot be null.");
         }
 
         /// <summary>
@@ -691,17 +750,28 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not an <see cref="MapResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
-            if (!(resolution is MapResolution map) || map.KeyType != typeof(string))
+            if (!(resolution is MapResolution map))
             {
-                throw new ArgumentException("The map case can only be applied to map resolutions with string keys.", nameof(resolution));
+                throw new ArgumentException("The map case can only be applied to map resolutions.", nameof(resolution));
             }
 
             var schema = new MapSchema(SchemaBuilder.BuildSchema(map.ValueType));
             cache.Add(map.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="MapResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is MapResolution;
         }
     }
 
@@ -710,25 +780,10 @@ namespace Chr.Avro.Abstract
     /// </summary>
     public class RecordSchemaBuilderCase : SchemaBuilderCase
     {
-        private ISchemaBuilder schemaBuilder;
-
         /// <summary>
         /// A schema builder instance that will be used to resolve record field types.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema builder is set to null.
-        /// </exception>
-        public ISchemaBuilder SchemaBuilder
-        {
-            get
-            {
-                return schemaBuilder ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                schemaBuilder = value ?? throw new ArgumentNullException(nameof(value), "Building a record schema requires a schema builder instance.");
-            }
-        }
+        protected readonly ISchemaBuilder SchemaBuilder;
 
         /// <summary>
         /// Creates a new record schema builder case.
@@ -741,7 +796,7 @@ namespace Chr.Avro.Abstract
         /// </exception>
         public RecordSchemaBuilderCase(ISchemaBuilder schemaBuilder)
         {
-            SchemaBuilder = schemaBuilder;
+            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder cannot be null.");
         }
 
         /// <summary>
@@ -759,7 +814,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not an <see cref="RecordResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is RecordResolution record))
             {
@@ -779,6 +834,17 @@ namespace Chr.Avro.Abstract
             }
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="RecordResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is RecordResolution;
         }
     }
 
@@ -802,7 +868,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a <see cref="StringResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is StringResolution @string))
             {
@@ -813,6 +879,17 @@ namespace Chr.Avro.Abstract
             cache.Add(@string.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="StringResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is StringResolution;
         }
     }
 
@@ -836,7 +913,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a <see cref="TimestampResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is TimestampResolution timestamp))
             {
@@ -847,6 +924,17 @@ namespace Chr.Avro.Abstract
             cache.Add(timestamp.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="TimestampResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is TimestampResolution;
         }
     }
 
@@ -870,7 +958,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a <see cref="UriResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is UriResolution uri))
             {
@@ -881,6 +969,17 @@ namespace Chr.Avro.Abstract
             cache.Add(uri.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="UriResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is UriResolution;
         }
     }
 
@@ -904,7 +1003,7 @@ namespace Chr.Avro.Abstract
         /// <exception cref="ArgumentException">
         /// Thrown when the resolution is not a <see cref="UuidResolution" />.
         /// </exception>
-        public override Schema Apply(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
         {
             if (!(resolution is UuidResolution uuid))
             {
@@ -915,6 +1014,17 @@ namespace Chr.Avro.Abstract
             cache.Add(uuid.Type, schema);
 
             return schema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="UuidResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is UuidResolution;
         }
     }
 }

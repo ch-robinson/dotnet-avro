@@ -305,6 +305,7 @@ namespace Chr.Avro.Tests
 
         [Theory]
         [InlineData(typeof(IDictionary<string, int>), typeof(IntSchema))]
+        [InlineData(typeof(IDictionary<int, string>), typeof(StringSchema))]
         [InlineData(typeof(IEnumerable<KeyValuePair<string, string>>), typeof(StringSchema))]
         public void BuildsMaps(Type type, Type inner)
         {
@@ -401,8 +402,6 @@ namespace Chr.Avro.Tests
         }
 
         [Theory]
-        [InlineData(typeof(IDictionary<int, string>))]
-        [InlineData(typeof(IEnumerable<KeyValuePair<int, string>>))]
         [InlineData(typeof(IntPtr))]
         [InlineData(typeof(int[,]))]
         public void ThrowsWhenNoCaseMatches(Type type)

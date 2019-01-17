@@ -7,8 +7,8 @@ using System.Reflection;
 namespace Chr.Avro.Resolution
 {
     /// <summary>
-    /// A type resolver that relies solely on <see cref="System.Type" /> methods. It’s configured
-    /// with a reasonable set of cases that cover most common scenarios.
+    /// A type resolver that relies solely on <see cref="Type" /> methods. It’s configured with a
+    /// reasonable set of cases that cover most common scenarios.
     /// </summary>
     public class ReflectionResolver : TypeResolver
     {
@@ -72,6 +72,17 @@ namespace Chr.Avro.Resolution
     public class BooleanResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="bool" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(bool);
+        }
+
+        /// <summary>
         /// Resolves boolean type information.
         /// </summary>
         /// <param name="type">
@@ -83,9 +94,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="bool" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(bool))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The boolean case can only be applied to {typeof(bool).FullName}.", nameof(type));
             }
@@ -100,6 +111,17 @@ namespace Chr.Avro.Resolution
     public class ByteResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="byte" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(byte);
+        }
+
+        /// <summary>
         /// Resolves byte (8-bit unsigned integer) type information.
         /// </summary>
         /// <param name="type">
@@ -111,9 +133,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="byte" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(byte))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The byte case can only be applied to {typeof(byte).FullName}.", nameof(type));
             }
@@ -128,6 +150,17 @@ namespace Chr.Avro.Resolution
     public class ByteArrayResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="T:System.Byte[]" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(byte[]);
+        }
+
+        /// <summary>
         /// Resolves byte array type information.
         /// </summary>
         /// <param name="type">
@@ -139,9 +172,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="T:System.Byte[]" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(byte[]))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The byte array case can only be applied to {typeof(byte[]).FullName}.", nameof(type));
             }
@@ -156,6 +189,17 @@ namespace Chr.Avro.Resolution
     public class DateTimeResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(DateTime) || type == typeof(DateTimeOffset);
+        }
+
+        /// <summary>
         /// Resolves date/time type information.
         /// </summary>
         /// <param name="type">
@@ -167,9 +211,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(DateTime) && type != typeof(DateTimeOffset))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The date/time case can only be applied to {typeof(DateTime).FullName} or {typeof(DateTimeOffset).FullName}.", nameof(type));
             }
@@ -184,6 +228,17 @@ namespace Chr.Avro.Resolution
     public class DecimalResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="decimal" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(decimal);
+        }
+
+        /// <summary>
         /// Resolves decimal type information.
         /// </summary>
         /// <param name="type">
@@ -195,9 +250,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="decimal" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(decimal))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The decimal case can only be applied to {typeof(decimal).FullName}.", nameof(type));
             }
@@ -212,6 +267,19 @@ namespace Chr.Avro.Resolution
     public class DictionaryResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type.GetEnumerableType() is Type pair
+                && pair.IsGenericType
+                && pair.GetGenericTypeDefinition() == typeof(KeyValuePair<,>);
+        }
+
+        /// <summary>
         /// Resolves dictionary type information.
         /// </summary>
         /// <param name="type">
@@ -223,16 +291,14 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            var pair = type.GetEnumerableType();
-
-            if (pair == null || !pair.IsGenericType || pair.GetGenericTypeDefinition() != typeof(KeyValuePair<,>))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The dictionary case can only be applied to {typeof(IEnumerable<>).MakeGenericType(typeof(KeyValuePair<,>)).FullName}.", nameof(type));
             }
-
-            var parameters = pair.GetGenericArguments();
+            
+            var parameters = type.GetEnumerableType().GetGenericArguments();
             var key = parameters.ElementAt(0);
             var value = parameters.ElementAt(1);
 
@@ -246,6 +312,17 @@ namespace Chr.Avro.Resolution
     public class DoubleResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="double" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(double);
+        }
+
+        /// <summary>
         /// Resolves double-precision floating-point type information.
         /// </summary>
         /// <param name="type">
@@ -257,9 +334,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="double" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(double))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The double case can only be applied to {typeof(double).FullName}.", nameof(type));
             }
@@ -274,6 +351,17 @@ namespace Chr.Avro.Resolution
     public class EnumResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is an enum type.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type.IsEnum;
+        }
+
+        /// <summary>
         /// Resolves enum type information.
         /// </summary>
         /// <param name="type">
@@ -285,9 +373,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not an enum type.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (!type.IsEnum)
+            if (!IsMatch(type))
             {
                 throw new ArgumentException("The enum case can only be applied to enum types.", nameof(type));
             }
@@ -324,6 +412,17 @@ namespace Chr.Avro.Resolution
     public class EnumerableResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="IEnumerable{T}" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type.GetEnumerableType() != null;
+        }
+
+        /// <summary>
         /// Resolves enumerable type information.
         /// </summary>
         /// <param name="type">
@@ -335,11 +434,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="IEnumerable{T}" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            var item = type.GetEnumerableType();
-
-            if (item == null)
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The enumerable case can only be applied to {typeof(IEnumerable<>).FullName}.", nameof(type));
             }
@@ -354,6 +451,17 @@ namespace Chr.Avro.Resolution
     public class GuidResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="Guid" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(Guid);
+        }
+
+        /// <summary>
         /// Resolves GUID type information.
         /// </summary>
         /// <param name="type">
@@ -365,9 +473,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="Guid" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(Guid))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The GUID case can only be applied to {typeof(Guid).FullName}.", nameof(type));
             }
@@ -382,6 +490,17 @@ namespace Chr.Avro.Resolution
     public class Int16ResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="short" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(short);
+        }
+
+        /// <summary>
         /// Resolves short (16-bit signed integer) type information.
         /// </summary>
         /// <param name="type">
@@ -393,9 +512,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="short" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(short))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The int16 case can only be applied to {typeof(short).FullName}.", nameof(type));
             }
@@ -410,6 +529,17 @@ namespace Chr.Avro.Resolution
     public class Int32ResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="int" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(int);
+        }
+
+        /// <summary>
         /// Resolves int (32-bit signed integer) type information.
         /// </summary>
         /// <param name="type">
@@ -421,9 +551,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="int" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(int))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The int32 case can only be applied to {typeof(int).FullName}.", nameof(type));
             }
@@ -438,6 +568,17 @@ namespace Chr.Avro.Resolution
     public class Int64ResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="long" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(long);
+        }
+
+        /// <summary>
         /// Resolves long (64-bit signed integer) type information.
         /// </summary>
         /// <param name="type">
@@ -449,9 +590,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="long" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(long))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The int64 case can only be applied to {typeof(long).FullName}.", nameof(type));
             }
@@ -465,26 +606,11 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class NullableResolverCase : ReflectionResolverCase
     {
-        private ITypeResolver resolver;
-
         /// <summary>
         /// The resolver instance to use to resolve underlying types.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the resolver is set to null.
-        /// </exception>
-        public ITypeResolver Resolver
-        {
-            get
-            {
-                return resolver ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                resolver = value ?? throw new ArgumentNullException(nameof(value), "Nullable resolution depends on a resolver instance.");
-            }
-        }
-
+        protected readonly ITypeResolver Resolver;
+        
         /// <summary>
         /// Creates a new nullable resolver case.
         /// </summary>
@@ -496,9 +622,20 @@ namespace Chr.Avro.Resolution
         /// </exception>
         public NullableResolverCase(ITypeResolver resolver)
         {
-            Resolver = resolver;
+            Resolver = resolver ?? throw new ArgumentNullException(nameof(resolver), "Resolver cannot be null.");
         }
-        
+
+        /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="Nullable{T}" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return Nullable.GetUnderlyingType(type) != null;
+        }
+
         /// <summary>
         /// Resolves nullable type information.
         /// </summary>
@@ -511,16 +648,14 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="Nullable{T}" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            var underlying = Nullable.GetUnderlyingType(type);
-
-            if (underlying == null)
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The nullable case can only be applied to {typeof(Nullable<>).FullName}.", nameof(type));
             }
 
-            var resolution = Resolver.ResolveType(underlying);
+            var resolution = Resolver.ResolveType(Nullable.GetUnderlyingType(type));
             resolution.IsNullable = true;
             resolution.Type = type;
 
@@ -537,7 +672,7 @@ namespace Chr.Avro.Resolution
         /// The binding flags that will be used to select fields and properties. Only public instance
         /// member are selected by default.
         /// </summary>
-        public BindingFlags MemberVisibility { get; set; }
+        protected readonly BindingFlags MemberVisibility;
 
         /// <summary>
         /// Creates a new object resolver case.
@@ -552,6 +687,17 @@ namespace Chr.Avro.Resolution
         }
 
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is a class, interface, or struct.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return !type.IsArray && !type.IsPrimitive;
+        }
+        
+        /// <summary>
         /// Resolves class, interface, or struct type information.
         /// </summary>
         /// <param name="type">
@@ -563,9 +709,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is an array type or a primitive type.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type.IsArray || type.IsPrimitive)
+            if (!IsMatch(type))
             {
                 throw new ArgumentException("The object resolver can only be applied to non-array, non-primitive types.", nameof(type));
             }
@@ -595,6 +741,17 @@ namespace Chr.Avro.Resolution
     public class SByteResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="sbyte" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(sbyte);
+        }
+
+        /// <summary>
         /// Resolves sbyte (8-bit signed integer) type information.
         /// </summary>
         /// <param name="type">
@@ -606,9 +763,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="sbyte" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(sbyte))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The sbyte case can only be applied to {typeof(sbyte).FullName}.", nameof(type));
             }
@@ -623,6 +780,17 @@ namespace Chr.Avro.Resolution
     public class SingleResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="float" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(float);
+        }
+
+        /// <summary>
         /// Resolves single-precision floating-point type information.
         /// </summary>
         /// <param name="type">
@@ -634,9 +802,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="float" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(float))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The float case can only be applied to {typeof(float).FullName}.", nameof(type));
             }
@@ -651,6 +819,17 @@ namespace Chr.Avro.Resolution
     public class StringResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="string" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(string);
+        }
+
+        /// <summary>
         /// Resolves string type information.
         /// </summary>
         /// <param name="type">
@@ -662,9 +841,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="string" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(string))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The string case can only be applied to {typeof(string).FullName}.", nameof(type));
             }
@@ -679,6 +858,17 @@ namespace Chr.Avro.Resolution
     public class TimeSpanResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="TimeSpan" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(TimeSpan);
+        }
+
+        /// <summary>
         /// Resolves duration type information.
         /// </summary>
         /// <param name="type">
@@ -690,9 +880,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="TimeSpan" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(TimeSpan))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The timespan case can only be applied to {typeof(TimeSpan).FullName}.", nameof(type));
             }
@@ -707,6 +897,17 @@ namespace Chr.Avro.Resolution
     public class UInt16ResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="char" /> or <see cref="ushort" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(char) || type == typeof(ushort);
+        }
+
+        /// <summary>
         /// Resolves ushort (16-bit unsigned integer) type information.
         /// </summary>
         /// <param name="type">
@@ -718,9 +919,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="char" /> or <see cref="ushort" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(char) && type != typeof(ushort))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The uint16 case can only be applied to {typeof(char).FullName} or {typeof(ushort).FullName}.", nameof(type));
             }
@@ -735,6 +936,17 @@ namespace Chr.Avro.Resolution
     public class UInt32ResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="uint" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(uint);
+        }
+
+        /// <summary>
         /// Resolves uint (32-bit unsigned integer) type information.
         /// </summary>
         /// <param name="type">
@@ -746,9 +958,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="uint" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(uint))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The uint32 case can only be applied to {typeof(uint).FullName}.", nameof(type));
             }
@@ -763,6 +975,17 @@ namespace Chr.Avro.Resolution
     public class UInt64ResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="ulong" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(ulong);
+        }
+
+        /// <summary>
         /// Resolves ulong (64-bit unsigned integer) type information.
         /// </summary>
         /// <param name="type">
@@ -774,9 +997,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="ulong" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(ulong))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The uint64 case can only be applied to {typeof(ulong).FullName}.", nameof(type));
             }
@@ -791,6 +1014,17 @@ namespace Chr.Avro.Resolution
     public class UriResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is <see cref="Uri" />.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type == typeof(Uri);
+        }
+
+        /// <summary>
         /// Resolves URI type information.
         /// </summary>
         /// <param name="type">
@@ -802,9 +1036,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentException">
         /// Thrown when the type is not <see cref="Uri" />.
         /// </exception>
-        public override TypeResolution Apply(Type type)
+        public override TypeResolution Resolve(Type type)
         {
-            if (type != typeof(Uri))
+            if (!IsMatch(type))
             {
                 throw new ArgumentException($"The URI case can only be applied to {typeof(Uri).FullName}.", nameof(type));
             }
