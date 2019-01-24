@@ -1,5 +1,8 @@
+#tool "mdoc"
+
 var ROOT = ".";
 
+var MDOC_PATH = $"{ROOT}/docs/api";
 var RELEASES_PATH = $"{ROOT}/releases";
 var SLN_PATH = $"{ROOT}/Chr.Avro.sln";
 var SRC_PATH = $"{ROOT}/src";
@@ -24,6 +27,8 @@ Task("Build")
 Task("Clean")
     .Does(() =>
     {
+        CleanDirectories(MDOC_PATH);
+
         CleanDirectories(RELEASES_PATH);
 
         CleanDirectories($"{SRC_PATH}/**/bin");
@@ -36,6 +41,32 @@ Task("Clean")
 Task("Default")
     .IsDependentOn("Build")
     .IsDependentOn("Test");
+
+Task("Docs")
+    .IsDependentOn("Build")
+    .Does(() =>
+    {
+        var mdoc = Context.Tools.Resolve("mdoc.exe");
+
+        // whitelist for now:
+        var names = new[]
+        {
+            "Chr.Avro",
+            "Chr.Avro.Binary",
+            "Chr.Avro.Confluent",
+            "Chr.Avro.Json"
+        };
+
+        var arguments = new List<string>()
+            .Concat(names.Select(n => $"-i {SRC_PATH}/{n}/bin/{configuration}/netstandard2.0/{n}.xml"))
+            .Concat(names.Select(n => $"-L {SRC_PATH}/{n}/bin/{configuration}/netstandard2.0"))
+            .Concat(names.Select(n => $"{SRC_PATH}/{n}/bin/{configuration}/netstandard2.0/{n}.dll"));
+
+        StartProcess(mdoc, new ProcessSettings
+        {
+            Arguments = $"update --debug --delete -o '{MDOC_PATH}' {string.Join(" ", arguments)}"
+        });
+    });
 
 Task("Pack")
     .IsDependentOn("Clean")

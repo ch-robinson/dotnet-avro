@@ -1,0 +1,112 @@
+@import '../styles/animations';
+@import '../styles/colors';
+@import '../styles/layout';
+@import '../styles/typography';
+
+.brand {
+  color: $white !important;
+  font-family: $heading-font-family;
+  font-size: 1.3675em;
+  padding: 0.5rem;
+  transition: background-color $animation-duration;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.content {
+  padding: 0.5em;
+}
+
+.main {
+  background-color: $white;
+  position: absolute;
+  top: 3em;
+  width: 100%;
+}
+
+.sidebar {
+  background-color: $black;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  transition: max-height $animation-duration;
+  width: 100vw;
+
+  &, h1, h2, h3, h4 {
+    color: $gray;
+  }
+
+  a {
+    color: $accent-gray;
+
+    &:hover {
+      color: $white;
+    }
+  }
+
+  .content {
+    overflow-y: auto;
+  }
+}
+
+.sidebar-collapsed {
+  composes: sidebar;
+  max-height: 3em;
+}
+
+.sidebar-expanded {
+  composes: sidebar;
+  max-height: 100vh;
+}
+
+.toggle {
+  background-color: transparent;
+  border: 0.05em solid $white;
+  border-radius: 0.2em;
+  cursor: pointer;
+  display: block;
+  font-size: 1em;
+  height: 1.75em;
+  margin: 0.625em;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 1.75em;
+
+  &:hover {
+    background-color: rgba($white, 0.05);
+  }
+}
+
+@media (min-width: $large-breakpoint) {
+  .brand {
+    padding: 0.5rem 1rem;
+  }
+
+  .content {
+    max-width: 48em;
+    padding: 0.5em 1em;
+  }
+
+  .main {
+    left: 16em;
+    min-height: 100%;
+    right: 0;
+    top: 0;
+    width: auto;
+  }
+
+  .sidebar {
+    max-height: 100vh;
+    width: 16em;
+  }
+
+  .toggle {
+    display: none;
+  }
+}
