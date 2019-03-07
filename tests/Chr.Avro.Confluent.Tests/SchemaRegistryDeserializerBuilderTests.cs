@@ -46,7 +46,7 @@ namespace Chr.Avro.Confluent.Tests
         {
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
-                var deserialize = await builder.BuildDeserializer<string>(TestSubjectLatestId);
+                await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
                 RegistryMock.Verify(r => r.GetSchemaAsync(TestSubjectLatestId), Times.Once());
                 RegistryMock.VerifyNoOtherCalls();
@@ -58,7 +58,7 @@ namespace Chr.Avro.Confluent.Tests
         {
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
-                var deserialize = await builder.BuildDeserializer<string>(TestSubject);
+                await builder.BuildDeserializer<string>(TestSubject);
 
                 RegistryMock.Verify(r => r.GetLatestSchemaAsync(TestSubject), Times.Once());
                 RegistryMock.VerifyNoOtherCalls();
@@ -70,7 +70,7 @@ namespace Chr.Avro.Confluent.Tests
         {
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
-                var deserialize = await builder.BuildDeserializer<string>(TestSubject, TestSubjectLatestVersion);
+                await builder.BuildDeserializer<string>(TestSubject, TestSubjectLatestVersion);
 
                 RegistryMock.Verify(r => r.GetSchemaAsync(TestSubject, TestSubjectLatestVersion), Times.Once());
                 RegistryMock.Verify(r => r.GetSchemaIdAsync(TestSubject, TestSubjectLatestString), Times.Once());
@@ -81,34 +81,34 @@ namespace Chr.Avro.Confluent.Tests
         [Theory]
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0c, 0x00 }, "")]
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0c, 0x06, 0x73, 0x75, 0x70 }, "sup")]
-        public async Task DeserializesConfluentWireFormat(byte[] data, string encoding)
+        public async Task DeserializesConfluentWireFormat(byte[] encoding, string data)
         {
             var metadata = new MessageMetadata();
-            var tp = new TopicPartition("test_topic", new Partition(0));
+            var source = new TopicPartition("test_topic", new Partition(0));
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
                 var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
-                Assert.Equal(encoding,
-                    deserializer.Deserialize(data, false, false, metadata, tp)
+                Assert.Equal(data,
+                    deserializer.Deserialize(encoding, false, false, metadata, source)
                 );
             }
         }
 
         [Theory]
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0b, 0x00 })]
-        public async Task ThrowsOnSchemaIdMismatch(byte[] data)
+        public async Task ThrowsOnSchemaIdMismatch(byte[] encoding)
         {
             var metadata = new MessageMetadata();
-            var tp = new TopicPartition("test_topic", new Partition(0));
+            var source = new TopicPartition("test_topic", new Partition(0));
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
                 var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
                 Assert.Throws<InvalidDataException>(() =>
-                    deserializer.Deserialize(data, false, false, metadata, tp)
+                    deserializer.Deserialize(encoding, false, false, metadata, source)
                 );
             }
         }
@@ -116,17 +116,17 @@ namespace Chr.Avro.Confluent.Tests
         [Theory]
         [InlineData(new byte[] { 0x00, 0x00, 0x00 })]
         [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00 })]
-        public async Task ThrowsOnUnrecognizedWireFormat(byte[] data)
+        public async Task ThrowsOnUnrecognizedWireFormat(byte[] encoding)
         {
             var metadata = new MessageMetadata();
-            var tp = new TopicPartition("test_topic", new Partition(0));
+            var source = new TopicPartition("test_topic", new Partition(0));
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
                 var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
                 Assert.Throws<InvalidDataException>(() =>
-                    deserializer.Deserialize(data, false, false, metadata, tp)
+                    deserializer.Deserialize(encoding, false, false, metadata, source)
                 );
             }
         }

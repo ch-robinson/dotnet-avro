@@ -49,17 +49,19 @@ namespace Chr.Avro.Confluent.Tests
                 RegistryClientMock.Object
             );
 
-            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
+            var data = 4;
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
             var metadata = new MessageMetadata();
             var destination = new TopicPartition("test_topic", new Partition(0));
             var subject = $"{destination.Topic}-key";
-            var value = 4;
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
                 .ReturnsAsync(new Schema(subject, 1, 4, "\"int\""));
 
-            Assert.Equal(data, await serializer.SerializeAsync(value, true, metadata, destination));
+            Assert.Equal(encoding,
+                await serializer.SerializeAsync(data, true, metadata, destination)
+            );
         }
 
         [Fact]
@@ -70,11 +72,11 @@ namespace Chr.Avro.Confluent.Tests
                 registerAutomatically: true
             );
 
-            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0a, 0x0c };
+            var data = 6;
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0a, 0x0c };
             var metadata = new MessageMetadata();
             var destination = new TopicPartition("test_topic", new Partition(0));
             var subject = $"{destination.Topic}-value";
-            var value = 6;
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
@@ -84,7 +86,9 @@ namespace Chr.Avro.Confluent.Tests
                 .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
                 .ReturnsAsync(10);
 
-            Assert.Equal(data, await serializer.SerializeAsync(value, false, metadata, destination));
+            Assert.Equal(encoding,
+                await serializer.SerializeAsync(data, false, metadata, destination)
+            );
         }
 
         [Fact]
@@ -95,11 +99,11 @@ namespace Chr.Avro.Confluent.Tests
                 registerAutomatically: true
             );
 
-            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x08, 0x0c };
+            var data = 6;
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x08, 0x0c };
             var metadata = new MessageMetadata();
             var destination = new TopicPartition("test_topic", new Partition(0));
             var subject = $"{destination.Topic}-value";
-            var value = 6;
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
@@ -109,7 +113,9 @@ namespace Chr.Avro.Confluent.Tests
                 .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
                 .ReturnsAsync(8);
 
-            Assert.Equal(data, await serializer.SerializeAsync(value, false, metadata, destination));
+            Assert.Equal(encoding,
+                await serializer.SerializeAsync(data, false, metadata, destination)
+            );
         }
     }
 }

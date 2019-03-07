@@ -28,7 +28,7 @@ namespace Chr.Avro.Confluent.Tests
                 RegistryClientMock.Object
             );
 
-            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
             var metadata = new MessageMetadata();
             var source = new TopicPartition("test_topic", new Partition(0));
 
@@ -37,7 +37,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync("\"null\"");
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
-                deserializer.DeserializeAsync(data, false, false, metadata, source)
+                deserializer.DeserializeAsync(encoding, false, false, metadata, source)
             ));
 
             RegistryClientMock
@@ -51,22 +51,24 @@ namespace Chr.Avro.Confluent.Tests
                 RegistryClientMock.Object
             );
 
-            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
+            var data = 4;
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
             var metadata = new MessageMetadata();
             var source = new TopicPartition("test_topic", new Partition(0));
-            var value = 4;
 
             RegistryClientMock
                 .Setup(c => c.GetSchemaAsync(4))
                 .ReturnsAsync("\"int\"");
 
-            Assert.Equal(value, await deserializer.DeserializeAsync(data, false, false, metadata, source));
+            Assert.Equal(data,
+                await deserializer.DeserializeAsync(encoding, false, false, metadata, source)
+            );
         }
 
         [Theory]
         [InlineData(new byte[] { 0x00, 0x00, 0x00 })]
         [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00 })]
-        public async Task ThrowsOnUnrecognizedWireFormat(byte[] data)
+        public async Task ThrowsOnUnrecognizedWireFormat(byte[] encoding)
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<int>(
                 RegistryClientMock.Object
@@ -76,7 +78,7 @@ namespace Chr.Avro.Confluent.Tests
             var source = new TopicPartition("test_topic", new Partition(0));
 
             await Assert.ThrowsAsync<InvalidDataException>(() =>
-                deserializer.DeserializeAsync(data, false, false, metadata, source)
+                deserializer.DeserializeAsync(encoding, false, false, metadata, source)
             );
         }
     }
