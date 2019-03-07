@@ -19,9 +19,10 @@ export default () =>
     <h2>Using the producer and consumer builders</h2>
     <p>Chr.Avro’s producer and consumer builders are the shortest path to working Kafka clients. To use the builders, first add a reference to the Chr.Avro.Confluent package:</p>
     <Highlight language='shell'>{`$ dotnet add package Chr.Avro.Confluent --version 1.0.0-rc.0`}</Highlight>
-    <p>From there, <DotnetReference id='T:Chr.Avro.Confluent.SchemaRegistryProducerBuilder' /> can be used to build producers based on schemas from a Schema Registry instance:</p>
+    <p>From there, <DotnetReference id='T:Chr.Avro.Confluent.SchemaRegistryProducerBuilder`2' /> can be used to build producers based on schemas from a Schema Registry instance:</p>
     <Highlight language='csharp'>{`using Chr.Avro.Confluent;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Examples.KafkaProducer
@@ -35,15 +36,15 @@ namespace Chr.Avro.Examples.KafkaProducer
     {
         public static async Task Main(string[] args)
         {
-            var brokers = "broker1:9092,broker2:9092";
-            var registry = "http://registry:8081";
-            var topic = "example-topic";
-
-            var builder = new SchemaRegistryProducerBuilder(brokers, registry);
-
-            using (var producer = await builder.BuildProducer<string, ExampleValue>("example-key", "example-value"))
+            var builder = new SchemaRegistryProducerBuilder<string, ExampleValue>(new Dictionary<string, string>
             {
-                await producer.ProduceAsync(topic, new Message<string, ExampleValue>
+                { "bootstrap.servers", "broker1:9092,broker2:9092" },
+                { "schema.registry.url", "http://registry:8081" }
+            });
+
+            using (var producer = builder.Build())
+            {
+                await producer.ProduceAsync("example_topic", new Message<string, ExampleValue>
                 {
                     Key = Guid.NewGuid().ToString(),
                     Value = new ExampleValue
@@ -55,9 +56,11 @@ namespace Chr.Avro.Examples.KafkaProducer
         }
     }
 }`}</Highlight>
-    <p><DotnetReference id='T:Chr.Avro.Confluent.SchemaRegistryConsumerBuilder' /> works pretty much the same way, but you don’t need to specify schemas ahead of time. Schemas will be retrieved from the Schema Registry as messages are consumed.</p>
+    <p>The producer builder assumes (per Confluent convention) that the key and value subjects for <code>example_topic</code> are <code>example_topic-key</code> and <code>example_topic-value</code>. When messages are published, the key and value serializers will attempt to pull down schemas from the Schema Registry.</p>
+    <p><DotnetReference id='T:Chr.Avro.Confluent.SchemaRegistryConsumerBuilder`2' /> works in a similar way—schemas will be retrieved from the Schema Registry as messages are consumed.</p>
     <Highlight language='csharp'>{`using Chr.Avro.Confluent;
 using System;
+using System.Collections.Generic;
 
 namespace Chr.Avro.Examples.KafkaConsumer
 {
@@ -70,16 +73,16 @@ namespace Chr.Avro.Examples.KafkaConsumer
     {
         public static void Main(string[] args)
         {
-            var brokers = "broker1:9092,broker2:9092";
-            var group = "example-group";
-            var registry = "http://registry:8081";
-            var topic = "example-topic";
-
-            var builder = new SchemaRegistryConsumerBuilder(brokers, group, registry);
+            var builder = new SchemaRegistryConsumerBuilder<string, ExampleValue>(new Dictionary<string, string>()
+            {
+                { "bootstrap.servers", "broker1:9092,broker2:9092" },
+                { "group.id", "example_consumer_group" },
+                { "schema.registry.url", "http://registry:8081" }
+            });
 
             using (var consumer = builder.BuildConsumer<string, ExampleValue>())
             {
-                consumer.Subscribe(topic);
+                consumer.Subscribe("example_topic");
 
                 while (true)
                 {

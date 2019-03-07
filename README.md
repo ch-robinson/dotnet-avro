@@ -24,7 +24,7 @@ Chr.Avro 1.0.0-rc.0
 ...
 ```
 
-**To use the Kafka producer/consumer builders in your project:** Add [Confluent.Kafka](https://www.nuget.org/packages/Confluent.Kafka) and [Chr.Avro.Confluent](https://www.nuget.org/packages/Chr.Avro.Confluent) as project dependencies. After that, check out [this guide](https://ch-robinson.github.io/dotnet-avro/guides/kafka/) or read on for some other examples.
+**To use the Kafka producer/consumer builders in your project:** Add [Chr.Avro.Confluent](https://www.nuget.org/packages/Chr.Avro.Confluent) as a project dependency. After that, check out [this guide](https://ch-robinson.github.io/dotnet-avro/guides/kafka/) or read on for some other examples.
 
 ## Examples
 
@@ -51,6 +51,7 @@ A deserializer cannot be created for ExampleRecord: ExampleRecord does not have 
 ```csharp
 using Chr.Avro.Confluent;
 using System;
+using System.Collections.Generic;
 
 namespace Example
 {
@@ -62,14 +63,16 @@ namespace Example
 
     class Program
     {
-        const string Brokers = "broker1:9092,broker2:9092";
-        const string Group = "example_consumer_group";
-        const string RegistryUrl = "http://registry:8081";
-
         static void Main(string[] args)
         {
-            using (var builder = new SchemaRegistryConsumerBuilder(Brokers, Group, RegistryUrl))
-            using (var consumer = builder.BuildConsumer<string, ExampleRecord>())
+            var builder = new SchemaRegistryConsumerBuilder<string, ExampleRecord>(new Dictionary<string, string>
+            {
+                { "bootstrap.servers", "broker1:9092,broker2:9092" },
+                { "group.id", "example_consumer_group" },
+                { "schema.registry.url", "http://registry:8081" }
+            });
+
+            using (var consumer = builder.Build())
             {
                 var result = consumer.Consume(CancellationToken.None);
                 Console.WriteLine($"Consumed message! {result.Key}: {result.Value.Timestamp}");
