@@ -52,7 +52,7 @@ namespace Chr.Avro.Confluent
         /// Creates a deserializer.
         /// </summary>
         /// <param name="registryClient">
-        /// A Schema Registry client.
+        /// A client to use for Schema Registry operations. (The client will not be disposed.)
         /// </param>
         /// <param name="builder">
         /// A deserializer builder (used to build deserialization functions for C# types). If none
@@ -62,6 +62,9 @@ namespace Chr.Avro.Confluent
         /// A JSON schema reader (used to convert schemas received from the registry into abstract
         /// representations). If none is provided, the default schema reader will be used.
         /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the registry client is null.
+        /// </exception>
         public AsyncSchemaRegistryDeserializer(
             ISchemaRegistryClient registryClient,
             IBinaryDeserializerBuilder builder = null,
