@@ -14,11 +14,11 @@ namespace Chr.Avro.Confluent
     /// </summary>
     public class SchemaRegistryDeserializerBuilder : IDisposable
     {
-        private readonly Serialization.IBinaryDeserializerBuilder _builder;
+        private readonly Serialization.IBinaryDeserializerBuilder _deserializerBuilder;
 
         private readonly bool _disposeRegistryClient;
 
-        private readonly IJsonSchemaReader _reader;
+        private readonly IJsonSchemaReader _schemaReader;
 
         /// <summary>
         /// The client to use for Schema Registry operations.
@@ -32,20 +32,23 @@ namespace Chr.Avro.Confluent
         /// Schema Registry configuration. Using the <see cref="SchemaRegistryConfig" /> class is
         /// highly recommended.
         /// </param>
-        /// <param name="builder">
+        /// <param name="deserializerBuilder">
         /// A deserializer builder (used to build deserialization functions for C# types). If none
         /// is provided, the default deserializer builder will be used.
         /// </param>
-        /// <param name="reader">
+        /// <param name="schemaReader">
         /// A JSON schema reader (used to convert schemas received from the registry into abstract
         /// representations). If none is provided, the default schema reader will be used.
         /// </param>
         public SchemaRegistryDeserializerBuilder(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            Serialization.IBinaryDeserializerBuilder builder = null,
-            IJsonSchemaReader reader = null
-        ) : this(new CachedSchemaRegistryClient(registryConfiguration), builder, reader)
-        {
+            Serialization.IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null
+        ) : this(
+            new CachedSchemaRegistryClient(registryConfiguration),
+            deserializerBuilder,
+            schemaReader
+        ) {
             _disposeRegistryClient = true;
         }
 
@@ -55,11 +58,11 @@ namespace Chr.Avro.Confluent
         /// <param name="registryClient">
         /// A client to use for Schema Registry operations. (The client will not be disposed.)
         /// </param>
-        /// <param name="builder">
+        /// <param name="deserializerBuilder">
         /// A deserializer builder (used to build deserialization functions for C# types). If none
         /// is provided, the default deserializer builder will be used.
         /// </param>
-        /// <param name="reader">
+        /// <param name="schemaReader">
         /// A JSON schema reader (used to convert schemas received from the registry into abstract
         /// representations). If none is provided, the default schema reader will be used.
         /// </param>
@@ -68,14 +71,14 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public SchemaRegistryDeserializerBuilder(
             ISchemaRegistryClient registryClient,
-            Serialization.IBinaryDeserializerBuilder builder = null,
-            IJsonSchemaReader reader = null
+            Serialization.IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null
         ) {
             RegistryClient = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
 
-            _builder = builder ?? new Serialization.BinaryDeserializerBuilder();
+            _deserializerBuilder = deserializerBuilder ?? new Serialization.BinaryDeserializerBuilder();
             _disposeRegistryClient = false;
-            _reader = reader ?? new JsonSchemaReader();
+            _schemaReader = schemaReader ?? new JsonSchemaReader();
         }
 
         /// <summary>
@@ -142,7 +145,7 @@ namespace Chr.Avro.Confluent
 
         private IDeserializer<T> BuildDeserializer<T>(int id, string schema)
         {
-            var deserialize = _builder.BuildDelegate<T>(_reader.Read(schema));
+            var deserialize = _deserializerBuilder.BuildDelegate<T>(_schemaReader.Read(schema));
 
             return new DelegateDeserializer<T>(stream =>
             {

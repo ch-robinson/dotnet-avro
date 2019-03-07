@@ -1,11 +1,11 @@
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Chr.Avro.Abstract;
 using Chr.Avro.Representation;
 using Chr.Avro.Serialization;
 using Confluent.Kafka;
 using Moq;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 using ISchemaRegistryClient = Confluent.SchemaRegistry.ISchemaRegistryClient;
@@ -14,48 +14,53 @@ namespace Chr.Avro.Confluent.Tests
 {
     public class AsyncSchemaRegistryDeserializerTests
     {
-        protected readonly Mock<IBinaryDeserializerBuilder> DeserializerBuilderMock;
-
         protected readonly Mock<ISchemaRegistryClient> RegistryClientMock;
-
-        protected readonly Mock<IJsonSchemaReader> SchemaReaderMock;
-
-        protected readonly AsyncSchemaRegistryDeserializer<int> Deserializer;
 
         public AsyncSchemaRegistryDeserializerTests()
         {
-            DeserializerBuilderMock = new Mock<IBinaryDeserializerBuilder>();
             RegistryClientMock = new Mock<ISchemaRegistryClient>();
-            SchemaReaderMock = new Mock<IJsonSchemaReader>();
-
-            Deserializer = new AsyncSchemaRegistryDeserializer<int>(
-                RegistryClientMock.Object,
-                DeserializerBuilderMock.Object,
-                SchemaReaderMock.Object
-            );
         }
 
         [Fact]
         public async Task CachesGeneratedDeserializers()
         {
-            var data = new byte[5];
-            var metadata = new MessageMetadata();
-            var tp = new TopicPartition("test_topic", new Partition(0));
+            var deserializer = new AsyncSchemaRegistryDeserializer<object>(
+                RegistryClientMock.Object
+            );
 
-            DeserializerBuilderMock
-                .Setup(b => b.BuildDelegate<int>(It.IsAny<Schema>(), null))
-                .Returns(stream =>
-                {
-                    stream.Position = stream.Length;
-                    return 0;
-                });
+            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+            var metadata = new MessageMetadata();
+            var source = new TopicPartition("test_topic", new Partition(0));
+
+            RegistryClientMock
+                .Setup(c => c.GetSchemaAsync(0))
+                .ReturnsAsync("\"null\"");
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
-                Deserializer.DeserializeAsync(data, false, false, metadata, tp)
+                deserializer.DeserializeAsync(data, false, false, metadata, source)
             ));
 
-            DeserializerBuilderMock
-                .Verify(b => b.BuildDelegate<int>(It.IsAny<Schema>(), null), Times.Once());
+            RegistryClientMock
+                .Verify(c => c.GetSchemaAsync(0), Times.Once());
+        }
+
+        [Fact]
+        public async Task ProvidesDefaultDeserializationComponents()
+        {
+            var deserializer = new AsyncSchemaRegistryDeserializer<int>(
+                RegistryClientMock.Object
+            );
+
+            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
+            var metadata = new MessageMetadata();
+            var source = new TopicPartition("test_topic", new Partition(0));
+            var value = 4;
+
+            RegistryClientMock
+                .Setup(c => c.GetSchemaAsync(4))
+                .ReturnsAsync("\"int\"");
+
+            Assert.Equal(value, await deserializer.DeserializeAsync(data, false, false, metadata, source));
         }
 
         [Theory]
@@ -63,11 +68,15 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00 })]
         public async Task ThrowsOnUnrecognizedWireFormat(byte[] data)
         {
+            var deserializer = new AsyncSchemaRegistryDeserializer<int>(
+                RegistryClientMock.Object
+            );
+
             var metadata = new MessageMetadata();
-            var tp = new TopicPartition("test_topic", new Partition(0));
+            var source = new TopicPartition("test_topic", new Partition(0));
 
             await Assert.ThrowsAsync<InvalidDataException>(() =>
-                Deserializer.DeserializeAsync(data, false, false, metadata, tp)
+                deserializer.DeserializeAsync(data, false, false, metadata, source)
             );
         }
     }

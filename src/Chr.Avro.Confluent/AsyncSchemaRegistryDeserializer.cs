@@ -19,13 +19,13 @@ namespace Chr.Avro.Confluent
     /// </summary>
     public class AsyncSchemaRegistryDeserializer<T> : IAsyncDeserializer<T>
     {
-        private readonly IBinaryDeserializerBuilder _builder;
-
         private readonly ConcurrentDictionary<int, Task<Func<Stream, T>>> _cache;
 
-        private readonly IJsonSchemaReader _reader;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        private readonly ISchemaRegistryClient _registry;
+        private readonly ISchemaRegistryClient _registryClient;
+
+        private readonly IJsonSchemaReader _schemaReader;
 
         /// <summary>
         /// Creates a deserializer.
@@ -34,19 +34,23 @@ namespace Chr.Avro.Confluent
         /// Schema Registry configuration. Using the <see cref="SchemaRegistryConfig" /> class is
         /// highly recommended.
         /// </param>
-        /// <param name="builder">
+        /// <param name="deserializerBuilder">
         /// A deserializer builder (used to build deserialization functions for C# types). If none
         /// is provided, the default deserializer builder will be used.
         /// </param>
-        /// <param name="reader">
+        /// <param name="schemaReader">
         /// A JSON schema reader (used to convert schemas received from the registry into abstract
         /// representations). If none is provided, the default schema reader will be used.
         /// </param>
         public AsyncSchemaRegistryDeserializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            IBinaryDeserializerBuilder builder = null,
-            IJsonSchemaReader reader = null
-        ) : this(new CachedSchemaRegistryClient(registryConfiguration), builder, reader) { }
+            IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null
+        ) : this(
+            new CachedSchemaRegistryClient(registryConfiguration),
+            deserializerBuilder,
+            schemaReader
+        ) { }
 
         /// <summary>
         /// Creates a deserializer.
@@ -54,11 +58,11 @@ namespace Chr.Avro.Confluent
         /// <param name="registryClient">
         /// A client to use for Schema Registry operations. (The client will not be disposed.)
         /// </param>
-        /// <param name="builder">
+        /// <param name="deserializerBuilder">
         /// A deserializer builder (used to build deserialization functions for C# types). If none
         /// is provided, the default deserializer builder will be used.
         /// </param>
-        /// <param name="reader">
+        /// <param name="schemaReader">
         /// A JSON schema reader (used to convert schemas received from the registry into abstract
         /// representations). If none is provided, the default schema reader will be used.
         /// </param>
@@ -67,17 +71,17 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public AsyncSchemaRegistryDeserializer(
             ISchemaRegistryClient registryClient,
-            IBinaryDeserializerBuilder builder = null,
-            IJsonSchemaReader reader = null
+            IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null
         ) {
-            _builder = builder ?? new BinaryDeserializerBuilder();
             _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
-            _reader = reader ?? new JsonSchemaReader();
-            _registry = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
+            _deserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
+            _registryClient = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
+            _schemaReader = schemaReader ?? new JsonSchemaReader();
         }
 
         /// <summary>
-        /// Deserialize an incoming message. (See <see cref="IAsyncDeserializer{T}.DeserializeAsync(ReadOnlyMemory{byte}, bool, bool, MessageMetadata, TopicPartition)" />.)
+        /// Deserialize a message. (See <see cref="IAsyncDeserializer{T}.DeserializeAsync(ReadOnlyMemory{byte}, bool, bool, MessageMetadata, TopicPartition)" />.)
         /// </summary>
         public async Task<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, bool isKey, MessageMetadata messageMetadata, TopicPartition source)
         {
@@ -95,11 +99,15 @@ namespace Chr.Avro.Confluent
                     Array.Reverse(bytes);
                 }
 
-                var deserialize = await (_cache.GetOrAdd(BitConverter.ToInt32(bytes, 0), async id =>
-                    _builder.BuildDelegate<T>(_reader.Read(await _registry.GetSchemaAsync(id)))
-                ));
+                var @delegate = await (_cache.GetOrAdd(BitConverter.ToInt32(bytes, 0), async id =>
+                {
+                    var json = await _registryClient.GetSchemaAsync(id);
+                    var schema = _schemaReader.Read(json);
 
-                return deserialize(stream);
+                    return _deserializerBuilder.BuildDelegate<T>(schema);
+                }));
+
+                return @delegate(stream);
             }
         }
     }
