@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="1.0.0-beta2" />
-    <PackageReference Include="Confluent.SchemaRegistry" Version="1.0.0-beta2" />
+    <PackageReference Include="Confluent.Kafka" Version="1.0.0-beta3" />
+    <PackageReference Include="Confluent.SchemaRegistry" Version="1.0.0-beta3" />
   </ItemGroup>
 
   <ItemGroup>
