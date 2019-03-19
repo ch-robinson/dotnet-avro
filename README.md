@@ -65,11 +65,13 @@ namespace Example
     {
         static void Main(string[] args)
         {
-            var builder = new SchemaRegistryConsumerBuilder<string, ExampleRecord>(new Dictionary<string, string>
+            var builder = new SchemaRegistryConsumerBuilder<string, ExampleRecord>(new ConsumerConfig()
             {
-                { "bootstrap.servers", "broker1:9092,broker2:9092" },
-                { "group.id", "example_consumer_group" },
-                { "schema.registry.url", "http://registry:8081" }
+                BootstrapServers = "broker1:9092,broker2:9092",
+                GroupId = "example_consumer_group"
+            }, new SchemaRegistryConfig()
+            {
+                SchemaRegistryUrl = "http://registry:8081"
             });
 
             using (var consumer = builder.Build())

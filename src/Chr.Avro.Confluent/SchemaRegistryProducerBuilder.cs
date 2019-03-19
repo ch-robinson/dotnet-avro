@@ -20,15 +20,27 @@ namespace Chr.Avro.Confluent
             typeof(Null)
         };
 
+        private readonly IEnumerable<KeyValuePair<string, string>> _registryConfiguration;
+
         /// <summary>
         /// Creates a producer builder.
         /// </summary>
-        /// <param name="configuration">
+        /// <param name="producerConfiguration">
         /// A collection of configuration parameters for librdkafka producers. See the librdkafka
-        /// docs for native client options, <see cref="ConfigPropertyNames" /> for Confluent-specific
-        /// options, and <see cref="SchemaRegistryConfig.PropertyNames" /> for Schema Registry options.
+        /// docs for native client options and <see cref="ConfigPropertyNames" /> for Confluent-specific
+        /// options. Using the <see cref="ProducerConfig" /> class is highly recommended.
         /// </param>
-        public SchemaRegistryProducerBuilder(IEnumerable<KeyValuePair<string, string>> configuration) : base(configuration) { }
+        /// <param name="registryConfiguration">
+        /// Configuration parameters to use when creating Schema Registry deserializers. Using the
+        /// <see cref="SchemaRegistryConfig" /> class is highly recommended.
+        /// </param>
+        public SchemaRegistryProducerBuilder(
+            IEnumerable<KeyValuePair<string, string>> producerConfiguration,
+            IEnumerable<KeyValuePair<string, string>> registryConfiguration
+        ) : base(producerConfiguration)
+        {
+            _registryConfiguration = registryConfiguration;
+        }
 
         /// <summary>
         /// Builds a new <see cref="Producer{TKey, TValue}" /> instance.
@@ -37,12 +49,12 @@ namespace Chr.Avro.Confluent
         {
             if (KeySerializer == null && AsyncKeySerializer == null && !IgnoredTypes.Contains(typeof(TKey)))
             {
-                AsyncKeySerializer = new AsyncSchemaRegistrySerializer<TKey>(Config);
+                AsyncKeySerializer = new AsyncSchemaRegistrySerializer<TKey>(_registryConfiguration);
             }
 
             if (ValueSerializer == null && AsyncValueSerializer == null && !IgnoredTypes.Contains(typeof(TValue)))
             {
-                AsyncValueSerializer = new AsyncSchemaRegistrySerializer<TValue>(Config);
+                AsyncValueSerializer = new AsyncSchemaRegistrySerializer<TValue>(_registryConfiguration);
             }
 
             return base.Build();

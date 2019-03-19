@@ -20,15 +20,27 @@ namespace Chr.Avro.Confluent
             typeof(Null)
         };
 
+        private readonly IEnumerable<KeyValuePair<string, string>> _registryConfiguration;
+
         /// <summary>
         /// Creates a consumer builder.
         /// </summary>
-        /// <param name="configuration">
+        /// <param name="consumerConfiguration">
         /// A collection of configuration parameters for librdkafka consumers. See the librdkafka
-        /// docs for native client options, <see cref="ConfigPropertyNames" /> for Confluent-specific
-        /// options, and <see cref="SchemaRegistryConfig.PropertyNames" /> for Schema Registry options.
+        /// docs for native client options and <see cref="ConfigPropertyNames" /> for Confluent-specific
+        /// options. Using the <see cref="ConsumerConfig" /> class is highly recommended.
         /// </param>
-        public SchemaRegistryConsumerBuilder(IEnumerable<KeyValuePair<string, string>> configuration) : base(configuration) { }
+        /// <param name="registryConfiguration">
+        /// Configuration parameters to use when creating Schema Registry deserializers. Using the
+        /// <see cref="SchemaRegistryConfig" /> class is highly recommended.
+        /// </param>
+        public SchemaRegistryConsumerBuilder(
+            IEnumerable<KeyValuePair<string, string>> consumerConfiguration,
+            IEnumerable<KeyValuePair<string, string>> registryConfiguration
+        ) : base(consumerConfiguration)
+        {
+            _registryConfiguration = registryConfiguration;
+        }
 
         /// <summary>
         /// Builds a new <see cref="Consumer{TKey, TValue}" /> instance.
@@ -37,12 +49,12 @@ namespace Chr.Avro.Confluent
         {
             if (KeyDeserializer == null && AsyncKeyDeserializer == null && !IgnoredTypes.Contains(typeof(TKey)))
             {
-                AsyncKeyDeserializer = new AsyncSchemaRegistryDeserializer<TKey>(Config);
+                AsyncKeyDeserializer = new AsyncSchemaRegistryDeserializer<TKey>(_registryConfiguration);
             }
 
             if (ValueDeserializer == null && AsyncValueDeserializer == null && !IgnoredTypes.Contains(typeof(TValue)))
             {
-                AsyncValueDeserializer = new AsyncSchemaRegistryDeserializer<TValue>(Config);
+                AsyncValueDeserializer = new AsyncSchemaRegistryDeserializer<TValue>(_registryConfiguration);
             }
 
             return base.Build();
