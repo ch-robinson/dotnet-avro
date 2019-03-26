@@ -45,7 +45,7 @@ namespace Chr.Avro.Confluent
         /// <summary>
         /// Builds a new <see cref="Consumer{TKey, TValue}" /> instance.
         /// </summary>
-        public override Consumer<TKey, TValue> Build()
+        public override IConsumer<TKey, TValue> Build()
         {
             if (KeyDeserializer == null && AsyncKeyDeserializer == null && !IgnoredTypes.Contains(typeof(TKey)))
             {

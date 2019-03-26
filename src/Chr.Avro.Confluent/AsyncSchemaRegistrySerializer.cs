@@ -118,12 +118,12 @@ namespace Chr.Avro.Confluent
         }
 
         /// <summary>
-        /// Serialize a message. (See <see cref="IAsyncSerializer{T}.SerializeAsync(T, bool, MessageMetadata, TopicPartition)" />.)
+        /// Serialize a message. (See <see cref="IAsyncSerializer{T}.SerializeAsync(T, SerializationContext)" />.)
         /// </summary>
-        public async Task<byte[]> SerializeAsync(T data, bool isKey, MessageMetadata messageMetadata, TopicPartition destination)
+        public async Task<byte[]> SerializeAsync(T data, SerializationContext context)
         {
-            var topic = destination.Topic;
-            var type = isKey ? "key" : "value";
+            var topic = context.Topic;
+            var type = context.Component == MessageComponentType.Key ? "key" : "value";
 
             var serialize = await (_cache.GetOrAdd($"{topic}-{type}", async subject =>
             {

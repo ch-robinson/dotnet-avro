@@ -81,9 +81,9 @@ namespace Chr.Avro.Confluent
         }
 
         /// <summary>
-        /// Deserialize a message. (See <see cref="IAsyncDeserializer{T}.DeserializeAsync(ReadOnlyMemory{byte}, bool, bool, MessageMetadata, TopicPartition)" />.)
+        /// Deserialize a message. (See <see cref="IAsyncDeserializer{T}.DeserializeAsync(ReadOnlyMemory{byte}, bool, SerializationContext)" />.)
         /// </summary>
-        public async Task<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, bool isKey, MessageMetadata messageMetadata, TopicPartition source)
+        public async Task<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, SerializationContext context)
         {
             using (var stream = new MemoryStream(data.ToArray(), false))
             {

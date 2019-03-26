@@ -13,7 +13,7 @@ namespace Chr.Avro.Confluent
             _delegate = @delegate ?? throw new ArgumentNullException(nameof(@delegate));
         }
 
-        public T Deserialize(ReadOnlySpan<byte> data, bool isNull, bool isKey, MessageMetadata messageMetadata, TopicPartition source)
+        public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
         {
             using (var stream = new MemoryStream(data.ToArray(), false))
             {

@@ -29,15 +29,14 @@ namespace Chr.Avro.Confluent.Tests
             );
 
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-            var metadata = new MessageMetadata();
-            var source = new TopicPartition("test_topic", new Partition(0));
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             RegistryClientMock
                 .Setup(c => c.GetSchemaAsync(0))
                 .ReturnsAsync("\"null\"");
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
-                deserializer.DeserializeAsync(encoding, false, false, metadata, source)
+                deserializer.DeserializeAsync(encoding, false, context)
             ));
 
             RegistryClientMock
@@ -53,15 +52,14 @@ namespace Chr.Avro.Confluent.Tests
 
             var data = 4;
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
-            var metadata = new MessageMetadata();
-            var source = new TopicPartition("test_topic", new Partition(0));
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             RegistryClientMock
                 .Setup(c => c.GetSchemaAsync(4))
                 .ReturnsAsync("\"int\"");
 
             Assert.Equal(data,
-                await deserializer.DeserializeAsync(encoding, false, false, metadata, source)
+                await deserializer.DeserializeAsync(encoding, false, context)
             );
         }
 
@@ -75,10 +73,10 @@ namespace Chr.Avro.Confluent.Tests
             );
 
             var metadata = new MessageMetadata();
-            var source = new TopicPartition("test_topic", new Partition(0));
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             await Assert.ThrowsAsync<InvalidDataException>(() =>
-                deserializer.DeserializeAsync(encoding, false, false, metadata, source)
+                deserializer.DeserializeAsync(encoding, false, context)
             );
         }
     }

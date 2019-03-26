@@ -27,15 +27,15 @@ namespace Chr.Avro.Confluent.Tests
             );
 
             var metadata = new MessageMetadata();
-            var destination = new TopicPartition("test_topic", new Partition(0));
-            var subject = $"{destination.Topic}-value";
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var subject = $"{context.Topic}-value";
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
                 .ReturnsAsync(new Schema(subject, 1, 12, "\"null\""));
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
-                serializer.SerializeAsync(null, false, metadata, destination)
+                serializer.SerializeAsync(null, context)
             ));
 
             RegistryClientMock
@@ -52,15 +52,15 @@ namespace Chr.Avro.Confluent.Tests
             var data = 4;
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
             var metadata = new MessageMetadata();
-            var destination = new TopicPartition("test_topic", new Partition(0));
-            var subject = $"{destination.Topic}-key";
+            var context = new SerializationContext(MessageComponentType.Key, "test_topic");
+            var subject = $"{context.Topic}-key";
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
                 .ReturnsAsync(new Schema(subject, 1, 4, "\"int\""));
 
             Assert.Equal(encoding,
-                await serializer.SerializeAsync(data, true, metadata, destination)
+                await serializer.SerializeAsync(data, context)
             );
         }
 
@@ -75,8 +75,8 @@ namespace Chr.Avro.Confluent.Tests
             var data = 6;
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0a, 0x0c };
             var metadata = new MessageMetadata();
-            var destination = new TopicPartition("test_topic", new Partition(0));
-            var subject = $"{destination.Topic}-value";
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var subject = $"{context.Topic}-value";
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
@@ -87,7 +87,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync(10);
 
             Assert.Equal(encoding,
-                await serializer.SerializeAsync(data, false, metadata, destination)
+                await serializer.SerializeAsync(data, context)
             );
         }
 
@@ -102,8 +102,8 @@ namespace Chr.Avro.Confluent.Tests
             var data = 6;
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x08, 0x0c };
             var metadata = new MessageMetadata();
-            var destination = new TopicPartition("test_topic", new Partition(0));
-            var subject = $"{destination.Topic}-value";
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var subject = $"{context.Topic}-value";
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
@@ -114,7 +114,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync(8);
 
             Assert.Equal(encoding,
-                await serializer.SerializeAsync(data, false, metadata, destination)
+                await serializer.SerializeAsync(data, context)
             );
         }
     }

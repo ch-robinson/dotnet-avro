@@ -83,15 +83,14 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0c, 0x06, 0x73, 0x75, 0x70 }, "sup")]
         public async Task DeserializesConfluentWireFormat(byte[] encoding, string data)
         {
-            var metadata = new MessageMetadata();
-            var source = new TopicPartition("test_topic", new Partition(0));
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
                 var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
                 Assert.Equal(data,
-                    deserializer.Deserialize(encoding, false, false, metadata, source)
+                    deserializer.Deserialize(encoding, false, context)
                 );
             }
         }
@@ -100,15 +99,14 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0b, 0x00 })]
         public async Task ThrowsOnSchemaIdMismatch(byte[] encoding)
         {
-            var metadata = new MessageMetadata();
-            var source = new TopicPartition("test_topic", new Partition(0));
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
                 var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
                 Assert.Throws<InvalidDataException>(() =>
-                    deserializer.Deserialize(encoding, false, false, metadata, source)
+                    deserializer.Deserialize(encoding, false, context)
                 );
             }
         }
@@ -118,15 +116,14 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00 })]
         public async Task ThrowsOnUnrecognizedWireFormat(byte[] encoding)
         {
-            var metadata = new MessageMetadata();
-            var source = new TopicPartition("test_topic", new Partition(0));
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
                 var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
                 Assert.Throws<InvalidDataException>(() =>
-                    deserializer.Deserialize(encoding, false, false, metadata, source)
+                    deserializer.Deserialize(encoding, false, context)
                 );
             }
         }

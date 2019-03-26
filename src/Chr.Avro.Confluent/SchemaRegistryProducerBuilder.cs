@@ -45,7 +45,7 @@ namespace Chr.Avro.Confluent
         /// <summary>
         /// Builds a new <see cref="Producer{TKey, TValue}" /> instance.
         /// </summary>
-        public override Producer<TKey, TValue> Build()
+        public override IProducer<TKey, TValue> Build()
         {
             if (KeySerializer == null && AsyncKeySerializer == null && !IgnoredTypes.Contains(typeof(TKey)))
             {
