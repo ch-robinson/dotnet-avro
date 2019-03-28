@@ -161,19 +161,17 @@ namespace Chr.Avro.Abstract
 
             var resolution = Resolver.ResolveType(type);
 
-            if (cache.TryGetValue(resolution.Type, out var existing))
+            if (!cache.TryGetValue(resolution.Type, out var schema))
             {
-                return existing;
+                var match = Cases.FirstOrDefault(c => c.IsMatch(resolution));
+
+                if (match == null)
+                {
+                    throw new UnsupportedTypeException(type, $"No schema builder case could be applied to {resolution.Type.FullName} ({resolution.GetType().Name}).");
+                }
+
+                schema = match.BuildSchema(resolution, cache);
             }
-
-            var match = Cases.FirstOrDefault(c => c.IsMatch(resolution));
-
-            if (match == null)
-            {
-                throw new UnsupportedTypeException(type, $"No schema builder case could be applied to {resolution.Type.FullName} ({resolution.GetType().Name}).");
-            }
-
-            var schema = match.BuildSchema(resolution, cache);
 
             if (resolution.IsNullable)
             {
@@ -304,7 +302,7 @@ namespace Chr.Avro.Abstract
             {
                 throw new ArgumentException("The boolean case can only be applied to boolean resolutions.", nameof(resolution));
             }
-            
+
             var schema = new BooleanSchema();
             cache.Add(boolean.Type, schema);
 
@@ -349,7 +347,7 @@ namespace Chr.Avro.Abstract
             {
                 throw new ArgumentException("The byte array case can only be applied to byte array resolutions.", nameof(resolution));
             }
-            
+
             var schema = new BytesSchema();
             cache.Add(bytes.Type, schema);
 
@@ -395,7 +393,7 @@ namespace Chr.Avro.Abstract
             {
                 throw new ArgumentException("The decimal case can only be applied to decimal resolutions.", nameof(resolution));
             }
-            
+
             var schema = new BytesSchema()
             {
                 LogicalType = new DecimalLogicalType(@decimal.Precision, @decimal.Scale)
@@ -820,7 +818,7 @@ namespace Chr.Avro.Abstract
             {
                 throw new ArgumentException("The record case can only be applied to record resolutions.", nameof(resolution));
             }
-            
+
             var name = record.Namespace == null
                 ? record.Name.Value
                 : $"{record.Namespace.Value}.{record.Name.Value}";

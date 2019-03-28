@@ -118,4 +118,15 @@ namespace Chr.Avro.Tests
         [DataMember(Name = "DifferentProperty", Order = 1)]
         public int AnnotatedCustomProperty { get; set; }
     }
+
+    public class NullablePropertyClass
+    {
+        public Guid Id { get; set; }
+
+        public DateTime Created { get; set; }
+
+        public DateTime? Updated { get; set; }
+
+        public DateTime? Deleted { get; set; }
+    }
 }

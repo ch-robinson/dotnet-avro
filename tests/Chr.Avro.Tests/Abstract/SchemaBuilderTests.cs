@@ -111,6 +111,35 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
+        public void BuildsClassesWithNullableProperties()
+        {
+            var schema = Builder.BuildSchema<NullablePropertyClass>() as RecordSchema;
+
+            Assert.NotNull(schema);
+            Assert.Collection(schema.Fields,
+                f => {
+                    Assert.Equal(nameof(NullablePropertyClass.Created), f.Name);
+                    Assert.IsType<StringSchema>(f.Type);
+                },
+                f => {
+                    Assert.Equal(nameof(NullablePropertyClass.Deleted), f.Name);
+                    Assert.IsType<UnionSchema>(f.Type);
+                },
+                f => {
+                    Assert.Equal(nameof(NullablePropertyClass.Id), f.Name);
+                    Assert.IsType<StringSchema>(f.Type);
+                },
+                f => {
+                    Assert.Equal(nameof(NullablePropertyClass.Updated), f.Name);
+                    Assert.IsType<UnionSchema>(f.Type);
+                }
+            );
+            Assert.Null(schema.LogicalType);
+            Assert.Equal(typeof(NullablePropertyClass).Name, schema.Name);
+            Assert.Equal(typeof(NullablePropertyClass).Namespace, schema.Namespace);
+        }
+
+        [Fact]
         public void BuildsClassesWithSingleRecursion()
         {
             var schema = Builder.BuildSchema<CircularClass>() as RecordSchema;
@@ -133,7 +162,7 @@ namespace Chr.Avro.Tests
         public void BuildsDecimals(Type type)
         {
             var schema = Builder.BuildSchema(type) as BytesSchema;
-            
+
             Assert.NotNull(schema);
 
             var logicalType = schema.LogicalType as DecimalLogicalType;
