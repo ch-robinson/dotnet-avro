@@ -125,7 +125,7 @@ namespace Chr.Avro.Serialization
             {
                 codec = new BinaryCodec();
             }
-            
+
             Cases = cases ?? new List<IBinaryDeserializerBuilderCase>()
             {
                 // logical types:
@@ -268,7 +268,7 @@ namespace Chr.Avro.Serialization
         /// </summary>
         public abstract bool IsMatch(TypeResolution resolution);
     }
-    
+
     /// <summary>
     /// A deserializer builder case that matches <see cref="ArraySchema" /> and attempts to map it
     /// to enumerable types.
@@ -378,7 +378,7 @@ namespace Chr.Avro.Serialization
                 ))
                 .Single()
                 .MakeGenericMethod(item);
-            
+
             if (!target.IsAssignableFrom(convert.ReturnType))
             {
                 throw new UnsupportedTypeException(target, $"An array deserializer cannot be built for type {target.FullName}.");
@@ -574,7 +574,7 @@ namespace Chr.Avro.Serialization
 
             var codec = Expression.Constant(Codec);
             var stream = Expression.Parameter(typeof(Stream));
-            
+
             var readLength = typeof(IBinaryCodec)
                 .GetMethod(nameof(IBinaryCodec.ReadInteger));
 
@@ -747,7 +747,7 @@ namespace Chr.Avro.Serialization
 
                 // create the BigInteger:
                 Expression.Assign(integer, Expression.New(integerConstructor, bytes)),
-                
+
                 // arithmetic:
                 //   var digits = Math.Ceiling(BigInteger.Log10(BigInteger.Abs(integer)));
                 //   var truncated = integer - (integer % (BigInteger)Math.Pow(10, Math.Max(0, digits - precision)));
@@ -1002,7 +1002,7 @@ namespace Chr.Avro.Serialization
 
                 return new TimeSpan(dayTicks + millisecondTicks);
             };
-            
+
             cache.Add((target, schema), result);
 
             return result;
@@ -1204,7 +1204,7 @@ namespace Chr.Avro.Serialization
 
             var codec = Expression.Constant(Codec);
             var stream = Expression.Parameter(typeof(Stream));
-            
+
             var readValue = typeof(IBinaryCodec)
                 .GetMethod(nameof(IBinaryCodec.Read));
 
@@ -1457,7 +1457,7 @@ namespace Chr.Avro.Serialization
             return true;
         }
     }
-    
+
     /// <summary>
     /// A deserializer builder case that matches <see cref="MapSchema" /> and attempts to map it
     /// to dictionary types.
@@ -1539,14 +1539,14 @@ namespace Chr.Avro.Serialization
 
                 var buildKey = build.MakeGenericMethod(key);
                 var buildItem = build.MakeGenericMethod(item);
-                
+
                 var readBlocks = typeof(IBinaryCodec)
                     .GetMethods()
                     .Single(m => m.Name == nameof(IBinaryCodec.ReadBlocks)
                         && m.GetGenericArguments().Length == 2
                     )
                     .MakeGenericMethod(key, item);
-                
+
                 result = Expression.Call(
                     codec,
                     readBlocks,
@@ -1643,7 +1643,7 @@ namespace Chr.Avro.Serialization
             }
 
             var target = resolution.Type;
-            
+
             var result = Expression.Default(target);
             var stream = Expression.Parameter(typeof(Stream));
 
@@ -1687,7 +1687,7 @@ namespace Chr.Avro.Serialization
         /// The deserializer builder to use to build field deserializers.
         /// </summary>
         protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
-        
+
         /// <summary>
         /// Creates a new record deserializer builder case.
         /// </summary>
@@ -1731,7 +1731,7 @@ namespace Chr.Avro.Serialization
             }
 
             var target = resolution.Type;
-            
+
             var stream = Expression.Parameter(typeof(Stream));
             var value = Expression.Parameter(target);
 
@@ -1760,8 +1760,8 @@ namespace Chr.Avro.Serialization
             var assignments = recordSchema.Fields.Select(field =>
             {
                 var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-                var type = match?.Type ?? typeof(object);
-                
+                var type = match?.Type ?? (field.Type is ArraySchema ? typeof(object[]) : typeof(object));
+
                 Expression action = null;
 
                 try
@@ -1783,7 +1783,7 @@ namespace Chr.Avro.Serialization
 
                 // always read to advance the stream:
                 action = Expression.Invoke(action, stream);
-                
+
                 if (match != null)
                 {
                     // and assign if a field matches:
@@ -1792,7 +1792,7 @@ namespace Chr.Avro.Serialization
 
                 return action;
             });
-            
+
             result = Expression.Block(typeof(void), assignments);
             lambda = Expression.Lambda(result, $"{recordSchema.Name} field assigner", new[] { stream, value });
             assign = lambda.Compile();
@@ -2195,7 +2195,7 @@ namespace Chr.Avro.Serialization
                     var build = typeof(IBinaryDeserializerBuilder)
                         .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
                         .MakeGenericMethod(underlying);
-                    
+
                     @case = Expression.Constant(
                         build.Invoke(DeserializerBuilder, new object[] { child, cache }),
                         typeof(Func<,>).MakeGenericType(typeof(Stream), underlying)
@@ -2205,7 +2205,7 @@ namespace Chr.Avro.Serialization
                 {
                     ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
                 }
-                
+
                 return Expression.SwitchCase(
                     Expression.ConvertChecked(Expression.Invoke(@case, stream), target),
                     Expression.Constant(index)

@@ -85,21 +85,23 @@ namespace Chr.Avro.Serialization.Tests
         [Fact]
         public void RecordWithMissingFields()
         {
-            var schema = new RecordSchema("ThreeBooleans", new[]
+            var schema = new RecordSchema("AllFields", new[]
             {
-                new RecordField("First", new BooleanSchema()),
-                new RecordField("Second", new BooleanSchema()),
-                new RecordField("Third", new BooleanSchema())
+                new RecordField("First", new ArraySchema(new BooleanSchema())),
+                new RecordField("Second", new ArraySchema(new BooleanSchema())),
+                new RecordField("Third", new BooleanSchema()),
+                new RecordField("Fourth", new BooleanSchema())
             });
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<WithoutSecondField>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<WithSecondField>(schema);
+            var deserializer = DeserializerBuilder.BuildDeserializer<WithoutEvenFields>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<WithEvenFields>(schema);
 
-            var value = new WithSecondField()
+            var value = new WithEvenFields()
             {
-                First = true,
-                Second = false,
-                Third = true
+                First = new bool[1],
+                Second = new bool[2],
+                Third = true,
+                Fourth = false
             };
 
             Assert.True(deserializer.Deserialize(serializer.Serialize(value)).Third);
@@ -146,18 +148,20 @@ namespace Chr.Avro.Serialization.Tests
             public IEnumerable<Node> RelatedNodes { get; set; }
         }
 
-        public class WithSecondField
+        public class WithEvenFields
         {
-            public bool First { get; set; }
+            public IEnumerable<bool> First { get; set; }
 
-            public bool Second { get; set; }
+            public IEnumerable<bool> Second { get; set; }
 
             public bool Third { get; set; }
+
+            public bool Fourth { get; set; }
         }
 
-        public class WithoutSecondField
+        public class WithoutEvenFields
         {
-            public bool First { get; set; }
+            public IEnumerable<bool> First { get; set; }
 
             public bool Third { get; set; }
         }
