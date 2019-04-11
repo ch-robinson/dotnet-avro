@@ -13,10 +13,13 @@ namespace Chr.Avro.Confluent
     /// <summary>
     /// An <see cref="IAsyncSerializer{T}" /> that resolves schemas on the fly. When serializing
     /// messages, this serializer will attempt to look up a schema that matches the topic (if one
-    /// isn’t already cached). For example, when serializing keys for a topic with name "test_topic",
-    /// this deserializer would query the Schema Registry for subject "test_topic-key". (This is a
-    /// Confluent convention—values would be "test_topic-value".)
+    /// isn’t already cached).
     /// </summary>
+    /// <remarks>
+    /// By default, when serializing keys for a topic with name "test_topic", this deserializer
+    /// would query the Schema Registry for subject "test_topic-key". (This is a Confluent
+    /// convention—values would be "test_topic-value".)
+    /// </remarks>
     public class AsyncSchemaRegistrySerializer<T> : IAsyncSerializer<T>
     {
         private readonly ConcurrentDictionary<string, Task<Func<T, byte[]>>> _cache;
@@ -32,6 +35,8 @@ namespace Chr.Avro.Confluent
         private readonly IJsonSchemaWriter _schemaWriter;
 
         private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly Func<SerializationContext, string> _subjectNameBuilder;
 
         /// <summary>
         /// Creates a serializer.
@@ -59,20 +64,27 @@ namespace Chr.Avro.Confluent
         /// A deserializer builder (used to build serialization functions for C# types). If none is
         /// provided, the default serializer builder will be used.
         /// </param>
+        /// <param name="subjectNameBuilder">
+        /// A function that determines the subject name given the topic name and a component type
+        /// (key or value). If none is provided, the default "{topic name}-{component}" naming
+        /// convention will be used.
+        /// </param>
         public AsyncSchemaRegistrySerializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
             Abstract.ISchemaBuilder schemaBuilder = null,
             IJsonSchemaReader schemaReader = null,
             IJsonSchemaWriter schemaWriter = null,
-            IBinarySerializerBuilder serializerBuilder = null
+            IBinarySerializerBuilder serializerBuilder = null,
+            Func<SerializationContext, string> subjectNameBuilder = null
         ) : this(
             new CachedSchemaRegistryClient(registryConfiguration),
             registerAutomatically,
             schemaBuilder,
             schemaReader,
             schemaWriter,
-            serializerBuilder
+            serializerBuilder,
+            subjectNameBuilder
         ) { }
 
         /// <summary>
@@ -100,13 +112,19 @@ namespace Chr.Avro.Confluent
         /// A deserializer builder (used to build serialization functions for C# types). If none is
         /// provided, the default serializer builder will be used.
         /// </param>
+        /// <param name="subjectNameBuilder">
+        /// A function that determines the subject name given the topic name and a component type
+        /// (key or value). If none is provided, the default "{topic name}-{component}" naming
+        /// convention will be used.
+        /// </param>
         public AsyncSchemaRegistrySerializer(
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
             Abstract.ISchemaBuilder schemaBuilder = null,
             IJsonSchemaReader schemaReader = null,
             IJsonSchemaWriter schemaWriter = null,
-            IBinarySerializerBuilder serializerBuilder = null
+            IBinarySerializerBuilder serializerBuilder = null,
+            Func<SerializationContext, string> subjectNameBuilder = null
         ) {
             _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
             _registerAutomatically = registerAutomatically;
@@ -115,6 +133,8 @@ namespace Chr.Avro.Confluent
             _schemaReader = schemaReader ?? new JsonSchemaReader();
             _schemaWriter = schemaWriter ?? new JsonSchemaWriter();
             _serializerBuilder = serializerBuilder ?? new BinarySerializerBuilder();
+            _subjectNameBuilder = subjectNameBuilder ??
+                (c => $"{c.Topic}-{(c.Component == MessageComponentType.Key ? "key" : "value")}");
         }
 
         /// <summary>
@@ -122,10 +142,7 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public async Task<byte[]> SerializeAsync(T data, SerializationContext context)
         {
-            var topic = context.Topic;
-            var type = context.Component == MessageComponentType.Key ? "key" : "value";
-
-            var serialize = await (_cache.GetOrAdd($"{topic}-{type}", async subject =>
+            var serialize = await (_cache.GetOrAdd(_subjectNameBuilder(context), async subject =>
             {
                 int id;
                 Action<T, Stream> @delegate;

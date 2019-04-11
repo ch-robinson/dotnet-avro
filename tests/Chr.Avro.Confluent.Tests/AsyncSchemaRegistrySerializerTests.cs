@@ -1,6 +1,7 @@
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Moq;
+using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -112,6 +113,31 @@ namespace Chr.Avro.Confluent.Tests
             RegistryClientMock
                 .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
                 .ReturnsAsync(8);
+
+            Assert.Equal(encoding,
+                await serializer.SerializeAsync(data, context)
+            );
+        }
+
+        [Fact]
+        public async Task UsesSubjectNameBuilder()
+        {
+            var version = GetType().Assembly.GetName().Version;
+
+            var serializer = new AsyncSchemaRegistrySerializer<int>(
+                RegistryClientMock.Object,
+                subjectNameBuilder: c => $"{c.Topic}-{version}-{c.Component.ToString().ToLowerInvariant()}"
+            );
+
+            var data = 2;
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x08, 0x04 };
+            var metadata = new MessageMetadata();
+            var context = new SerializationContext(MessageComponentType.Key, "test_topic");
+            var subject = $"{context.Topic}-{version}-key";
+
+            RegistryClientMock
+                .Setup(c => c.GetLatestSchemaAsync(subject))
+                .ReturnsAsync(new Schema(subject, 2, 8, "\"int\""));
 
             Assert.Equal(encoding,
                 await serializer.SerializeAsync(data, context)
