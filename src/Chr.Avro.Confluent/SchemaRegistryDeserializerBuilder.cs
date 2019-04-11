@@ -9,8 +9,8 @@ using System.Threading.Tasks;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// Builds <see cref="T:IDeserializer{T}" />s that are locked into specific schemas from a
-    /// Schema Registry.
+    /// Builds <see cref="T:Deserializer{T}" /> delegates that are locked into specific schemas
+    /// from a Schema Registry instance.
     /// </summary>
     public class SchemaRegistryDeserializerBuilder : IDisposable
     {
@@ -90,7 +90,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<IDeserializer<T>> BuildDeserializer<T>(int id)
+        public async Task<Deserializer<T>> BuildDeserializer<T>(int id)
         {
             return BuildDeserializer<T>(id, await RegistryClient.GetSchemaAsync(id));
         }
@@ -105,7 +105,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<IDeserializer<T>> BuildDeserializer<T>(string subject)
+        public async Task<Deserializer<T>> BuildDeserializer<T>(string subject)
         {
             var schema = await RegistryClient.GetLatestSchemaAsync(subject);
 
@@ -124,7 +124,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<IDeserializer<T>> BuildDeserializer<T>(string subject, int version)
+        public async Task<Deserializer<T>> BuildDeserializer<T>(string subject, int version)
         {
             var schema = await RegistryClient.GetSchemaAsync(subject, version);
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema);
@@ -143,33 +143,36 @@ namespace Chr.Avro.Confluent
             }
         }
 
-        private IDeserializer<T> BuildDeserializer<T>(int id, string schema)
+        private Deserializer<T> BuildDeserializer<T>(int id, string schema)
         {
             var deserialize = _deserializerBuilder.BuildDelegate<T>(_schemaReader.Read(schema));
 
-            return new DelegateDeserializer<T>(stream =>
+            return (data, isNull) =>
             {
-                var bytes = new byte[4];
-
-                if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
+                using (var stream = new MemoryStream(data.ToArray(), false))
                 {
-                    throw new InvalidDataException("Data does not conform to the Confluent wire format.");
+                    var bytes = new byte[4];
+
+                    if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
+                    {
+                        throw new InvalidDataException("Data does not conform to the Confluent wire format.");
+                    }
+
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        Array.Reverse(bytes);
+                    }
+
+                    var received = BitConverter.ToInt32(bytes, 0);
+
+                    if (received != id)
+                    {
+                        throw new InvalidDataException($"The received schema ({received}) does not match the specified schema ({id}).");
+                    }
+
+                    return deserialize(stream);
                 }
-
-                if (BitConverter.IsLittleEndian)
-                {
-                    Array.Reverse(bytes);
-                }
-
-                var received = BitConverter.ToInt32(bytes, 0);
-
-                if (received != id)
-                {
-                    throw new InvalidDataException($"The received schema ({received}) does not match the specified schema ({id}).");
-                }
-
-                return deserialize(stream);
-            });
+            };
         }
     }
 }

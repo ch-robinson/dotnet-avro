@@ -83,15 +83,11 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0c, 0x06, 0x73, 0x75, 0x70 }, "sup")]
         public async Task DeserializesConfluentWireFormat(byte[] encoding, string data)
         {
-            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
-
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
-                var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
+                var deserialize = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
-                Assert.Equal(data,
-                    deserializer.Deserialize(encoding, false, context)
-                );
+                Assert.Equal(data, deserialize(encoding, false));
             }
         }
 
@@ -99,15 +95,11 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0b, 0x00 })]
         public async Task ThrowsOnSchemaIdMismatch(byte[] encoding)
         {
-            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
-
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
-                var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
+                var deserialize = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
-                Assert.Throws<InvalidDataException>(() =>
-                    deserializer.Deserialize(encoding, false, context)
-                );
+                Assert.Throws<InvalidDataException>(() => deserialize(encoding, false));
             }
         }
 
@@ -116,15 +108,11 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00 })]
         public async Task ThrowsOnUnrecognizedWireFormat(byte[] encoding)
         {
-            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
-
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
             {
-                var deserializer = await builder.BuildDeserializer<string>(TestSubjectLatestId);
+                var deserialize = await builder.BuildDeserializer<string>(TestSubjectLatestId);
 
-                Assert.Throws<InvalidDataException>(() =>
-                    deserializer.Deserialize(encoding, false, context)
-                );
+                Assert.Throws<InvalidDataException>(() => deserialize(encoding, false));
             }
         }
     }

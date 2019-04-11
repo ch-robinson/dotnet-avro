@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// Builds <see cref="T:ISerializer{T}" /> delegates that are locked into specific schemas from
+    /// Builds <see cref="T:Serializer{T}" /> delegates that are locked into specific schemas from
     /// a Schema Registry instance.
     /// </summary>
     public class SchemaRegistrySerializerBuilder : IDisposable
@@ -90,7 +90,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<ISerializer<T>> BuildSerializer<T>(int id)
+        public async Task<Serializer<T>> BuildSerializer<T>(int id)
         {
             return BuildSerializer<T>(id, await RegistryClient.GetSchemaAsync(id));
         }
@@ -105,7 +105,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<ISerializer<T>> BuildSerializer<T>(string subject)
+        public async Task<Serializer<T>> BuildSerializer<T>(string subject)
         {
             var schema = await RegistryClient.GetLatestSchemaAsync(subject);
 
@@ -124,7 +124,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<ISerializer<T>> BuildSerializer<T>(string subject, int version)
+        public async Task<Serializer<T>> BuildSerializer<T>(string subject, int version)
         {
             var schema = await RegistryClient.GetSchemaAsync(subject, version);
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema);
@@ -143,7 +143,7 @@ namespace Chr.Avro.Confluent
             }
         }
 
-        private ISerializer<T> BuildSerializer<T>(int id, string schema)
+        private Serializer<T> BuildSerializer<T>(int id, string schema)
         {
             var bytes = BitConverter.GetBytes(id);
 
@@ -154,13 +154,20 @@ namespace Chr.Avro.Confluent
 
             var serialize = _serializerBuilder.BuildDelegate<T>(_schemaReader.Read(schema));
 
-            return new DelegateSerializer<T>((data, stream) =>
+            return data =>
             {
-                stream.WriteByte(0x00);
-                stream.Write(bytes, 0, bytes.Length);
+                var stream = new MemoryStream();
 
-                serialize(data, stream);
-            });
+                using (stream)
+                {
+                    stream.WriteByte(0x00);
+                    stream.Write(bytes, 0, bytes.Length);
+
+                    serialize(data, stream);
+                }
+
+                return stream.ToArray();
+            };
         }
     }
 }
