@@ -187,7 +187,7 @@ async function processIndex (overview, load) {
           return await processNamespace(element)
         }))
 
-        result.types = await Promise.all(namespaces.map(namespace => {
+        result.types = (await Promise.all(namespaces.map(namespace => {
           const name = namespace.attributes['Name']
           const types = namespace.children
             .filter(n => n.name === 'Type')
@@ -200,7 +200,7 @@ async function processIndex (overview, load) {
 
             return { ...full, kind, namespace: name }
           }))
-        })).reduce((a, v) => a.concat(v), [])
+        }))).reduce((a, v) => a.concat(v), [])
 
         break
     }
