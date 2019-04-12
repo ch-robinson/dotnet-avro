@@ -16,11 +16,11 @@ Chr.Avro is an Avro implementation for .NET. It’s designed to serve as a flexi
 **To use the command line interface:** Install [Chr.Avro.Cli](https://www.nuget.org/packages/Chr.Avro.Cli) as a [global tool](https://docs.microsoft.com/en-us/dotnet/core/tools/global-tools):
 
 ```
-$ dotnet tool install Chr.Avro.Cli --global --version 1.0.0-rc.0
+$ dotnet tool install Chr.Avro.Cli --global --version 1.0.0-rc.3
 You can invoke the tool using the following command: dotnet-avro
-Tool 'chr.avro.cli' (version '1.0.0-rc.0') was successfully installed.
+Tool 'chr.avro.cli' (version '1.0.0-rc.3') was successfully installed.
 $ dotnet avro help
-Chr.Avro 1.0.0-rc.0
+Chr.Avro 1.0.0-rc.3
 ...
 ```
 
