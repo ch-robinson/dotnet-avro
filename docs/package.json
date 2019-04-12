@@ -1,18 +1,18 @@
 {
   "dependencies": {
-    "@rgrove/parse-xml": "2.0.0",
-    "gatsby": "2.0.93",
-    "gatsby-plugin-layout": "1.0.11",
-    "gatsby-plugin-react-helmet": "3.0.5",
-    "gatsby-plugin-sass": "2.0.7",
+    "@rgrove/parse-xml": "2.0.1",
+    "gatsby": "2.3.21",
+    "gatsby-plugin-layout": "1.0.14",
+    "gatsby-plugin-react-helmet": "3.0.12",
+    "gatsby-plugin-sass": "2.0.11",
     "node-sass": "4.11.0",
-    "react": "16.7.0",
-    "react-dom": "16.7.0",
+    "react": "16.8.6",
+    "react-dom": "16.8.6",
     "react-helmet": "5.2.0",
-    "react-syntax-highlighter": "10.1.2"
+    "react-syntax-highlighter": "10.2.1"
   },
   "devDependencies": {
-    "gatsby-cli": "2.4.8"
+    "gatsby-cli": "2.5.7"
   },
   "private": true,
   "scripts": {
