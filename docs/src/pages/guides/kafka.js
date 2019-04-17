@@ -18,7 +18,7 @@ export default () =>
 
     <h2>Using the producer and consumer builders</h2>
     <p>Chr.Avro’s producer and consumer builders are the shortest path to working Kafka clients. To use the builders, first add a reference to the Chr.Avro.Confluent package:</p>
-    <Highlight language='shell'>{`$ dotnet add package Chr.Avro.Confluent --version 1.0.0-rc.4`}</Highlight>
+    <Highlight language='shell'>{`$ dotnet add package Chr.Avro.Confluent --version 1.0.0-rc.5`}</Highlight>
     <p>From there, <DotnetReference id='T:Chr.Avro.Confluent.SchemaRegistryProducerBuilder`2' /> can be used to build producers based on schemas from a Schema Registry instance:</p>
     <Highlight language='csharp'>{`using Chr.Avro.Confluent;
 using System;
