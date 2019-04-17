@@ -124,7 +124,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<Serializer<T>> BuildSerializer<T>(string subject, int version)
+        public virtual async Task<Serializer<T>> BuildSerializer<T>(string subject, int version)
         {
             var schema = await RegistryClient.GetSchemaAsync(subject, version);
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema);
@@ -137,13 +137,34 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public void Dispose()
         {
-            if (_disposeRegistryClient)
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the builder, freeing up any resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                RegistryClient?.Dispose();
+                if (_disposeRegistryClient)
+                {
+                    RegistryClient.Dispose();
+                }
             }
         }
 
-        private Serializer<T> BuildSerializer<T>(int id, string schema)
+        /// <summary>
+        /// Builds a serializer for the Confluent wire format.
+        /// </summary>
+        /// <param name="id">
+        /// A schema ID to include in each serialized payload.
+        /// </param>
+        /// <param name="schema">
+        /// The schema to build the Avro serializer from.
+        /// </param>
+        protected virtual Serializer<T> BuildSerializer<T>(int id, string schema)
         {
             var bytes = BitConverter.GetBytes(id);
 

@@ -140,7 +140,7 @@ namespace Chr.Avro.Confluent
         /// <summary>
         /// Serialize a message. (See <see cref="IAsyncSerializer{T}.SerializeAsync(T, SerializationContext)" />.)
         /// </summary>
-        public async Task<byte[]> SerializeAsync(T data, SerializationContext context)
+        public virtual async Task<byte[]> SerializeAsync(T data, SerializationContext context)
         {
             var serialize = await (_cache.GetOrAdd(_subjectNameBuilder(context), async subject =>
             {

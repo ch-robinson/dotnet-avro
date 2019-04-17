@@ -90,7 +90,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<Deserializer<T>> BuildDeserializer<T>(int id)
+        public virtual async Task<Deserializer<T>> BuildDeserializer<T>(int id)
         {
             return BuildDeserializer<T>(id, await RegistryClient.GetSchemaAsync(id));
         }
@@ -105,7 +105,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<Deserializer<T>> BuildDeserializer<T>(string subject)
+        public virtual async Task<Deserializer<T>> BuildDeserializer<T>(string subject)
         {
             var schema = await RegistryClient.GetLatestSchemaAsync(subject);
 
@@ -124,7 +124,7 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<Deserializer<T>> BuildDeserializer<T>(string subject, int version)
+        public virtual async Task<Deserializer<T>> BuildDeserializer<T>(string subject, int version)
         {
             var schema = await RegistryClient.GetSchemaAsync(subject, version);
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema);
@@ -137,13 +137,35 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public void Dispose()
         {
-            if (_disposeRegistryClient)
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the builder, freeing up any resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                RegistryClient?.Dispose();
+                if (_disposeRegistryClient)
+                {
+                    RegistryClient.Dispose();
+                }
             }
         }
 
-        private Deserializer<T> BuildDeserializer<T>(int id, string schema)
+        /// <summary>
+        /// Builds a deserializer for the Confluent wire format.
+        /// </summary>
+        /// <param name="id">
+        /// A schema ID that all payloads must be serialized with. If a received schema ID does not
+        /// match this ID, <see cref="InvalidDataException" /> will be thrown.
+        /// </param>
+        /// <param name="schema">
+        /// The schema to build the Avro deserializer from.
+        /// </param>
+        protected virtual Deserializer<T> BuildDeserializer<T>(int id, string schema)
         {
             var deserialize = _deserializerBuilder.BuildDelegate<T>(_schemaReader.Read(schema));
 
