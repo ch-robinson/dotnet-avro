@@ -258,7 +258,7 @@ namespace Chr.Avro.Abstract
                 throw new ArgumentException("The array case can only be applied to array resolutions.", nameof(resolution));
             }
 
-            var schema = new ArraySchema(SchemaBuilder.BuildSchema(array.ItemType));
+            var schema = new ArraySchema(SchemaBuilder.BuildSchema(array.ItemType, cache));
             cache.Add(array.Type, schema);
 
             return schema;
@@ -755,7 +755,7 @@ namespace Chr.Avro.Abstract
                 throw new ArgumentException("The map case can only be applied to map resolutions.", nameof(resolution));
             }
 
-            var schema = new MapSchema(SchemaBuilder.BuildSchema(map.ValueType));
+            var schema = new MapSchema(SchemaBuilder.BuildSchema(map.ValueType, cache));
             cache.Add(map.Type, schema);
 
             return schema;
