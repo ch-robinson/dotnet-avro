@@ -14,6 +14,9 @@ import {
   getTypeSuffix
 } from '../../../utilities/dotnet'
 
+const confluentDocfxBase = 'https://docs.confluent.io/current/clients/confluent-kafka-dotnet/api/'
+const microsoftDocfxBase = 'https://docs.microsoft.com/en-us/dotnet/api/'
+
 function DotnetExpansion ({ id, typeParameters = [], methodTypeParameters = [] }) {
   switch (id.substring(0, 2)) {
     case 'F:':
@@ -75,11 +78,15 @@ function DotnetExpansion ({ id, typeParameters = [], methodTypeParameters = [] }
 
 function DotnetLink ({ children, id }) {
   if (/^[EFMNPT]:Chr\.Avro/.test(id)) {
-    return <Link to={`/api/${createDocfxUrl(id)}`}>{children}</Link>
+    return <Link to={`/api/${createDocfxUrl(id).toLowerCase()}`}>{children}</Link>
+  }
+
+  if (/^[EFMNPT]:Confluent\.(?:Kafka|SchemaRegistry)/.test(id)) {
+    return <ExternalLink to={`${confluentDocfxBase}${createDocfxUrl(id)}.html`}>{children}</ExternalLink>
   }
 
   if (/^[EFMNPT]:(?:Microsoft|System)/.test(id)) {
-    return <ExternalLink to={`https://docs.microsoft.com/en-us/dotnet/api/${createDocfxUrl(id)}`}>{children}</ExternalLink>
+    return <ExternalLink to={`${microsoftDocfxBase}${createDocfxUrl(id).toLowerCase()}`}>{children}</ExternalLink>
   }
 
   return children

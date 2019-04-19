@@ -81,7 +81,6 @@ function createDocfxUrl (id) {
     .replace(/`+/, '-')
     .replace(/#+/, '-')
     .replace(/\+/, '.')
-    .toLowerCase()
 }
 
 /**

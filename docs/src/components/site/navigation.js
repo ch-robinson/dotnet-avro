@@ -72,14 +72,14 @@ const Navigation = ({ cliVerbs, dotnetNamespaces, ...others }) =>
     <ul className={styles.links}>
       {dotnetNamespaces.map(dotnetNamespace =>
         <li key={dotnetNamespace.id}>
-          <Link to={`/api/${createDocfxUrl(dotnetNamespace.id)}`}>
+          <Link to={`/api/${createDocfxUrl(dotnetNamespace.id).toLowerCase()}`}>
             {dotnetNamespace.name}
           </Link>
 
           <ul className={styles.links}>
             {dotnetNamespace.types.map(dotnetType =>
               <li key={dotnetType.id}>
-                <Link className={styles[dotnetType.kind]} to={`/api/${createDocfxUrl(dotnetType.id)}`}>
+                <Link className={styles[dotnetType.kind]} to={`/api/${createDocfxUrl(dotnetType.id).toLowerCase()}`}>
                   {dotnetType.name}
                 </Link>
               </li>

@@ -41,7 +41,7 @@ module.exports.createPages = async function ({ graphql, actions }, { memberCompo
       context: {
         id: namespace.id
       },
-      path: `/api/${createDocfxUrl(namespace.id)}`
+      path: `/api/${createDocfxUrl(namespace.id).toLowerCase()}`
     })
 
     for (const type of namespace.types) {
@@ -50,7 +50,7 @@ module.exports.createPages = async function ({ graphql, actions }, { memberCompo
         context: {
           id: type.id
         },
-        path: `/api/${createDocfxUrl(type.id)}`
+        path: `/api/${createDocfxUrl(type.id).toLowerCase()}`
       })
 
       for (const member of type.members) {
@@ -59,14 +59,14 @@ module.exports.createPages = async function ({ graphql, actions }, { memberCompo
           context: {
             id: member.id
           },
-          path: `/api/${createDocfxUrl(member.id)}`
+          path: `/api/${createDocfxUrl(member.id).toLowerCase()}`
         })
       }
     }
   }
 }
 
-module.exports.sourceNodes = async function ({ actions, createContentDigest, createNodeId }, { path }) {
+module.exports.sourceNodes = async function ({ actions, createContentDigest }, { path }) {
   const { createNode } = actions
 
   const result = await process(path)
