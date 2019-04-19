@@ -9,8 +9,8 @@ using System.Threading.Tasks;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// Builds <see cref="T:Deserializer{T}" /> delegates that are locked into specific schemas
-    /// from a Schema Registry instance.
+    /// Builds <see cref="T:IDeserializer{T}" />s that are locked into specific schemas from a
+    /// Schema Registry instance.
     /// </summary>
     public class SchemaRegistryDeserializerBuilder : IDisposable
     {
@@ -90,9 +90,9 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public virtual async Task<Deserializer<T>> BuildDeserializer<T>(int id)
+        public virtual async Task<IDeserializer<T>> Build<T>(int id)
         {
-            return BuildDeserializer<T>(id, await RegistryClient.GetSchemaAsync(id));
+            return Build<T>(id, await RegistryClient.GetSchemaAsync(id));
         }
 
         /// <summary>
@@ -105,11 +105,11 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public virtual async Task<Deserializer<T>> BuildDeserializer<T>(string subject)
+        public virtual async Task<IDeserializer<T>> Build<T>(string subject)
         {
             var schema = await RegistryClient.GetLatestSchemaAsync(subject);
 
-            return BuildDeserializer<T>(schema.Id, schema.SchemaString);
+            return Build<T>(schema.Id, schema.SchemaString);
         }
 
         /// <summary>
@@ -124,12 +124,12 @@ namespace Chr.Avro.Confluent
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public virtual async Task<Deserializer<T>> BuildDeserializer<T>(string subject, int version)
+        public virtual async Task<IDeserializer<T>> Build<T>(string subject, int version)
         {
             var schema = await RegistryClient.GetSchemaAsync(subject, version);
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema);
 
-            return BuildDeserializer<T>(id, schema);
+            return Build<T>(id, schema);
         }
 
         /// <summary>
@@ -165,36 +165,33 @@ namespace Chr.Avro.Confluent
         /// <param name="schema">
         /// The schema to build the Avro deserializer from.
         /// </param>
-        protected virtual Deserializer<T> BuildDeserializer<T>(int id, string schema)
+        protected virtual IDeserializer<T> Build<T>(int id, string schema)
         {
             var deserialize = _deserializerBuilder.BuildDelegate<T>(_schemaReader.Read(schema));
 
-            return (data, isNull) =>
+            return new DelegateDeserializer<T>(stream =>
             {
-                using (var stream = new MemoryStream(data.ToArray(), false))
+                var bytes = new byte[4];
+
+                if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
                 {
-                    var bytes = new byte[4];
-
-                    if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
-                    {
-                        throw new InvalidDataException("Data does not conform to the Confluent wire format.");
-                    }
-
-                    if (BitConverter.IsLittleEndian)
-                    {
-                        Array.Reverse(bytes);
-                    }
-
-                    var received = BitConverter.ToInt32(bytes, 0);
-
-                    if (received != id)
-                    {
-                        throw new InvalidDataException($"The received schema ({received}) does not match the specified schema ({id}).");
-                    }
-
-                    return deserialize(stream);
+                    throw new InvalidDataException("Data does not conform to the Confluent wire format.");
                 }
-            };
+
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(bytes);
+                }
+
+                var received = BitConverter.ToInt32(bytes, 0);
+
+                if (received != id)
+                {
+                    throw new InvalidDataException($"The received schema ({received}) does not match the specified schema ({id}).");
+                }
+
+                return deserialize(stream);
+            });
         }
     }
 }

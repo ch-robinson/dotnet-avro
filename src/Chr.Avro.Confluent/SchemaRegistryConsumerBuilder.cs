@@ -47,14 +47,16 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public override IConsumer<TKey, TValue> Build()
         {
-            if (KeyDeserializer == null && AsyncKeyDeserializer == null && !IgnoredTypes.Contains(typeof(TKey)))
+            if (KeyDeserializer == null && !IgnoredTypes.Contains(typeof(TKey)))
             {
-                AsyncKeyDeserializer = new AsyncSchemaRegistryDeserializer<TKey>(_registryConfiguration);
+                KeyDeserializer = new AsyncSchemaRegistryDeserializer<TKey>(_registryConfiguration)
+                    .AsSyncOverAsync();
             }
 
-            if (ValueDeserializer == null && AsyncValueDeserializer == null && !IgnoredTypes.Contains(typeof(TValue)))
+            if (ValueDeserializer == null && !IgnoredTypes.Contains(typeof(TValue)))
             {
-                AsyncValueDeserializer = new AsyncSchemaRegistryDeserializer<TValue>(_registryConfiguration);
+                ValueDeserializer = new AsyncSchemaRegistryDeserializer<TValue>(_registryConfiguration)
+                    .AsSyncOverAsync();
             }
 
             return base.Build();

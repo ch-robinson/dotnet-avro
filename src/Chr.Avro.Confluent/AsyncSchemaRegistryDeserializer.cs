@@ -101,11 +101,11 @@ namespace Chr.Avro.Confluent
 
                 var @delegate = await (_cache.GetOrAdd(BitConverter.ToInt32(bytes, 0), async id =>
                 {
-                    var json = await _registryClient.GetSchemaAsync(id);
+                    var json = await _registryClient.GetSchemaAsync(id).ConfigureAwait(false);
                     var schema = _schemaReader.Read(json);
 
                     return _deserializerBuilder.BuildDelegate<T>(schema);
-                }));
+                })).ConfigureAwait(false);
 
                 return @delegate(stream);
             }

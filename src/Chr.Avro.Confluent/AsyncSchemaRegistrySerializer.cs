@@ -149,20 +149,21 @@ namespace Chr.Avro.Confluent
 
                 try
                 {
-                    var existing = await _registryClient.GetLatestSchemaAsync(subject);
+                    var existing = await _registryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
                     var schema = _schemaReader.Read(existing.SchemaString);
 
-                    id = existing.Id;
                     @delegate = _serializerBuilder.BuildDelegate<T>(schema);
+                    id = existing.Id;
                 }
                 catch (Exception e) when (_registerAutomatically && (
                     (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
                     (e is UnsupportedTypeException)
                 )) {
                     var schema = _schemaBuilder.BuildSchema<T>();
+                    var json = _schemaWriter.Write(schema);
 
                     @delegate = _serializerBuilder.BuildDelegate<T>(schema);
-                    id = await _registryClient.RegisterSchemaAsync(subject, _schemaWriter.Write(schema));
+                    id = await _registryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
                 }
 
                 var bytes = BitConverter.GetBytes(id);
@@ -186,7 +187,7 @@ namespace Chr.Avro.Confluent
 
                     return stream.ToArray();
                 };
-            }));
+            })).ConfigureAwait(false);
 
             return serialize(data);
         }

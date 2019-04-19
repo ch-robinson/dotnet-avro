@@ -49,12 +49,14 @@ namespace Chr.Avro.Confluent
         {
             if (KeySerializer == null && AsyncKeySerializer == null && !IgnoredTypes.Contains(typeof(TKey)))
             {
-                AsyncKeySerializer = new AsyncSchemaRegistrySerializer<TKey>(_registryConfiguration);
+                KeySerializer = new AsyncSchemaRegistrySerializer<TKey>(_registryConfiguration)
+                    .AsSyncOverAsync();
             }
 
             if (ValueSerializer == null && AsyncValueSerializer == null && !IgnoredTypes.Contains(typeof(TValue)))
             {
-                AsyncValueSerializer = new AsyncSchemaRegistrySerializer<TValue>(_registryConfiguration);
+                ValueSerializer = new AsyncSchemaRegistrySerializer<TValue>(_registryConfiguration)
+                    .AsSyncOverAsync();
             }
 
             return base.Build();

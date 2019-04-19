@@ -46,7 +46,7 @@ namespace Chr.Avro.Confluent.Tests
         {
             using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
             {
-                await builder.BuildSerializer<string>(TestSubjectLatestId);
+                await builder.Build<string>(TestSubjectLatestId);
 
                 RegistryMock.Verify(r => r.GetSchemaAsync(TestSubjectLatestId), Times.Once());
                 RegistryMock.VerifyNoOtherCalls();
@@ -58,7 +58,7 @@ namespace Chr.Avro.Confluent.Tests
         {
             using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
             {
-                await builder.BuildSerializer<string>(TestSubject);
+                await builder.Build<string>(TestSubject);
 
                 RegistryMock.Verify(r => r.GetLatestSchemaAsync(TestSubject), Times.Once());
                 RegistryMock.VerifyNoOtherCalls();
@@ -70,7 +70,7 @@ namespace Chr.Avro.Confluent.Tests
         {
             using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
             {
-                await builder.BuildSerializer<string>(TestSubject, TestSubjectLatestVersion);
+                await builder.Build<string>(TestSubject, TestSubjectLatestVersion);
 
                 RegistryMock.Verify(r => r.GetSchemaAsync(TestSubject, TestSubjectLatestVersion), Times.Once());
                 RegistryMock.Verify(r => r.GetSchemaIdAsync(TestSubject, TestSubjectLatestString), Times.Once());
@@ -83,11 +83,13 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0c, 0x06, 0x73, 0x75, 0x70 }, "sup")]
         public async Task SerializesUsingConfluentWireFormat(byte[] encoding, string data)
         {
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+
             using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
             {
-                var serialize = await builder.BuildSerializer<string>(TestSubjectLatestId);
+                var serializer = await builder.Build<string>(TestSubjectLatestId);
 
-                Assert.Equal(encoding, serialize(data));
+                Assert.Equal(encoding, serializer.Serialize(data, context));
             }
         }
     }
