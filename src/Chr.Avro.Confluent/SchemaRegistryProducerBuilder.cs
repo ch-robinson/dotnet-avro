@@ -6,8 +6,8 @@ using System.Collections.Generic;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// A builder class for <see cref="Producer{TKey, TValue}" /> instances that automatically
-    /// configures Avro serialization.
+    /// A builder class for <see cref="IProducer{TKey, TValue}" />s that automatically configures
+    /// Avro serialization.
     /// </summary>
     public class SchemaRegistryProducerBuilder<TKey, TValue> : ProducerBuilder<TKey, TValue>
     {
@@ -43,7 +43,9 @@ namespace Chr.Avro.Confluent
         }
 
         /// <summary>
-        /// Builds a new <see cref="Producer{TKey, TValue}" /> instance.
+        /// Builds a new <see cref="IProducer{TKey, TValue}" />. If key and value serializers
+        /// have not been manually set, they will be configured automatically here with new
+        /// <see cref="T:Chr.Avro.Confluent.AsyncSchemaRegistrySerializer`1" /> instances.
         /// </summary>
         public override IProducer<TKey, TValue> Build()
         {

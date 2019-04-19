@@ -1,28 +1,47 @@
+import { graphql, useStaticQuery } from 'gatsby'
 import React from 'react'
 import { Helmet } from 'react-helmet'
 
 import Highlight from '../../components/code/highlight'
 import DotnetReference from '../../components/references/dotnet'
+import NugetPackageReference from '../../components/references/nuget-package'
 import ExternalLink from '../../components/site/external-link'
 
 const title = 'Building Kafka producers and consumers'
 
-export default () =>
-  <>
-    <Helmet>
-      <title>{title}</title>
-    </Helmet>
+export default () => {
+  const {
+    site: {
+      siteMetadata: { latestRelease, projectName }
+    }
+  } = useStaticQuery(graphql`
+    query {
+      site {
+        siteMetadata {
+          latestRelease
+          projectName
+        }
+      }
+    }
+  `)
 
-    <h1>{title}</h1>
-    <p>If you’re using Avro, there’s a good chance you’re using it to serialize and deserialize Kafka messages. Chr.Avro ships with first-class support for <ExternalLink to='https://github.com/confluentinc/confluent-kafka-dotnet'>Confluent’s Kafka clients</ExternalLink>, but also supports building serializers and deserializers to use elsewhere.</p>
+  return (
+    <>
+      <Helmet>
+        <title>{title}</title>
+      </Helmet>
 
-    <h2>Using the producer and consumer builders</h2>
-    <p>Chr.Avro’s producer and consumer builders are the shortest path to working Kafka clients. To use the builders, first add a reference to the Chr.Avro.Confluent package:</p>
-    <Highlight language='shell'>{`$ dotnet add package Chr.Avro.Confluent --version 1.0.0-rc.6`}</Highlight>
-    <p>From there, <DotnetReference id='T:Chr.Avro.Confluent.SchemaRegistryProducerBuilder`2' /> can be used to build producers based on schemas from a Schema Registry instance:</p>
-    <Highlight language='csharp'>{`using Chr.Avro.Confluent;
+      <h1>{title}</h1>
+      <p>{projectName} ships with first-class support for <ExternalLink to='https://github.com/confluentinc/confluent-kafka-dotnet'>Confluent’s Kafka clients</ExternalLink>, the shortest path to creating Kafka producers and consumers in .NET.</p>
+
+      <h2>Using Confluent’s client builders</h2>
+      <p>First, add a reference to the Chr.Avro.Confluent package:</p>
+      <Highlight language='shell'>{`$ dotnet add package Chr.Avro.Confluent --version ${latestRelease}`}</Highlight>
+      <p>Chr.Avro.Confluent depends on <NugetPackageReference id='Confluent.Kafka' />, which contains <DotnetReference id='T:Confluent.Kafka.ProducerBuilder`2'>producer</DotnetReference> and <DotnetReference id='T:Confluent.Kafka.ConsumerBuilder`2'>consumer</DotnetReference> builders. To build a Schema Registry-integrated producer, use the producer builder in tandem with {projectName}’s <DotnetReference id='T:Chr.Avro.Confluent.AsyncSchemaRegistrySerializer`1'> Schema Registry serializer</DotnetReference>:</p>
+      <Highlight language='csharp'>{`using Chr.Avro.Confluent;
+using Confluent.Kafka;
+using Confluent.SchemaRegistry;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Examples.KafkaProducer
@@ -36,17 +55,27 @@ namespace Chr.Avro.Examples.KafkaProducer
     {
         public static async Task Main(string[] args)
         {
-            var builder = new SchemaRegistryProducerBuilder<string, ExampleValue>(new Dictionary<string, string>
+            var producerConfig = new ProducerConfig()
             {
-                { "bootstrap.servers", "broker1:9092,broker2:9092" },
-                { "schema.registry.url", "http://registry:8081" }
-            });
+                BootstrapServers = "broker1:9092,broker2:9092"
+            };
+
+            var registryConfig = new RegistryConfig()
+            {
+                SchemaRegistryUrl = "http://registry:8081"
+            };
+
+            var builder = new ProducerBuilder<Ignore, ExampleValue>(producerConfig)
+                .SetErrorHandler((producer, error) => Console.Error.WriteLine(error.ToString()))
+                .SetValueSerializer(new AsyncSchemaRegistrySerializer<ExampleValue>(
+                    registryConfig,
+                    registerAutomatically: false
+                ));
 
             using (var producer = builder.Build())
             {
-                await producer.ProduceAsync("example_topic", new Message<string, ExampleValue>
+                await producer.ProduceAsync("example_topic", new Message<Ignore, ExampleValue>
                 {
-                    Key = Guid.NewGuid().ToString(),
                     Value = new ExampleValue
                     {
                         Property = "example!"
@@ -56,11 +85,12 @@ namespace Chr.Avro.Examples.KafkaProducer
         }
     }
 }`}</Highlight>
-    <p>The producer builder assumes (per Confluent convention) that the key and value subjects for <code>example_topic</code> are <code>example_topic-key</code> and <code>example_topic-value</code>. When messages are published, the key and value serializers will attempt to pull down schemas from the Schema Registry.</p>
-    <p><DotnetReference id='T:Chr.Avro.Confluent.SchemaRegistryConsumerBuilder`2' /> works in a similar way—schemas will be retrieved from the Schema Registry as messages are consumed.</p>
+    <p>The serializer assumes (per Confluent convention) that the value subject for <code>example_topic</code> is <code>example_topic-value</code>. (The key subject would be <code>example_topic-key</code>.) When messages are published, the serializer will attempt to pull down a schema from the Schema Registry. The serializer can be configured to generate and register a schema automatically if one doesn’t exist.</p>
+    <p>Building consumers works in a similar way—using {projectName}’s <DotnetReference id='T:Chr.Avro.Confluent.AsyncSchemaRegistryDeserializer`1'> Schema Registry deserializer</DotnetReference>, schemas will be retrieved from the Schema Registry as messages are consumed:</p>
     <Highlight language='csharp'>{`using Chr.Avro.Confluent;
+using Confluent.Kafka;
+using Confluent.SchemaRegistry;
 using System;
-using System.Collections.Generic;
 
 namespace Chr.Avro.Examples.KafkaConsumer
 {
@@ -73,14 +103,24 @@ namespace Chr.Avro.Examples.KafkaConsumer
     {
         public static void Main(string[] args)
         {
-            var builder = new SchemaRegistryConsumerBuilder<string, ExampleValue>(new Dictionary<string, string>()
+            var consumerConfig = new ConsumerConfig()
             {
-                { "bootstrap.servers", "broker1:9092,broker2:9092" },
-                { "group.id", "example_consumer_group" },
-                { "schema.registry.url", "http://registry:8081" }
-            });
+                BootstrapServers = "broker1:9092,broker2:9092",
+                GroupId = "example_consumer_group"
+            };
 
-            using (var consumer = builder.BuildConsumer<string, ExampleValue>())
+            var registryConfig = new RegistryConfig()
+            {
+                SchemaRegistryUrl = "http://registry:8081"
+            };
+
+            var builder = new ConsumerBuilder<Ignore, ExampleValue>(consumerConfig)
+                .SetErrorHandler((consumer, error) => Console.Error.WriteLine(error.ToString()))
+                .SetValueDeserializer(new AsyncSchemaRegistryDeserializer<ExampleValue>(
+                    registryConfig
+                ).AsSyncOverAsync());
+
+            using (var consumer = builder.Build())
             {
                 consumer.Subscribe("example_topic");
 
@@ -89,10 +129,10 @@ namespace Chr.Avro.Examples.KafkaConsumer
                     var result = consumer.Consume();
                     Console.WriteLine($"{result.Key}: {result.Value.Property}");
                 }
-
-                consumer.Close();
             }
         }
     }
 }`}</Highlight>
-  </>
+    </>
+  )
+}

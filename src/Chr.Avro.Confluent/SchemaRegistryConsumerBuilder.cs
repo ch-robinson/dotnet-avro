@@ -6,8 +6,8 @@ using System.Collections.Generic;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// A builder class for <see cref="Consumer{TKey, TValue}" /> instances that automatically
-    /// configures Avro deserialization.
+    /// A builder class for <see cref="IConsumer{TKey, TValue}" />s that automatically configures
+    /// Avro deserialization.
     /// </summary>
     public class SchemaRegistryConsumerBuilder<TKey, TValue> : ConsumerBuilder<TKey, TValue>
     {
@@ -43,7 +43,9 @@ namespace Chr.Avro.Confluent
         }
 
         /// <summary>
-        /// Builds a new <see cref="Consumer{TKey, TValue}" /> instance.
+        /// Builds a new <see cref="IConsumer{TKey, TValue}" />. If key and value deserializers
+        /// have not been manually set, they will be configured automatically here with new
+        /// <see cref="T:Chr.Avro.Confluent.AsyncSchemaRegistryDeserializer`1" /> instances.
         /// </summary>
         public override IConsumer<TKey, TValue> Build()
         {
