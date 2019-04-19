@@ -99,6 +99,25 @@ export default () =>
     <h2 id='booleans'>Booleans</h2>
     <p>Chr.Avro maps Avro’s <Highlight inline language='avro'>"boolean"</Highlight> primitive type to the .NET <DotnetReference id='T:System.Boolean' /> type. No implicit conversions exist between <DotnetReference id='T:System.Boolean' /> and other types (see the <ExternalLink to='https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/bool#conversions'>.NET docs</ExternalLink>), so no other mappings are supported.</p>
 
+    <h2 id='byte-arrays'>Byte arrays</h2>
+    <p>In addition to <DotnetReference id='T:System.Byte[]' />, Chr.Avro supports mapping the following types to <Highlight inline language='avro'>"bytes"</Highlight> and <Highlight inline language='avro'>"fixed"</Highlight>:</p>
+    <table>
+      <thead>
+        <tr valign='top'>
+          <th>.NET&nbsp;type</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr valign='top'>
+          <td><DotnetReference id='T:System.Guid' /></td>
+          <td>
+            The <DotnetReference id='M:System.Guid.ToByteArray'><Highlight inline language='csharp'>Guid.ToByteArray</Highlight> method</DotnetReference> is used for serialization, and the <DotnetReference id='M:System.Guid.#ctor(System.Byte[])'><Highlight inline language='csharp'>Guid</Highlight> constructor</DotnetReference> is used for deserialization. <DotnetReference id='T:System.ArgumentException' /> is thrown when the length is not 16.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
     <h2 id='dates-and-times'>Dates and times</h2>
     <p>The Avro spec defines six logical types for temporal data:</p>
     <ul>
@@ -400,8 +419,8 @@ deserializer.Deserialize(bytes); // throws OverflowException`}</Highlight>
     </ul>
     <p>To change or extend this behavior, implement <DotnetReference id='T:Chr.Avro.Resolution.ITypeResolver' /> or extend one of the existing resolvers (<DotnetReference id='T:Chr.Avro.Resolution.ReflectionResolver' /> and <DotnetReference id='T:Chr.Avro.Resolution.DataContractResolver' />).</p>
 
-    <h2 id='strings-and-byte-arrays'>Strings and byte arrays</h2>
-    <p>Chr.Avro supports mapping the following types to <Highlight inline language='avro'>"string"</Highlight>:</p>
+    <h2 id='strings'>Strings</h2>
+    <p>In addition to <DotnetReference id='T:System.String' />, Chr.Avro supports mapping the following types to <Highlight inline language='avro'>"string"</Highlight>:</p>
     <table>
       <thead>
         <tr valign='top'>

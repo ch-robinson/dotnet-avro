@@ -306,7 +306,7 @@ namespace Chr.Avro.Serialization
             var value = Expression.Parameter(source);
 
             Expression result = null;
-            
+
             try
             {
                 var build = typeof(IBinarySerializerBuilder)
@@ -414,7 +414,7 @@ namespace Chr.Avro.Serialization
         /// The codec that generated serializers should use for write operations.
         /// </summary>
         protected readonly IBinaryCodec Codec;
-        
+
         /// <summary>
         /// Creates a new boolean serializer builder case.
         /// </summary>
@@ -573,16 +573,26 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                try
+                if (source == typeof(Guid))
                 {
-                    result = Expression.ConvertChecked(result, target);
+                    var convertGuid = typeof(Guid)
+                        .GetMethod(nameof(Guid.ToByteArray), Type.EmptyTypes);
+
+                    result = Expression.Call(result, convertGuid);
                 }
-                catch (InvalidOperationException inner)
+                else
                 {
-                    throw new UnsupportedTypeException(source, $"A bytes serializer cannot be built for type {source.FullName}.", inner);
+                    try
+                    {
+                        result = Expression.ConvertChecked(result, target);
+                    }
+                    catch (InvalidOperationException inner)
+                    {
+                        throw new UnsupportedTypeException(source, $"A bytes serializer cannot be built for type {source.FullName}.", inner);
+                    }
                 }
             }
-            
+
             var writeLength = typeof(IBinaryCodec)
                 .GetMethod(nameof(IBinaryCodec.WriteInteger));
 
@@ -804,7 +814,7 @@ namespace Chr.Avro.Serialization
             {
                 throw new ArgumentException("A decimal serializer can only be built for a bytes or a fixed schema.");
             }
-            
+
             var lambda = Expression.Lambda(result, "decimal serializer", new[] { value, stream });
             var compiled = lambda.Compile();
             cache.Add((source, schema), compiled);
@@ -1241,13 +1251,28 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                try
+                if (source == typeof(Guid))
                 {
-                    result = Expression.ConvertChecked(result, target);
+                    if (fixedSchema.Size != 16)
+                    {
+                        throw new UnsupportedSchemaException(schema, $"A fixed schema cannot be mapped to a Guid unless its size is 16.");
+                    }
+
+                    var convertGuid = typeof(Guid)
+                        .GetMethod(nameof(Guid.ToByteArray), Type.EmptyTypes);
+
+                    result = Expression.Call(result, convertGuid);
                 }
-                catch (InvalidOperationException inner)
+                else
                 {
-                    throw new UnsupportedTypeException(source, $"A fixed serializer cannot be built for type {source.FullName}.", inner);
+                    try
+                    {
+                        result = Expression.ConvertChecked(result, target);
+                    }
+                    catch (InvalidOperationException inner)
+                    {
+                        throw new UnsupportedTypeException(source, $"A fixed serializer cannot be built for type {source.FullName}.", inner);
+                    }
                 }
             }
 
@@ -1508,7 +1533,7 @@ namespace Chr.Avro.Serialization
             return true;
         }
     }
-    
+
     /// <summary>
     /// A serializer builder case that matches <see cref="MapSchema" /> and attempts to map it to
     /// dictionary types.
@@ -1619,7 +1644,7 @@ namespace Chr.Avro.Serialization
             {
                 ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
             }
-            
+
             var lambda = Expression.Lambda(result, "map serializer", new[] { value, stream });
             var compiled = lambda.Compile();
             cache.Add((source, schema), compiled);
@@ -1684,7 +1709,7 @@ namespace Chr.Avro.Serialization
 
             var stream = Expression.Parameter(typeof(Stream));
             var value = Expression.Parameter(source);
-            
+
             var lambda = Expression.Lambda(Expression.Empty(), "null serializer", new[] { value, stream });
             var compiled = lambda.Compile();
             cache.Add((source, schema), compiled);
@@ -1801,7 +1826,7 @@ namespace Chr.Avro.Serialization
                 }
 
                 var type = match.Type;
-                
+
                 Expression action = null;
 
                 try
@@ -1976,7 +2001,7 @@ namespace Chr.Avro.Serialization
                 .GetMethod(nameof(Encoding.GetBytes), new[] { typeof(string) });
 
             result = Expression.Call(Expression.Constant(Encoding.UTF8), convertString, result);
-            
+
             var writeLength = typeof(IBinaryCodec)
                 .GetMethod(nameof(IBinaryCodec.WriteInteger));
 
@@ -2068,7 +2093,7 @@ namespace Chr.Avro.Serialization
             {
                 throw new ArgumentException("A timestamp serializer can only be built for a long schema.");
             }
-            
+
             var source = resolution.Type;
 
             if (source != typeof(DateTime) && source != typeof(DateTimeOffset))
@@ -2108,7 +2133,7 @@ namespace Chr.Avro.Serialization
                 .GetMethod(nameof(IBinaryCodec.WriteInteger));
 
             result = Expression.Call(codec, writeValue, result, stream);
-            
+
             var lambda = Expression.Lambda(result, "timestamp serializer", new[] { value, stream });
             var compiled = lambda.Compile();
             cache.Add((source, schema), compiled);
@@ -2227,7 +2252,7 @@ namespace Chr.Avro.Serialization
                     var build = typeof(IBinarySerializerBuilder)
                         .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
                         .MakeGenericMethod(underlying);
-                    
+
                     result = Expression.Constant(
                         build.Invoke(SerializerBuilder, new object[] { candidate, cache }),
                         typeof(Action<,>).MakeGenericType(underlying, typeof(Stream))

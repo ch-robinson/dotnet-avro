@@ -587,13 +587,23 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                try
+                if (target == typeof(Guid))
                 {
-                    result = Expression.ConvertChecked(result, target);
+                    var guidConstructor = typeof(Guid)
+                        .GetConstructor(new[] { typeof(byte[]) });
+
+                    result = Expression.New(guidConstructor, result);
                 }
-                catch (InvalidOperationException inner)
+                else
                 {
-                    throw new UnsupportedTypeException(target, $"A bytes deserializer cannot be built for type {target.FullName}.", inner);
+                    try
+                    {
+                        result = Expression.ConvertChecked(result, target);
+                    }
+                    catch (InvalidOperationException inner)
+                    {
+                        throw new UnsupportedTypeException(target, $"A bytes deserializer cannot be built for type {target.FullName}.", inner);
+                    }
                 }
             }
 
@@ -1212,13 +1222,28 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                try
+                if (target == typeof(Guid))
                 {
-                    result = Expression.ConvertChecked(result, target);
+                    if (fixedSchema.Size != 16)
+                    {
+                        throw new UnsupportedSchemaException(schema, $"A fixed schema cannot be mapped to a Guid unless its size is 16.");
+                    }
+
+                    var guidConstructor = typeof(Guid)
+                        .GetConstructor(new[] { typeof(byte[]) });
+
+                    result = Expression.New(guidConstructor, result);
                 }
-                catch (InvalidOperationException inner)
+                else
                 {
-                    throw new UnsupportedTypeException(target, $"A fixed deserializer cannot be built for type {target.FullName}.", inner);
+                    try
+                    {
+                        result = Expression.ConvertChecked(result, target);
+                    }
+                    catch (InvalidOperationException inner)
+                    {
+                        throw new UnsupportedTypeException(target, $"A fixed deserializer cannot be built for type {target.FullName}.", inner);
+                    }
                 }
             }
 

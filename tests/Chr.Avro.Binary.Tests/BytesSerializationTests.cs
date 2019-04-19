@@ -1,4 +1,6 @@
 using Chr.Avro.Abstract;
+using System;
+using System.Collections.Generic;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
@@ -28,5 +30,23 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
         }
+
+        [Theory]
+        [MemberData(nameof(GuidData))]
+        public void GuidValues(Guid value)
+        {
+            var schema = new BytesSchema();
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<Guid>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<Guid>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        public static IEnumerable<object[]> GuidData => new List<object[]>
+        {
+            new object[] { Guid.Empty },
+            new object[] { Guid.Parse("ed7ba470-8e54-465e-825c-99712043e01c") }
+        };
     }
 }
