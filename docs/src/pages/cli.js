@@ -15,12 +15,12 @@ const CliReferencePage = ({ cliVerbs }) =>
 
     <h1>{title}</h1>
     <p>The Chr.Avro CLI is a <ExternalLink to='https://docs.microsoft.com/en-us/dotnet/core/tools'>.NET Core CLI tool</ExternalLink> that automates schema creation, registry operations, and more. To install:</p>
-    <Highlight language='shell'>{`$ dotnet tool install Chr.Avro.Cli --global --version 1.0.0-rc.6
-Tool 'chr.avro.cli' (version '1.0.0-rc.6') was successfully installed.`}</Highlight>
+    <Highlight language='shell'>{`$ dotnet tool install Chr.Avro.Cli --global
+Tool 'chr.avro.cli' (version '1.0.0') was successfully installed.`}</Highlight>
 
     <p>Because Chr.Avro is still in pre-release, the version always has to be explicitly specified. Once the CLI is installed, use <code>help</code> to see available commands and options:</p>
     <Highlight language='shell'>{`$ dotnet avro help
-Chr.Avro 1.0.0-rc.6
+Chr.Avro 1.0.0
 Copyright (C) 2019 C.H. Robinson
 ...`}</Highlight>
 

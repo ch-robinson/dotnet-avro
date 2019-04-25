@@ -4,8 +4,7 @@
     <Company>C.H. Robinson</Company>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
-    <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>rc.6</VersionSuffix>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
 </Project>
