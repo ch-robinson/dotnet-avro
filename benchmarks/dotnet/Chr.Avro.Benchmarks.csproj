@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Apache.Avro" Version="1.7.7.6" />
+    <PackageReference Include="CsvHelper" Version="12.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Chr.Avro.Binary\Chr.Avro.Binary.csproj" />
+    <ProjectReference Include="..\..\src\Chr.Avro.Json\Chr.Avro.Json.csproj" />
+  </ItemGroup>
+
+</Project>
