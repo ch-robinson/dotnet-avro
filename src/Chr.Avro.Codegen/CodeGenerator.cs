@@ -141,6 +141,7 @@ namespace Chr.Avro.Codegen
         public virtual CompilationUnitSyntax GenerateCompilationUnit(Schema schema)
         {
             var candidates = GetCandidateSchemas(schema)
+                .OrderBy(s => s.Name)
                 .GroupBy(s => s.Namespace)
                 .OrderBy(g => g.Key);
 
