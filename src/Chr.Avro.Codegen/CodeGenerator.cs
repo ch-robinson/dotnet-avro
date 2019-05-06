@@ -372,12 +372,31 @@ namespace Chr.Avro.Codegen
 
             if (seen.Add(schema))
             {
-                if (schema is RecordSchema record)
+                switch (schema)
                 {
-                    foreach (var field in record.Fields)
-                    {
-                        GetCandidateSchemas(field.Type, seen);
-                    }
+                    case ArraySchema a:
+                        GetCandidateSchemas(a.Item, seen);
+                        break;
+
+                    case MapSchema m:
+                        GetCandidateSchemas(m.Value, seen);
+                        break;
+
+                    case RecordSchema r:
+                        foreach (var field in r.Fields)
+                        {
+                            GetCandidateSchemas(field.Type, seen);
+                        }
+
+                        break;
+
+                    case UnionSchema u:
+                        foreach (var child in u.Schemas)
+                        {
+                            GetCandidateSchemas(child, seen);
+                        }
+
+                        break;
                 }
             }
 
