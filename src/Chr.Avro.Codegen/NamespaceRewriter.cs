@@ -67,6 +67,21 @@ namespace Chr.Avro.Codegen
             return result;
         }
 
+        public override SyntaxNode VisitTypeArgumentList(TypeArgumentListSyntax node)
+        {
+            var result = base.VisitTypeArgumentList(node) as TypeArgumentListSyntax;
+
+            // VisitQualifiedName doesn’t hit these
+            var children = node.ChildNodes().OfType<NameSyntax>();
+
+            if (children.Count() > 0)
+            {
+                result = result.ReplaceNodes(children, (child, rewritten) => Reduce(child));
+            }
+
+            return result;
+        }
+
         private NameSyntax Reduce(NameSyntax name)
         {
             if (externals == null || internals == null)
