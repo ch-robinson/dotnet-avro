@@ -1785,7 +1785,7 @@ namespace Chr.Avro.Serialization
             var assignments = recordSchema.Fields.Select(field =>
             {
                 var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-                var type = match?.Type ?? (field.Type is ArraySchema ? typeof(object[]) : typeof(object));
+                var type = match?.Type ?? CreateSurrogateType(field.Type);
 
                 Expression action = null;
 
@@ -1845,6 +1845,53 @@ namespace Chr.Avro.Serialization
         public override bool IsMatch(TypeResolution resolution)
         {
             return resolution is RecordResolution;
+        }
+
+        /// <summary>
+        /// Creates a type that can be used to deserialize missing record fields.
+        /// </summary>
+        /// <param name="schema">
+        /// The schema to generate a compatible type for.
+        /// </param>
+        /// <returns>
+        /// <see cref="IEnumerable{T}" /> if the schema is an array schema (or a union schema
+        /// containing only array/null schemas), <see cref="IDictionary{TKey, TValue}" /> if the
+        /// schema is a map schema (or a union schema containing only map/null schemas), and
+        /// <see cref="Object" /> otherwise.</returns>
+        protected virtual Type CreateSurrogateType(Schema schema)
+        {
+            var schemas = schema is UnionSchema union
+                ? union.Schemas
+                : new[] { schema };
+
+            if (schemas.All(s => s is ArraySchema || s is NullSchema))
+            {
+                var items = schemas.OfType<ArraySchema>()
+                    .Select(a => a.Item)
+                    .Distinct()
+                    .ToList();
+
+                return typeof(IEnumerable<>).MakeGenericType(CreateSurrogateType(
+                    items.Count > 1
+                        ? new UnionSchema(items)
+                        : items.SingleOrDefault()
+                ));
+            }
+            else if (schemas.All(s => s is MapSchema || s is NullSchema))
+            {
+                var values = schemas.OfType<MapSchema>()
+                    .Select(m => m.Value)
+                    .Distinct()
+                    .ToList();
+
+                return typeof(IDictionary<,>).MakeGenericType(typeof(string), CreateSurrogateType(
+                    values.Count > 1
+                        ? new UnionSchema(values)
+                        : values.SingleOrDefault()
+                ));
+            }
+
+            return typeof(object);
         }
     }
 

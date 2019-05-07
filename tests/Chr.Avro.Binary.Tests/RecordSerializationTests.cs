@@ -85,12 +85,25 @@ namespace Chr.Avro.Serialization.Tests
         [Fact]
         public void RecordWithMissingFields()
         {
+            var boolean = new BooleanSchema();
+            var array = new ArraySchema(boolean);
+            var map = new MapSchema(boolean);
+            var union = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                array
+            });
+
             var schema = new RecordSchema("AllFields", new[]
             {
-                new RecordField("First", new ArraySchema(new BooleanSchema())),
-                new RecordField("Second", new ArraySchema(new BooleanSchema())),
-                new RecordField("Third", new BooleanSchema()),
-                new RecordField("Fourth", new BooleanSchema())
+                new RecordField("First", union),
+                new RecordField("Second", union),
+                new RecordField("Third", array),
+                new RecordField("Fourth", array),
+                new RecordField("Fifth", map),
+                new RecordField("Sixth", map),
+                new RecordField("Seventh", boolean),
+                new RecordField("Eighth", boolean)
             });
 
             var deserializer = DeserializerBuilder.BuildDeserializer<WithoutEvenFields>(schema);
@@ -98,13 +111,17 @@ namespace Chr.Avro.Serialization.Tests
 
             var value = new WithEvenFields()
             {
-                First = new bool[1],
-                Second = new bool[2],
-                Third = true,
-                Fourth = false
+                First = new List<bool>() { false },
+                Second = new List<bool>() { false, false },
+                Third = new List<bool>() { false, false, false },
+                Fourth = new List<bool>() { false },
+                Fifth = new Dictionary<string, bool>() { { "first", false } },
+                Sixth = new Dictionary<string, bool>() { { "first", false }, { "second", false } },
+                Seventh = true,
+                Eighth = false
             };
 
-            Assert.True(deserializer.Deserialize(serializer.Serialize(value)).Third);
+            Assert.True(deserializer.Deserialize(serializer.Serialize(value)).Seventh);
         }
 
         [Fact]
@@ -154,16 +171,28 @@ namespace Chr.Avro.Serialization.Tests
 
             public IEnumerable<bool> Second { get; set; }
 
-            public bool Third { get; set; }
+            public IEnumerable<bool> Third { get; set; }
 
-            public bool Fourth { get; set; }
+            public IEnumerable<bool> Fourth { get; set; }
+
+            public IDictionary<string, bool> Fifth { get; set; }
+
+            public IDictionary<string, bool> Sixth { get; set; }
+
+            public bool Seventh { get; set; }
+
+            public bool Eighth { get; set; }
         }
 
         public class WithoutEvenFields
         {
             public IEnumerable<bool> First { get; set; }
 
-            public bool Third { get; set; }
+            public IEnumerable<bool> Third { get; set; }
+
+            public IDictionary<string, bool> Fifth { get; set; }
+
+            public bool Seventh { get; set; }
         }
     }
 }
