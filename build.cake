@@ -1,4 +1,4 @@
-#tool "mdoc"
+#tool nuget:?package=mdoc&version=5.7.4.9
 
 var ROOT = ".";
 
