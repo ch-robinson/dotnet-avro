@@ -25,7 +25,7 @@ namespace Chr.Avro.Serialization.Tests
             var deserializer = DeserializerBuilder.BuildDeserializer<int>(schema);
             var serializer = SerializerBuilder.BuildSerializer<int>(schema);
 
-            Assert.Equal(default(int), deserializer.Deserialize(serializer.Serialize(value)));
+            Assert.Equal(default, deserializer.Deserialize(serializer.Serialize(value)));
         }
 
         [Theory]
@@ -38,7 +38,7 @@ namespace Chr.Avro.Serialization.Tests
             var deserializer = DeserializerBuilder.BuildDeserializer<string>(schema);
             var serializer = SerializerBuilder.BuildSerializer<string>(schema);
 
-            Assert.Equal(default(string), deserializer.Deserialize(serializer.Serialize(value)));
+            Assert.Equal(default, deserializer.Deserialize(serializer.Serialize(value)));
         }
     }
 }

@@ -1014,7 +1014,7 @@ namespace Chr.Avro.Serialization
                 throw new ArgumentException($"A duration deserializer cannot be built for {source.Name}.");
             }
 
-            Action<uint, Stream> write = (value, stream) =>
+            void write(uint value, Stream stream)
             {
                 var bytes = BitConverter.GetBytes(value);
 
@@ -1024,7 +1024,7 @@ namespace Chr.Avro.Serialization
                 }
 
                 Codec.Write(bytes, stream);
-            };
+            }
 
             Action<TimeSpan, Stream> result = (value, stream) =>
             {

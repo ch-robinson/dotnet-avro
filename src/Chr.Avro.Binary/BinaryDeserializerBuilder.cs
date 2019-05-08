@@ -986,7 +986,7 @@ namespace Chr.Avro.Serialization
                 throw new ArgumentException($"A duration deserializer cannot be built for {target.Name}.");
             }
 
-            Func<Stream, uint> read = stream =>
+            uint read(Stream stream)
             {
                 var bytes = Codec.Read(stream, 4);
 
@@ -996,7 +996,7 @@ namespace Chr.Avro.Serialization
                 }
 
                 return BitConverter.ToUInt32(bytes, 0);
-            };
+            }
 
             Func<Stream, TimeSpan> result = stream =>
             {

@@ -828,8 +828,8 @@ namespace Chr.Avro.Resolution
 
             var fields = GetMembers(type, MemberVisibility)
                 .Select(m => (
-                    MemberInfo: m.MemberInfo,
-                    Type: m.Type,
+                    m.MemberInfo,
+                    m.Type,
                     Name: new IdentifierResolution(m.MemberInfo.Name)
                 ))
                 .OrderBy(m => m.Name.Value)

@@ -168,7 +168,7 @@ namespace Chr.Avro.Resolution
                     ))
                     .Where(f => f.Attribute == null)
                     .Select(f => (
-                        MemberInfo: f.MemberInfo,
+                        f.MemberInfo,
                         Name: new IdentifierResolution(f.MemberInfo.Name),
                         Value: Enum.Parse(type, f.MemberInfo.Name)
                     ))
@@ -179,7 +179,7 @@ namespace Chr.Avro.Resolution
                     ))
                     .Where(f => f.Attribute != null)
                     .Select(f => (
-                        MemberInfo: f.MemberInfo,
+                        f.MemberInfo,
                         Name: CreateNameResolution(f.MemberInfo, f.Attribute),
                         Value: Enum.Parse(type, f.MemberInfo.Name)
                     )))
@@ -253,29 +253,29 @@ namespace Chr.Avro.Resolution
             var fields = (contract == null
                 ? GetMembers(type, MemberVisibility)
                     .Select(m => (
-                        MemberInfo: m.MemberInfo,
-                        Type: m.Type,
+                        m.MemberInfo,
+                        m.Type,
                         Attribute: GetAttribute<NonSerializedAttribute>(m.MemberInfo)
                     ))
                     .Where(m => m.Attribute == null)
                     .Select(m => (
-                        MemberInfo: m.MemberInfo,
-                        Type: m.Type,
+                        m.MemberInfo,
+                        m.Type,
                         Name: new IdentifierResolution(m.MemberInfo.Name),
                         Order: 0
                     ))
                 : GetMembers(type, MemberVisibility)
                     .Select(m => (
-                        MemberInfo: m.MemberInfo,
-                        Type: m.Type,
+                        m.MemberInfo,
+                        m.Type,
                         Attribute: GetAttribute<DataMemberAttribute>(m.MemberInfo)
                     ))
                     .Where(m => m.Attribute != null)
                     .Select(m => (
-                        MemberInfo: m.MemberInfo,
-                        Type: m.Type,
+                        m.MemberInfo,
+                        m.Type,
                         Name: CreateNameResolution(m.MemberInfo, m.Attribute),
-                        Order: m.Attribute.Order
+                        m.Attribute.Order
                     )))
                 .OrderBy(m => m.Order)
                 .ThenBy(m => m.Name.Value)

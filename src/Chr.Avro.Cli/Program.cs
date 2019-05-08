@@ -1,13 +1,11 @@
-﻿using CommandLine;
+using CommandLine;
 using System;
-using System.Collections.Generic;
-using System.Globalization;
 
 namespace Chr.Avro.Cli
 {
     public static class Program
     {
-        private static Parser _parser = new Parser(settings =>
+        private static readonly Parser _parser = new Parser(settings =>
         {
             settings.HelpWriter = Console.Error;
         });

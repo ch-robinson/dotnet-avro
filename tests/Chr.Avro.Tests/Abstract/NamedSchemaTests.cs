@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Xunit;
 
-#pragma warning disable xUnit1026 // unused parameters
+#pragma warning disable IDE0060, xUnit1026 // unused parameters
 
 namespace Chr.Avro.Tests
 {

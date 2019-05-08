@@ -1,7 +1,8 @@
-#pragma warning disable CS0169, CS0649 // unused fields
-
 using System;
 using System.Runtime.Serialization;
+
+#pragma warning disable IDE0044 // private fields
+#pragma warning disable CS0169, CS0649, IDE0051 // unused fields
 
 namespace Chr.Avro.Tests
 {
