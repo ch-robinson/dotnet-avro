@@ -14,7 +14,7 @@ namespace Chr.Avro.Benchmarks
             using (var csv = new CsvWriter(Console.Out))
             {
                 // primitives:
-                csv.WriteRecords(Run<Apache.BooleanRunner>());
+                /* csv.WriteRecords(Run<Apache.BooleanRunner>());
                 csv.WriteRecords(Run<Chr.BooleanRunner>());
                 csv.WriteRecords(Run<Apache.DoubleRunner>());
                 csv.WriteRecords(Run<Chr.DoubleRunner>());
@@ -25,7 +25,12 @@ namespace Chr.Avro.Benchmarks
                 csv.WriteRecords(Run<Apache.LongRunner>());
                 csv.WriteRecords(Run<Chr.LongRunner>());
                 csv.WriteRecords(Run<Apache.StringRunner>());
-                csv.WriteRecords(Run<Chr.StringRunner>());
+                csv.WriteRecords(Run<Chr.StringRunner>());*/
+
+                // records:
+                csv.WriteRecords(Run<Apache.GenericRecordRunner>());
+                csv.WriteRecords(Run<Apache.SpecificRecordRunner>());
+                csv.WriteRecords(Run<Chr.RecordRunner>());
             }
         }
 
@@ -106,13 +111,14 @@ namespace Chr.Avro.Benchmarks.Apache
 {
     using global::Avro;
     using global::Avro.Generic;
+    using global::Avro.Specific;
     using global::Avro.IO;
 
-    public abstract class Runner<T> : Benchmarks.Runner<T>
+    public abstract class GenericRunner<T> : Benchmarks.Runner<T>
     {
         protected readonly Schema Schema;
 
-        public Runner(string suite, int iterations, string schema, IEnumerable<T> values)
+        public GenericRunner(string suite, int iterations, string schema, IEnumerable<T> values)
             : base("Confluent.Apache.Avro", suite, iterations, values)
         {
             Schema = Schema.Parse(schema);
@@ -163,6 +169,69 @@ namespace Chr.Avro.Benchmarks.Apache
                 for (int i = 0; i < Iterations; i++)
                 {
                     reader.Read(default, decoder);
+                }
+
+                stopwatch.Stop();
+                yield return ("deserialization", stopwatch.Elapsed);
+            }
+        }
+    }
+
+    public abstract class SpecificRunner<T> : Benchmarks.Runner<T> where T : new()
+    {
+        protected readonly Schema Schema;
+
+        public SpecificRunner(string suite, int iterations, string schema, IEnumerable<T> values)
+            : base("Confluent.Apache.Avro", suite, iterations, values)
+        {
+            Schema = Schema.Parse(schema);
+        }
+
+        public override IEnumerable<(string, TimeSpan)> Run()
+        {
+            var stream = new MemoryStream();
+
+            var reader = new SpecificDatumReader<T>(Schema, Schema);
+            var writer = new SpecificDatumWriter<T>(Schema);
+
+            using (stream)
+            {
+                var encoder = new BinaryEncoder(stream);
+
+                foreach (var value in Values)
+                {
+                    writer.Write(value, encoder);
+                }
+            }
+
+            var count = Values.Length;
+            var size = stream.ToArray().Length * Iterations / count;
+
+            stream = new MemoryStream(size);
+
+            using (stream)
+            {
+                var decoder = new BinaryDecoder(stream);
+                var encoder = new BinaryEncoder(stream);
+
+                var stopwatch = new Stopwatch();
+                stopwatch.Start();
+
+                for (int i = 0; i < Iterations; i++)
+                {
+                    writer.Write(Values[i % count], encoder);
+                }
+
+                stopwatch.Stop();
+                yield return ("serialization", stopwatch.Elapsed);
+
+                stopwatch.Reset();
+                stream.Position = 0;
+                stopwatch.Start();
+
+                for (int i = 0; i < Iterations; i++)
+                {
+                    reader.Read(new T(), decoder);
                 }
 
                 stopwatch.Stop();

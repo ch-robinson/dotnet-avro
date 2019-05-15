@@ -16,7 +16,7 @@ namespace Chr.Avro.Benchmarks
 
 namespace Chr.Avro.Benchmarks.Apache
 {
-    public class BooleanRunner : Runner<bool>
+    public class BooleanRunner : GenericRunner<bool>
     {
         public BooleanRunner() : base(
             BooleanSuite.Name,

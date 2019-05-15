@@ -16,7 +16,7 @@ namespace Chr.Avro.Benchmarks
 
 namespace Chr.Avro.Benchmarks.Apache
 {
-    public class IntRunner : Runner<int>
+    public class IntRunner : GenericRunner<int>
     {
         public IntRunner() : base(
             IntSuite.Name,

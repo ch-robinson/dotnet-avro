@@ -16,7 +16,7 @@ namespace Chr.Avro.Benchmarks
 
 namespace Chr.Avro.Benchmarks.Apache
 {
-    public class StringRunner : Runner<string>
+    public class StringRunner : GenericRunner<string>
     {
         public StringRunner() : base(
             StringSuite.Name,

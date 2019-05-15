@@ -16,7 +16,7 @@ namespace Chr.Avro.Benchmarks
 
 namespace Chr.Avro.Benchmarks.Apache
 {
-    public class LongRunner : Runner<long>
+    public class LongRunner : GenericRunner<long>
     {
         public LongRunner() : base(
             LongSuite.Name,

@@ -17,7 +17,7 @@ namespace Chr.Avro.Benchmarks
 
 namespace Chr.Avro.Benchmarks.Apache
 {
-    public class FloatRunner : Runner<float>
+    public class FloatRunner : GenericRunner<float>
     {
         public FloatRunner() : base(
             FloatSuite.Name,

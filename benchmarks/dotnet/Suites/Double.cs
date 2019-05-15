@@ -17,7 +17,7 @@ namespace Chr.Avro.Benchmarks
 
 namespace Chr.Avro.Benchmarks.Apache
 {
-    public class DoubleRunner : Runner<double>
+    public class DoubleRunner : GenericRunner<double>
     {
         public DoubleRunner() : base(
             DoubleSuite.Name,
