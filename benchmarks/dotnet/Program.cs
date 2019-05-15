@@ -11,10 +11,20 @@ namespace Chr.Avro.Benchmarks
     {
         public static void Main(string[] args)
         {
-            using (var csv = new CsvWriter(Console.Out))
+            var writer = Console.Out;
+
+            if (args.ElementAtOrDefault(0) is string output)
+            {
+                var info = new FileInfo(output);
+                info.Directory.Create();
+
+                writer = File.CreateText(output);
+            }
+
+            using (var csv = new CsvWriter(writer))
             {
                 // primitives:
-                /* csv.WriteRecords(Run<Apache.BooleanRunner>());
+                csv.WriteRecords(Run<Apache.BooleanRunner>());
                 csv.WriteRecords(Run<Chr.BooleanRunner>());
                 csv.WriteRecords(Run<Apache.DoubleRunner>());
                 csv.WriteRecords(Run<Chr.DoubleRunner>());
@@ -25,7 +35,7 @@ namespace Chr.Avro.Benchmarks
                 csv.WriteRecords(Run<Apache.LongRunner>());
                 csv.WriteRecords(Run<Chr.LongRunner>());
                 csv.WriteRecords(Run<Apache.StringRunner>());
-                csv.WriteRecords(Run<Chr.StringRunner>());*/
+                csv.WriteRecords(Run<Chr.StringRunner>());
 
                 // records:
                 csv.WriteRecords(Run<Apache.GenericRecordRunner>());

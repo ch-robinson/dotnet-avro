@@ -2,6 +2,8 @@
 
 var ROOT = ".";
 
+var BENCHMARK_APPLICATIONS_PATH = $"{ROOT}/benchmarks";
+var BENCHMARK_RESULTS_PATH = $"{ROOT}/docs/benchmarks";
 var MDOC_PATH = $"{ROOT}/docs/api";
 var RELEASES_PATH = $"{ROOT}/releases";
 var SLN_PATH = $"{ROOT}/Chr.Avro.sln";
@@ -10,6 +12,17 @@ var TESTS_PATH = $"{ROOT}/tests";
 
 var configuration = Argument<string>("configuration", "Release");
 var target = Argument("target", "Default");
+
+Task("Benchmarks")
+    .Does(() =>
+    {
+        Information("Running .NET benchmarks.");
+
+        DotNetCoreRun(
+            $"{BENCHMARK_APPLICATIONS_PATH}/dotnet/Chr.Avro.Benchmarks.csproj",
+            $"{BENCHMARK_RESULTS_PATH}/dotnet.csv"
+        );
+    });
 
 Task("Build")
     .IsDependentOn("Clean")
