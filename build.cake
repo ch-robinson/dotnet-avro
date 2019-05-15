@@ -20,7 +20,11 @@ Task("Benchmarks")
 
         DotNetCoreRun(
             $"{BENCHMARK_APPLICATIONS_PATH}/dotnet/Chr.Avro.Benchmarks.csproj",
-            $"{BENCHMARK_RESULTS_PATH}/dotnet.csv"
+            $"{BENCHMARK_RESULTS_PATH}/dotnet.csv",
+            new DotNetCoreRunSettings()
+            {
+                Configuration = configuration
+            }
         );
     });
 

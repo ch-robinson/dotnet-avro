@@ -37,6 +37,12 @@ const Navigation = ({ cliVerbs, dotnetNamespaces, ...others }) =>
       </li>
 
       <li>
+        <Link to='/internals/benchmarks'>
+          Performance and benchmarks
+        </Link>
+      </li>
+
+      <li>
         <Link to='/internals/schema-compatibility'>
           Schema compatibility
         </Link>

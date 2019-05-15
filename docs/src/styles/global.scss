@@ -118,6 +118,10 @@ table {
   }
 }
 
+tbody tr:nth-of-type(2n) {
+  background-color: $off-white;
+}
+
 td, th {
   border: 0.05em solid $accent-gray;
   padding: 0.25em 0.75em;
@@ -125,8 +129,4 @@ td, th {
 
 th {
   font-weight: 600;
-}
-
-tr:nth-of-type(2n) {
-  background-color: $off-white;
 }
