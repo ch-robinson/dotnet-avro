@@ -7,7 +7,7 @@ namespace Chr.Avro.Benchmarks
     {
         public const int Iterations = 10_000_000;
 
-        public const string Name = "float, 10e7 iterations";
+        public const string Name = "float";
 
         public const string Schema = "\"float\"";
 

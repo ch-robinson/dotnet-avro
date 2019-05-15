@@ -28,6 +28,12 @@ module.exports = {
       }
     },
     {
+      resolve: 'local-benchmarks',
+      options: {
+        path: path.resolve('./benchmarks')
+      }
+    },
+    {
       resolve: 'local-cli-reference',
       options: {
         path: path.resolve('./cli'),

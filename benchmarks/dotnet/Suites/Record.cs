@@ -7,7 +7,7 @@ namespace Chr.Avro.Benchmarks
     {
         public const int Iterations = 1_000_000;
 
-        public const string Name = "record, 10e6 iterations";
+        public const string Name = "record";
 
         public const string Schema = "{\"type\":\"record\",\"name\":\"Person\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"birthdate\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}},{\"name\":\"favoriteColor\",\"type\":{\"type\":\"enum\",\"name\":\"Color\",\"symbols\":[\"RED\",\"GREEN\",\"BLUE\"]}}]}";
 

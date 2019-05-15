@@ -6,7 +6,7 @@ namespace Chr.Avro.Benchmarks
     {
         public const int Iterations = 10_000_000;
 
-        public const string Name = "long, 10e7 iterations";
+        public const string Name = "long";
 
         public const string Schema = "\"long\"";
 

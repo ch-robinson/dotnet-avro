@@ -1,7 +1,8 @@
 {
   "dependencies": {
     "@rgrove/parse-xml": "2.0.1",
-    "gatsby": "2.4.2",
+    "csv-parse": "4.4.1",
+    "gatsby": "2.4.6",
     "gatsby-plugin-layout": "1.0.15",
     "gatsby-plugin-react-helmet": "3.0.12",
     "gatsby-plugin-sass": "2.0.11",

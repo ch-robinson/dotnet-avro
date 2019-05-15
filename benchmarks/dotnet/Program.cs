@@ -1,4 +1,5 @@
 ﻿using CsvHelper;
+using CsvHelper.Configuration.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -54,11 +55,12 @@ namespace Chr.Avro.Benchmarks
                 {
                     yield return new Result()
                     {
-                        Runtime = ".NET Core 2.2",
+                        Runtime = "netcoreapp2.2",
                         Library = runner.Library,
                         Suite = runner.Suite,
+                        Iterations = runner.Iterations,
                         Component = component,
-                        Iteration = i,
+                        Run = i,
                         Duration = time.TotalMilliseconds
                     };
                 }
@@ -68,16 +70,25 @@ namespace Chr.Avro.Benchmarks
 
     public sealed class Result
     {
+        [Name("runtime")]
         public string Runtime { get; set; }
 
+        [Name("library")]
         public string Library { get; set; }
 
+        [Name("suite")]
         public string Suite { get; set; }
 
+        [Name("iterations")]
+        public int Iterations { get; set; }
+
+        [Name("component")]
         public string Component { get; set; }
 
-        public int Iteration { get; set; }
+        [Name("run")]
+        public int Run { get; set; }
 
+        [Name("duration")]
         public double Duration { get; set; }
     }
 
@@ -86,6 +97,8 @@ namespace Chr.Avro.Benchmarks
         string Library { get; }
 
         string Suite { get; }
+
+        int Iterations { get; }
 
         IEnumerable<(string, TimeSpan)> Run();
     }
@@ -96,7 +109,7 @@ namespace Chr.Avro.Benchmarks
 
         public string Suite { get; }
 
-        protected readonly int Iterations;
+        public int Iterations { get; }
 
         protected readonly T[] Values;
 
