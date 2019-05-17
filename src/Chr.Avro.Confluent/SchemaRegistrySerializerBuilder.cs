@@ -16,7 +16,11 @@ namespace Chr.Avro.Confluent
     {
         private readonly bool _disposeRegistryClient;
 
+        private readonly Abstract.ISchemaBuilder _schemaBuilder;
+
         private readonly IJsonSchemaReader _schemaReader;
+
+        private readonly IJsonSchemaWriter _schemaWriter;
 
         private readonly Serialization.IBinarySerializerBuilder _serializerBuilder;
 
@@ -32,22 +36,34 @@ namespace Chr.Avro.Confluent
         /// Schema Registry configuration. Using the <see cref="SchemaRegistryConfig" /> class is
         /// highly recommended.
         /// </param>
-        /// <param name="serializerBuilder">
-        /// A serializer builder (used to build serialization functions for C# types). If none is
-        /// provided, the default serializer builder will be used.
+        /// <param name="schemaBuilder">
+        /// A schema builder (used to build a schema for a C# type when registering automatically).
+        /// If none is provided, the default schema builder will be used.
         /// </param>
         /// <param name="schemaReader">
         /// A JSON schema reader (used to convert schemas received from the registry into abstract
         /// representations). If none is provided, the default schema reader will be used.
         /// </param>
+        /// <param name="schemaWriter">
+        /// A JSON schema writer (used to convert abstract schema representations when registering
+        /// automatically). If none is provided, the default schema writer will be used.
+        /// </param>
+        /// <param name="serializerBuilder">
+        /// A serializer builder (used to build serialization functions for C# types). If none is
+        /// provided, the default serializer builder will be used.
+        /// </param>
         public SchemaRegistrySerializerBuilder(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            Serialization.IBinarySerializerBuilder serializerBuilder = null,
-            IJsonSchemaReader schemaReader = null
+            Abstract.ISchemaBuilder schemaBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            IJsonSchemaWriter schemaWriter = null,
+            Serialization.IBinarySerializerBuilder serializerBuilder = null
         ) : this(
             new CachedSchemaRegistryClient(registryConfiguration),
-            serializerBuilder,
-            schemaReader
+            schemaBuilder,
+            schemaReader,
+            schemaWriter,
+            serializerBuilder
         ) {
             _disposeRegistryClient = true;
         }
@@ -58,26 +74,38 @@ namespace Chr.Avro.Confluent
         /// <param name="registryClient">
         /// A client to use for Schema Registry operations. (The client will not be disposed.)
         /// </param>
-        /// <param name="serializerBuilder">
-        /// A serializer builder (used to build serialization functions for C# types). If none is
-        /// provided, the default serializer builder will be used.
+        /// <param name="schemaBuilder">
+        /// A schema builder (used to build a schema for a C# type when registering automatically).
+        /// If none is provided, the default schema builder will be used.
         /// </param>
         /// <param name="schemaReader">
         /// A JSON schema reader (used to convert schemas received from the registry into abstract
         /// representations). If none is provided, the default schema reader will be used.
+        /// </param>
+        /// <param name="schemaWriter">
+        /// A JSON schema writer (used to convert abstract schema representations when registering
+        /// automatically). If none is provided, the default schema writer will be used.
+        /// </param>
+        /// <param name="serializerBuilder">
+        /// A serializer builder (used to build serialization functions for C# types). If none is
+        /// provided, the default serializer builder will be used.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the registry client is null.
         /// </exception>
         public SchemaRegistrySerializerBuilder(
             ISchemaRegistryClient registryClient,
-            Serialization.IBinarySerializerBuilder serializerBuilder = null,
-            IJsonSchemaReader schemaReader = null
+            Abstract.ISchemaBuilder schemaBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            IJsonSchemaWriter schemaWriter = null,
+            Serialization.IBinarySerializerBuilder serializerBuilder = null
         ) {
             RegistryClient = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
 
             _disposeRegistryClient = false;
+            _schemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
             _schemaReader = schemaReader ?? new JsonSchemaReader();
+            _schemaWriter = schemaWriter ?? new JsonSchemaWriter();
             _serializerBuilder = serializerBuilder ?? new Serialization.BinarySerializerBuilder();
         }
 
@@ -102,14 +130,34 @@ namespace Chr.Avro.Confluent
         /// The subject of the schema that should be used to serialize data. The latest version of
         /// the subject will be resolved.
         /// </param>
+        /// <param name="registerAutomatically">
+        /// Whether to automatically register a schema that matches <typeparamref name="T" /> if
+        /// one does not already exist.
+        /// </param>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is incompatible with the retrieved schema.
+        /// Thrown when the type is incompatible with the retrieved schema or a matching schema
+        /// cannot be generated.
         /// </exception>
-        public async Task<ISerializer<T>> Build<T>(string subject)
+        public async Task<ISerializer<T>> Build<T>(string subject, bool registerAutomatically = false)
         {
-            var schema = await RegistryClient.GetLatestSchemaAsync(subject);
+            try
+            {
+                var schema = await RegistryClient.GetLatestSchemaAsync(subject);
 
-            return Build<T>(schema.Id, schema.SchemaString);
+                return Build<T>(schema.Id, schema.SchemaString);
+            }
+            catch (Exception e) when (registerAutomatically && (
+                (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
+                (e is UnsupportedTypeException)
+            ))
+            {
+                var schema = _schemaBuilder.BuildSchema<T>();
+                var json = _schemaWriter.Write(schema);
+
+                var id = await RegistryClient.RegisterSchemaAsync(subject, json);
+
+                return Build<T>(id, json);
+            }
         }
 
         /// <summary>

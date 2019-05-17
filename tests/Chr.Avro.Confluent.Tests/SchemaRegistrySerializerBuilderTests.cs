@@ -2,6 +2,7 @@ using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Moq;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -61,6 +62,36 @@ namespace Chr.Avro.Confluent.Tests
                 await builder.Build<string>(TestSubject);
 
                 RegistryMock.Verify(r => r.GetLatestSchemaAsync(TestSubject), Times.Once());
+                RegistryMock.VerifyNoOtherCalls();
+            }
+        }
+
+        [Fact]
+        public async Task BuildsSerializerWithAutoRegisteredSchema()
+        {
+            var subject = "new_subject";
+            var id = 40;
+
+            RegistryMock.Setup(r => r.GetLatestSchemaAsync(subject))
+                .ThrowsAsync(new SchemaRegistryException(
+                    "Subject not found.",
+                    HttpStatusCode.NotFound,
+                    40401
+                ))
+                .Verifiable();
+
+            RegistryMock.Setup(r => r.RegisterSchemaAsync(subject, It.IsAny<string>()))
+                .ReturnsAsync(id)
+                .Verifiable();
+
+            using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
+            {
+                await Assert.ThrowsAsync<SchemaRegistryException>(() => builder.Build<string>(subject));
+
+                await builder.Build<string>(subject, registerAutomatically: true);
+
+                RegistryMock.Verify(r => r.GetLatestSchemaAsync(subject), Times.Exactly(2));
+                RegistryMock.Verify(r => r.RegisterSchemaAsync(subject, It.IsAny<string>()), Times.Once());
                 RegistryMock.VerifyNoOtherCalls();
             }
         }
