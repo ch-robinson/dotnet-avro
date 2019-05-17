@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// An <see cref="IAsyncSerializer{T}" /> that resolves schemas on the fly. When serializing
-    /// messages, this serializer will attempt to look up a schema that matches the topic (if one
-    /// isn’t already cached).
+    /// An <see cref="IAsyncSerializer{T}" /> that resolves Avro schemas on the fly. When serializing
+    /// messages, this serializer will attempt to look up a subject that matches the topic name (if
+    /// not already cached).
     /// </summary>
     /// <remarks>
     /// By default, when serializing keys for a topic with name "test_topic", this deserializer
@@ -24,9 +24,11 @@ namespace Chr.Avro.Confluent
     {
         private readonly ConcurrentDictionary<string, Task<Func<T, byte[]>>> _cache;
 
+        private readonly Func<string, string, Task<int>> _register;
+
         private readonly bool _registerAutomatically;
 
-        private readonly ISchemaRegistryClient _registryClient;
+        private readonly Func<string, Task<Schema>> _resolve;
 
         private readonly Abstract.ISchemaBuilder _schemaBuilder;
 
@@ -69,6 +71,9 @@ namespace Chr.Avro.Confluent
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
         /// convention will be used.
         /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the registry configuration is null.
+        /// </exception>
         public AsyncSchemaRegistrySerializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
@@ -78,14 +83,34 @@ namespace Chr.Avro.Confluent
             IBinarySerializerBuilder serializerBuilder = null,
             Func<SerializationContext, string> subjectNameBuilder = null
         ) : this(
-            new CachedSchemaRegistryClient(registryConfiguration),
             registerAutomatically,
             schemaBuilder,
             schemaReader,
             schemaWriter,
             serializerBuilder,
             subjectNameBuilder
-        ) { }
+        ) {
+            if (registryConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(registryConfiguration));
+            }
+
+            _register = async (subject, json) =>
+            {
+                using (var registry = new CachedSchemaRegistryClient(registryConfiguration))
+                {
+                    return await registry.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
+                }
+            };
+
+            _resolve = async subject =>
+            {
+                using (var registry = new CachedSchemaRegistryClient(registryConfiguration))
+                {
+                    return await registry.GetLatestSchemaAsync(subject).ConfigureAwait(false);
+                }
+            };
+        }
 
         /// <summary>
         /// Creates a serializer.
@@ -117,8 +142,35 @@ namespace Chr.Avro.Confluent
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
         /// convention will be used.
         /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the registry client is null.
+        /// </exception>
         public AsyncSchemaRegistrySerializer(
             ISchemaRegistryClient registryClient,
+            bool registerAutomatically = false,
+            Abstract.ISchemaBuilder schemaBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            IJsonSchemaWriter schemaWriter = null,
+            IBinarySerializerBuilder serializerBuilder = null,
+            Func<SerializationContext, string> subjectNameBuilder = null
+        ) : this(
+            registerAutomatically,
+            schemaBuilder,
+            schemaReader,
+            schemaWriter,
+            serializerBuilder,
+            subjectNameBuilder
+        ) {
+            if (registryClient == null)
+            {
+                throw new ArgumentNullException(nameof(registryClient));
+            }
+
+            _register = (subject, json) => registryClient.RegisterSchemaAsync(subject, json);
+            _resolve = subject => registryClient.GetLatestSchemaAsync(subject);
+        }
+
+        private AsyncSchemaRegistrySerializer(
             bool registerAutomatically = false,
             Abstract.ISchemaBuilder schemaBuilder = null,
             IJsonSchemaReader schemaReader = null,
@@ -128,7 +180,6 @@ namespace Chr.Avro.Confluent
         ) {
             _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
             _registerAutomatically = registerAutomatically;
-            _registryClient = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
             _schemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
             _schemaReader = schemaReader ?? new JsonSchemaReader();
             _schemaWriter = schemaWriter ?? new JsonSchemaWriter();
@@ -149,7 +200,7 @@ namespace Chr.Avro.Confluent
 
                 try
                 {
-                    var existing = await _registryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
+                    var existing = await _resolve(subject).ConfigureAwait(false);
                     var schema = _schemaReader.Read(existing.SchemaString);
 
                     @delegate = _serializerBuilder.BuildDelegate<T>(schema);
@@ -158,12 +209,13 @@ namespace Chr.Avro.Confluent
                 catch (Exception e) when (_registerAutomatically && (
                     (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
                     (e is UnsupportedTypeException)
-                )) {
+                ))
+                {
                     var schema = _schemaBuilder.BuildSchema<T>();
                     var json = _schemaWriter.Write(schema);
 
                     @delegate = _serializerBuilder.BuildDelegate<T>(schema);
-                    id = await _registryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
+                    id = await _register(subject, json).ConfigureAwait(false);
                 }
 
                 var bytes = BitConverter.GetBytes(id);

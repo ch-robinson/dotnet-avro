@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// An <see cref="IAsyncDeserializer{T}" /> that resolves schemas on the fly. When deserializing
-    /// messages, this deserializer will attempt to derive a schema ID from the first five bytes.
-    /// (For more information, see the <a href="https://docs.confluent.io/current/schema-registry/docs/serializer-formatter.html#wire-format">Confluent wire format documentation</a>.)
+    /// An <see cref="IAsyncDeserializer{T}" /> that resolves Avro schemas on the fly. When
+    /// deserializing messages, this deserializer will attempt to derive a schema ID from the first
+    /// five bytes. (For more information, see the <a href="https://docs.confluent.io/current/schema-registry/docs/serializer-formatter.html#wire-format">Confluent wire format documentation</a>.)
     /// If a schema with that ID is not found in cache, it will attempt to pull down a matching
     /// schema from the Schema Registry.
     /// </summary>
@@ -23,7 +23,7 @@ namespace Chr.Avro.Confluent
 
         private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        private readonly ISchemaRegistryClient _registryClient;
+        private readonly Func<int, Task<string>> _resolve;
 
         private readonly IJsonSchemaReader _schemaReader;
 
@@ -42,15 +42,30 @@ namespace Chr.Avro.Confluent
         /// A JSON schema reader (used to convert schemas received from the registry into abstract
         /// representations). If none is provided, the default schema reader will be used.
         /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the registry configuration is null.
+        /// </exception>
         public AsyncSchemaRegistryDeserializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             IBinaryDeserializerBuilder deserializerBuilder = null,
             IJsonSchemaReader schemaReader = null
         ) : this(
-            new CachedSchemaRegistryClient(registryConfiguration),
             deserializerBuilder,
             schemaReader
-        ) { }
+        ) {
+            if (registryConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(registryConfiguration));
+            }
+
+            _resolve = async id =>
+            {
+                using (var registry = new CachedSchemaRegistryClient(registryConfiguration))
+                {
+                    return await registry.GetSchemaAsync(id).ConfigureAwait(false);
+                }
+            };
+        }
 
         /// <summary>
         /// Creates a deserializer.
@@ -73,10 +88,24 @@ namespace Chr.Avro.Confluent
             ISchemaRegistryClient registryClient,
             IBinaryDeserializerBuilder deserializerBuilder = null,
             IJsonSchemaReader schemaReader = null
+        ) : this(
+            deserializerBuilder,
+            schemaReader
+        ) {
+            if (registryClient == null)
+            {
+                throw new ArgumentNullException(nameof(registryClient));
+            }
+
+            _resolve = id => registryClient.GetSchemaAsync(id);
+        }
+
+        private AsyncSchemaRegistryDeserializer(
+            IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null
         ) {
             _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
             _deserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
-            _registryClient = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
             _schemaReader = schemaReader ?? new JsonSchemaReader();
         }
 
@@ -101,7 +130,7 @@ namespace Chr.Avro.Confluent
 
                 var @delegate = await (_cache.GetOrAdd(BitConverter.ToInt32(bytes, 0), async id =>
                 {
-                    var json = await _registryClient.GetSchemaAsync(id).ConfigureAwait(false);
+                    var json = await _resolve(id).ConfigureAwait(false);
                     var schema = _schemaReader.Read(json);
 
                     return _deserializerBuilder.BuildDelegate<T>(schema);
