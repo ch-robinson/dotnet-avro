@@ -22,7 +22,7 @@ namespace Chr.Avro.Representation.Tests
             Assert.Equal(@out, Writer.Write(Reader.Read(@out)));
             Assert.Equal(@out, Writer.Write(Reader.Read(@in)));
         }
-        
+
         [Theory]
         [MemberData(nameof(ArraySchemaRepresentations))]
         [MemberData(nameof(DateLogicalTypeRepresentations))]
@@ -39,7 +39,7 @@ namespace Chr.Avro.Representation.Tests
         {
             Assert.Equal(schema, Writer.Write(Reader.Read(schema)));
         }
-        
+
         public static IEnumerable<object[]> ArraySchemaRepresentations => new List<object[]>
         {
             new object[] { "{\"type\":\"array\",\"items\":\"null\"}" },
@@ -77,9 +77,9 @@ namespace Chr.Avro.Representation.Tests
 
         public static IEnumerable<object[]> MapSchemaRepresentations => new List<object[]>
         {
-            new object[] { "{\"type\":\"array\",\"items\":\"null\"}" },
-            new object[] { "{\"type\":\"array\",\"items\":\"double\"}" },
-            new object[] { "{\"type\":\"array\",\"items\":[\"null\",\"double\",\"int\"]}" },
+            new object[] { "{\"type\":\"map\",\"values\":\"null\"}" },
+            new object[] { "{\"type\":\"map\",\"values\":\"double\"}" },
+            new object[] { "{\"type\":\"map\",\"values\":[\"null\",\"double\",\"int\"]}" },
         };
 
         public static IEnumerable<object[]> PrimitiveSchemaRepresentations => new List<object[]>
@@ -106,7 +106,7 @@ namespace Chr.Avro.Representation.Tests
             new object[] { "{\"type\":\"long\",\"logicalType\":\"time-micros\"}" },
             new object[] { "{\"type\":\"int\",\"logicalType\":\"time-millis\"}" },
         };
-        
+
         public static IEnumerable<object[]> TimestampLogicalTypeRepresentations => new List<object[]>
         {
             new object[] { "{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"}" },
