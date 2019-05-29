@@ -2234,9 +2234,9 @@ namespace Chr.Avro.Serialization
         /// </exception>
         public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is UnionSchema unionSchema))
+            if (!(schema is UnionSchema unionSchema && unionSchema.Schemas.Count > 0))
             {
-                throw new ArgumentException("A union deserializer can only be built for a union schema.");
+                throw new ArgumentException("A union deserializer can only be built for a union schema of one or more schemas.");
             }
 
             var target = resolution.Type;
@@ -2254,11 +2254,12 @@ namespace Chr.Avro.Serialization
             {
                 var underlying = Nullable.GetUnderlyingType(target);
 
-                // if not nullable, just use the original type:
-                if (underlying == null || child is NullSchema)
+                if (child is NullSchema && target.IsValueType && underlying == null)
                 {
-                    underlying = target;
+                    throw new UnsupportedTypeException(target, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {target.FullName}.");
                 }
+
+                underlying = target;
 
                 Expression @case = null;
 
@@ -2303,11 +2304,11 @@ namespace Chr.Avro.Serialization
         /// Determines whether the case can be applied to a schema.
         /// </summary>
         /// <returns>
-        /// Whether the schema is a <see cref="UnionSchema" />.
+        /// Whether the schema is a <see cref="UnionSchema" /> of one or more schemas.
         /// </returns>
         public override bool IsMatch(Schema schema)
         {
-            return schema is UnionSchema;
+            return schema is UnionSchema unionSchema && unionSchema.Schemas.Count > 0;
         }
 
         /// <summary>

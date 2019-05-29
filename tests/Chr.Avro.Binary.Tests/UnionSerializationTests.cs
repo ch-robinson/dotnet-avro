@@ -16,6 +16,35 @@ namespace Chr.Avro.Serialization.Tests
             SerializerBuilder = new BinarySerializerBuilder();
         }
 
+        [Fact]
+        public void EmptyUnionToObjectType()
+        {
+            var schema = new UnionSchema();
+
+            Assert.Throws<UnsupportedSchemaException>(() => SerializerBuilder.BuildSerializer<object>(schema));
+            Assert.Throws<UnsupportedSchemaException>(() => DeserializerBuilder.BuildDeserializer<object>(schema));
+        }
+
+        [Theory]
+        [MemberData(nameof(NullAndIntUnionEncodings))]
+        public void NullAndIntUnionToInt32Type(int? value, byte[] encoding)
+        {
+            var schema = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                new IntSchema()
+            });
+
+            var serializer = SerializerBuilder.BuildSerializer<int>(schema);
+
+            if (value.HasValue)
+            {
+                Assert.Equal(encoding, serializer.Serialize(value.Value));
+            }
+
+            Assert.Throws<UnsupportedTypeException>(() => DeserializerBuilder.BuildDeserializer<int>(schema));
+        }
+
         [Theory]
         [MemberData(nameof(NullAndIntUnionEncodings))]
         public void NullAndIntUnionToNullableInt32Type(int? value, byte[] encoding)
@@ -31,6 +60,19 @@ namespace Chr.Avro.Serialization.Tests
 
             var deserializer = DeserializerBuilder.BuildDeserializer<int?>(schema);
             Assert.Equal(value, deserializer.Deserialize(encoding));
+        }
+
+        [Fact]
+        public void NullAndIntUnionToStringType()
+        {
+            var schema = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                new IntSchema()
+            });
+
+            Assert.Throws<UnsupportedTypeException>(() => SerializerBuilder.BuildSerializer<string>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => DeserializerBuilder.BuildDeserializer<string>(schema));
         }
 
         [Theory]

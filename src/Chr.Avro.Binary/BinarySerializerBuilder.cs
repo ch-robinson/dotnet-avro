@@ -2220,77 +2220,81 @@ namespace Chr.Avro.Serialization
         /// </exception>
         public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is UnionSchema unionSchema))
+            if (!(schema is UnionSchema unionSchema && unionSchema.Schemas.Count > 0))
             {
-                throw new ArgumentException("A union serializer can only be built for a union schema.");
+                throw new ArgumentException("A union serializer can only be built for a union schema of one or more schemas.");
             }
 
             var schemas = unionSchema.Schemas.ToList();
+            var candidates = schemas.Where(s => !(s is NullSchema)).ToList();
+            var @null = schemas.Find(s => s is NullSchema);
             var source = resolution.Type;
 
             var codec = Expression.Constant(Codec);
             var stream = Expression.Parameter(typeof(Stream));
             var value = Expression.Parameter(source);
 
-            var writeIndex = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.WriteInteger));
+            Expression writeIndex(Schema child) => Expression.Call(
+                codec,
+                typeof(IBinaryCodec).GetMethod(nameof(IBinaryCodec.WriteInteger)),
+                Expression.Constant((long)schemas.IndexOf(child)),
+                stream
+            );
 
             Expression result = null;
 
-            // generate a write function for the first matching non-null schema:
-            for (var i = 0; i < schemas.Count; i++)
+            // if there are non-null schemas, select the first matching one:
+            if (candidates.Count > 0)
             {
-                if (schemas[i] is var candidate && candidate is NullSchema)
-                {
-                    continue;
-                }
-
                 var underlying = Nullable.GetUnderlyingType(source) ?? source;
 
-                try
+                foreach (var candidate in candidates)
                 {
-                    var build = typeof(IBinarySerializerBuilder)
-                        .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
-                        .MakeGenericMethod(underlying);
+                    try
+                    {
+                        var build = typeof(IBinarySerializerBuilder)
+                            .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
+                            .MakeGenericMethod(underlying);
 
-                    result = Expression.Constant(
-                        build.Invoke(SerializerBuilder, new object[] { candidate, cache }),
-                        typeof(Action<,>).MakeGenericType(underlying, typeof(Stream))
-                    );
+                        result = Expression.Block(
+                            writeIndex(candidate),
+                            Expression.Invoke(
+                                Expression.Constant(
+                                    build.Invoke(SerializerBuilder, new object[] { candidate, cache }),
+                                    typeof(Action<,>).MakeGenericType(underlying, typeof(Stream))
+                                ),
+                                Expression.ConvertChecked(value, underlying),
+                                stream
+                            )
+                        );
+                    }
+                    catch (TargetInvocationException)
+                    {
+                        continue;
+                    }
+
+                    if (@null != null && !(source.IsValueType && Nullable.GetUnderlyingType(source) == null))
+                    {
+                        result = Expression.IfThenElse(
+                            Expression.Equal(value, Expression.Constant(null, source)),
+                            writeIndex(@null),
+                            result
+                        );
+                    }
+
+                    break;
                 }
-                catch (TargetInvocationException)
-                {
-                    continue;
-                }
 
-                result = Expression.Block(
-                    Expression.Call(codec, writeIndex, Expression.Constant((long)i), stream),
-                    Expression.Invoke(result, Expression.ConvertChecked(value, underlying), stream)
-                );
-
-                break;
-            }
-
-            var nullIndex = schemas.FindIndex(s => s is NullSchema);
-
-            if (nullIndex < 0 || (source.IsValueType && Nullable.GetUnderlyingType(source) == null))
-            {
                 if (result == null)
                 {
-                    throw new UnsupportedTypeException(source, $"{source.Name} cannot be serialized to the union [{string.Join(", ", schemas.Select(s => s.GetType().Name))}].");
+                    throw new UnsupportedTypeException(source, $"{source.Name} does not match any non-null members of the union [{string.Join(", ", schemas.Select(s => s.GetType().Name))}].");
                 }
             }
+
+            // otherwise, we know that the schema is just ["null"]:
             else
             {
-                Expression writeNull = Expression.Call(codec, writeIndex, Expression.Constant((long)nullIndex), stream);
-
-                result = result == null
-                    ? writeNull
-                    : Expression.IfThenElse(
-                        Expression.Equal(value, Expression.Constant(null, source)),
-                        writeNull,
-                        result
-                    );
+                result = writeIndex(@null);
             }
 
             var lambda = Expression.Lambda(result, "union serializer", new[] { value, stream });
@@ -2304,11 +2308,11 @@ namespace Chr.Avro.Serialization
         /// Determines whether the case can be applied to a schema.
         /// </summary>
         /// <returns>
-        /// Whether the schema is a <see cref="UnionSchema" />.
+        /// Whether the schema is a <see cref="UnionSchema" /> of one or more schemas.
         /// </returns>
         public override bool IsMatch(Schema schema)
         {
-            return schema is UnionSchema;
+            return schema is UnionSchema unionSchema && unionSchema.Schemas.Count > 0;
         }
 
         /// <summary>
