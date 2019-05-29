@@ -1008,7 +1008,11 @@ namespace Chr.Avro.Abstract
                 throw new ArgumentException("The UUID case can only be applied to UUID resolutions.", nameof(resolution));
             }
 
-            var schema = new StringSchema();
+            var schema = new StringSchema()
+            {
+                LogicalType = new UuidLogicalType()
+            };
+
             cache.Add(uuid.Type, schema);
 
             return schema;

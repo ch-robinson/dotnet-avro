@@ -120,6 +120,7 @@ namespace Chr.Avro.Representation
                 new MicrosecondTimestampJsonSchemaWriterCase(),
                 new MillisecondTimeJsonSchemaWriterCase(),
                 new MillisecondTimestampJsonSchemaWriterCase(),
+                new UuidJsonSchemaWriterCase(),
 
                 // collections:
                 new ArrayJsonSchemaWriterCase(this),
@@ -991,7 +992,7 @@ namespace Chr.Avro.Representation
             {
                 throw new ArgumentException("The millisecond time case can only be applied to an int schema with a millisecond time logical type.");
             }
-            
+
             if (canonical)
             {
                 json.WriteValue(JsonSchemaToken.Int);
@@ -1259,7 +1260,7 @@ namespace Chr.Avro.Representation
             json.WriteEndObject();
         }
     }
-    
+
     /// <summary>
     /// A JSON schema writer case that matches <see cref="UnionSchema" />.
     /// </summary>
@@ -1321,6 +1322,59 @@ namespace Chr.Avro.Representation
             }
 
             json.WriteEndArray();
+        }
+    }
+
+    /// <summary>
+    /// A JSON schema writer case that matches <see cref="UuidLogicalType" />.
+    /// </summary>
+    public class UuidJsonSchemaWriterCase : JsonSchemaWriterCase
+    {
+        /// <summary>
+        /// Determines whether the case can be applied to a schema.
+        /// </summary>
+        public override bool IsMatch(Schema schema)
+        {
+            return schema is StringSchema && schema.LogicalType is UuidLogicalType;
+        }
+
+        /// <summary>
+        /// Writes a schema to JSON.
+        /// </summary>
+        /// <param name="schema">
+        /// The schema to write.
+        /// </param>
+        /// <param name="json">
+        /// The JSON writer to use for output.
+        /// </param>
+        /// <param name="canonical">
+        /// Whether the schema should be written in Parsing Canonical Form (i.e., built without
+        /// nonessential attributes).
+        /// </param>
+        /// <param name="names">
+        /// A schema cache. The cache is populated as the schema is written and can be used to
+        /// determine which named schemas have already been processed.
+        /// </param>
+        public override void Write(Schema schema, JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        {
+            if (!IsMatch(schema))
+            {
+                throw new ArgumentException("The UUID case can only be applied to a string schema with a UUID logical type.");
+            }
+
+            if (canonical)
+            {
+                json.WriteValue(JsonSchemaToken.String);
+            }
+            else
+            {
+                json.WriteStartObject();
+                json.WritePropertyName(JsonAttributeToken.Type);
+                json.WriteValue(JsonSchemaToken.String);
+                json.WritePropertyName(JsonAttributeToken.LogicalType);
+                json.WriteValue(JsonSchemaToken.Uuid);
+                json.WriteEndObject();
+            }
         }
     }
 }

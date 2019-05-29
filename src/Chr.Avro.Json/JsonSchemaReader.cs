@@ -115,6 +115,7 @@ namespace Chr.Avro.Representation
                 new MicrosecondTimestampJsonSchemaReaderCase(),
                 new MillisecondTimeJsonSchemaReaderCase(),
                 new MillisecondTimestampJsonSchemaReaderCase(),
+                new UuidJsonSchemaReaderCase(),
 
                 // collections:
                 new ArrayJsonSchemaReaderCase(this),
@@ -444,7 +445,7 @@ namespace Chr.Avro.Representation
             {
                 throw new ArgumentException("The decimal case can only be applied to \"bytes\" schemas with a \"decimal\" logical type.");
             }
-            
+
             if ((string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Fixed)
             {
                 var schema = new FixedSchema(GetQualifiedName(@object, scope), GetSize(@object))
@@ -548,7 +549,7 @@ namespace Chr.Avro.Representation
             }
 
             var type = (string)value;
-            
+
             switch (type)
             {
                 case JsonSchemaToken.Boolean:
@@ -627,7 +628,7 @@ namespace Chr.Avro.Representation
             {
                 throw new ArgumentException("The duration case can only be applied to \"fixed\" schemas with a \"duration\" logical type.");
             }
-            
+
             var schema = new FixedSchema(GetQualifiedName(@object, scope), GetSize(@object))
             {
                 Aliases = GetQualifiedAliases(@object, scope) ?? new string[0],
@@ -650,7 +651,7 @@ namespace Chr.Avro.Representation
             return schema;
         }
     }
-    
+
     /// <summary>
     /// A JSON schema reader case that matches enum schemas.
     /// </summary>
@@ -854,7 +855,7 @@ namespace Chr.Avro.Representation
             {
                 throw new ArgumentException("The map case can only be applied to valid map schema representations.");
             }
-            
+
             var child = Reader.Read(GetValues(@object), cache, scope);
             var key = cache.Single(p => p.Value == child).Key;
 
@@ -1183,7 +1184,7 @@ namespace Chr.Avro.Representation
             return type;
         }
     }
-    
+
     /// <summary>
     /// A JSON schema reader case that matches union schemas.
     /// </summary>
@@ -1241,6 +1242,48 @@ namespace Chr.Avro.Representation
                 .Select(s => cache.Single(p => p.Value == s).Key);
 
             return cache.GetOrAdd($"[{string.Join(",", keys)}]", _ => new UnionSchema(children));
+        }
+    }
+
+    /// <summary>
+    /// A JSON schema reader case that matches string schemas with UUID logical types.
+    /// </summary>
+    public class UuidJsonSchemaReaderCase : JsonSchemaReaderCase
+    {
+        /// <summary>
+        /// Determines whether the case can be applied to a token.
+        /// </summary>
+        public override bool IsMatch(JToken token)
+        {
+            return token is JObject @object
+                && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.String
+                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.Uuid;
+        }
+
+        /// <summary>
+        /// Reads a schema from a JSON token.
+        /// </summary>
+        /// <param name="token">
+        /// The token to parse.
+        /// </param>
+        /// <param name="cache">
+        /// An optional schema cache. The cache is populated as the schema is read and can be used
+        /// to provide schemas for certain names or cache keys.
+        /// </param>
+        /// <param name="scope">
+        /// The surrounding namespace, if any.
+        /// </param>
+        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        {
+            if (!IsMatch(token))
+            {
+                throw new ArgumentException("The UUID case can only be applied to \"string\" schemas with a \"uuid\" logical type.");
+            }
+
+            return cache.GetOrAdd($"{JsonSchemaToken.String}!{JsonSchemaToken.Uuid}", _ => new StringSchema()
+            {
+                LogicalType = new UuidLogicalType()
+            });
         }
     }
 }

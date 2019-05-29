@@ -104,5 +104,10 @@ namespace Chr.Avro.Representation
         /// The millisecond timestamp logical type.
         /// </summary>
         public const string TimestampMilliseconds = "timestamp-millis";
+
+        /// <summary>
+        /// The UUID logical type.
+        /// </summary>
+        public const string Uuid = "uuid";
     }
 }

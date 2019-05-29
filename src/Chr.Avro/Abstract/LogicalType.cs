@@ -125,7 +125,7 @@ namespace Chr.Avro.Abstract
         /// </summary>
         public const int DurationSize = 12;
     }
-    
+
     /// <summary>
     /// A logical type that represents a time of day.
     /// </summary>
@@ -173,4 +173,13 @@ namespace Chr.Avro.Abstract
     /// for details.
     /// </remarks>
     public sealed class MillisecondTimestampLogicalType : TimestampLogicalType { }
+
+    /// <summary>
+    /// A logical type representing a universally unique identifier as defined by RFC 4122.
+    /// </summary>
+    /// <remarks>
+    /// See the <a href="https://avro.apache.org/docs/current/spec.html#UUID">Avro spec</a> for
+    /// details.
+    /// </remarks>
+    public sealed class UuidLogicalType : LogicalType { }
 }

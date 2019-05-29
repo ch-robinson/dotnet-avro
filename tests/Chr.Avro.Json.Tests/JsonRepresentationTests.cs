@@ -35,6 +35,7 @@ namespace Chr.Avro.Representation.Tests
         [MemberData(nameof(TimeLogicalTypeRepresentations))]
         [MemberData(nameof(TimestampLogicalTypeRepresentations))]
         [MemberData(nameof(UnionSchemaRepresentations))]
+        [MemberData(nameof(UuidLogicalTypeRepresentations))]
         public void SymmetricRepresentations(string schema)
         {
             Assert.Equal(schema, Writer.Write(Reader.Read(schema)));
@@ -119,6 +120,11 @@ namespace Chr.Avro.Representation.Tests
             new object[] { "[\"string\"]" },
             new object[] { "[\"null\",\"int\"]" },
             new object[] { "[\"int\",\"null\"]" },
+        };
+
+        public static IEnumerable<object[]> UuidLogicalTypeRepresentations => new List<object[]>
+        {
+            new object[] { "{\"type\":\"string\",\"logicalType\":\"uuid\"}" },
         };
     }
 }

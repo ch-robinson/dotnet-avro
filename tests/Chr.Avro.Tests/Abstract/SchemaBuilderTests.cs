@@ -427,7 +427,10 @@ namespace Chr.Avro.Tests
             var schema = Builder.BuildSchema(type) as StringSchema;
 
             Assert.NotNull(schema);
-            Assert.Null(schema.LogicalType);
+
+            var logicalType = schema.LogicalType as UuidLogicalType;
+
+            Assert.NotNull(logicalType);
         }
 
         [Theory]
