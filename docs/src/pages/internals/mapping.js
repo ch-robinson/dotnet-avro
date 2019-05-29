@@ -455,4 +455,86 @@ deserializer.Deserialize(bytes); // throws OverflowException`}</Highlight>
         </tr>
       </tbody>
     </table>
+
+    <h2 id='unions'>Unions</h2>
+    <p>Chr.Avro maps Avro unions to .NET types according to these rules:</p>
+    <ul>
+      <li>
+        <p>Unions must contain more than one schema. Avro doesn’t explicitly disallow empty unions, but they can’t be serialized or deserialized.</p>
+      </li>
+      <li>
+        <p>When mapping a union schema to a type for serialization, the type must be able to be mapped to one of the non-<Highlight inline language='avro'>"null"</Highlight> schemas in the union (if there are any).</p>
+      </li>
+      <li>
+        <p>When mapping a union schema to a type for deserialization, the type must be able to be mapped to all of the schemas in the union.</p>
+      </li>
+    </ul>
+    <p>So, for example:</p>
+    <table>
+      <thead>
+        <tr valign='top'>
+          <th>Schema</th>
+          <th>.NET&nbsp;type</th>
+          <th>Serializable</th>
+          <th>Deserializable</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr valign='top'>
+          <td><Highlight language='avro'>[]</Highlight></td>
+          <td></td>
+          <td align='center'><span role="img" aria-label="not serializable">🚫</span></td>
+          <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
+          <td>
+            Empty unions are not supported.
+          </td>
+        </tr>
+        <tr valign='top'>
+          <td><Highlight language='avro'>["int"]</Highlight></td>
+          <td><DotnetReference id='T:System.Int32' /></td>
+          <td align='center'><span role="img" aria-label="serializable">✅</span></td>
+          <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
+          <td>
+            <DotnetReference id='T:System.Int32' /> could be serialized and deserialized as <Highlight inline language='avro'>"int"</Highlight>.
+          </td>
+        </tr>
+        <tr valign='top'>
+          <td><Highlight language='avro'>["null"]</Highlight></td>
+          <td><DotnetReference id='T:System.Int32' /></td>
+          <td align='center'><span role="img" aria-label="serializable">✅</span></td>
+          <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
+          <td>
+            <DotnetReference id='T:System.Int32' /> could be serialized as <Highlight inline language='avro'>"null"</Highlight>, but it couldn’t be deserialized as <Highlight inline language='avro'>"null"</Highlight>.
+          </td>
+        </tr>
+        <tr valign='top'>
+          <td><Highlight language='avro'>["int","string"]</Highlight></td>
+          <td><DotnetReference id='T:System.Int32' /></td>
+          <td align='center'><span role="img" aria-label="serializable">✅</span></td>
+          <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
+          <td>
+            <DotnetReference id='T:System.Int32' /> could be serialized as <Highlight inline language='avro'>"int"</Highlight>, but it couldn’t be deserialized as <Highlight inline language='avro'>"string"</Highlight>.
+          </td>
+        </tr>
+        <tr valign='top'>
+          <td><Highlight language='avro'>["null","int"]</Highlight></td>
+          <td><DotnetReference id='T:System.Int32' /></td>
+          <td align='center'><span role="img" aria-label="serializable">✅</span></td>
+          <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
+          <td>
+            <DotnetReference id='T:System.Int32' /> could be serialized as <Highlight inline language='avro'>"int"</Highlight>, but it couldn’t be deserialized as <Highlight inline language='avro'>"null"</Highlight>.
+          </td>
+        </tr>
+        <tr valign='top'>
+          <td><Highlight language='avro'>["null","int"]</Highlight></td>
+          <td><DotnetReference id='T:System.Nullable{System.Int32}' /></td>
+          <td align='center'><span role="img" aria-label="serializable">✅</span></td>
+          <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
+          <td>
+            <DotnetReference id='T:System.Nullable{System.Int32}' /> could be serialized and deserialized as either <Highlight inline language='avro'>"null"</Highlight> or <Highlight inline language='avro'>"int"</Highlight>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </>
