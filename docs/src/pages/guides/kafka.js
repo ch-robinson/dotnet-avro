@@ -37,7 +37,7 @@ export default () => {
       <h2>Using Confluent’s client builders</h2>
       <p>First, add a reference to the Chr.Avro.Confluent package:</p>
       <Highlight language='shell'>{`$ dotnet add package Chr.Avro.Confluent --version ${latestRelease}`}</Highlight>
-      <p>Chr.Avro.Confluent depends on <NugetPackageReference id='Confluent.Kafka' />, which contains <DotnetReference id='T:Confluent.Kafka.ProducerBuilder`2'>producer</DotnetReference> and <DotnetReference id='T:Confluent.Kafka.ConsumerBuilder`2'>consumer</DotnetReference> builders. To build a Schema Registry-integrated producer, use the producer builder in tandem with {projectName}’s <DotnetReference id='T:Chr.Avro.Confluent.AsyncSchemaRegistrySerializer`1'> Schema Registry serializer</DotnetReference>:</p>
+      <p>Chr.Avro.Confluent depends on <NugetPackageReference id='Confluent.Kafka' />, which contains <DotnetReference id='T:Confluent.Kafka.ProducerBuilder`2'>producer</DotnetReference> and <DotnetReference id='T:Confluent.Kafka.ConsumerBuilder`2'>consumer</DotnetReference> builders. To build a Schema Registry-integrated producer, use the producer builder in tandem with {projectName}’s Avro extension methods:</p>
       <Highlight language='csharp'>{`using Chr.Avro.Confluent;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
@@ -65,28 +65,28 @@ namespace Chr.Avro.Examples.KafkaProducer
                 SchemaRegistryUrl = "http://registry:8081"
             };
 
-            var builder = new ProducerBuilder<Ignore, ExampleValue>(producerConfig)
-                .SetErrorHandler((producer, error) => Console.Error.WriteLine(error.ToString()))
-                .SetValueSerializer(new AsyncSchemaRegistrySerializer<ExampleValue>(
-                    registryConfig,
-                    registerAutomatically: false
-                ));
-
-            using (var producer = builder.Build())
+            using (var registry = new CachedSchemaRegistryClient(registryConfig))
             {
-                await producer.ProduceAsync("example_topic", new Message<Ignore, ExampleValue>
+                var builder = new ProducerBuilder<Ignore, ExampleValue>(producerConfig)
+                    .SetAvroValueSerializer(registry, registerAutomatically: false)
+                    .SetErrorHandler((_, error) => Console.Error.WriteLine(error.ToString()));
+
+                using (var producer = builder.Build())
                 {
-                    Value = new ExampleValue
+                    await producer.ProduceAsync("example_topic", new Message<Ignore, ExampleValue>
                     {
-                        Property = "example!"
-                    }
-                });
+                        Value = new ExampleValue
+                        {
+                            Property = "example!"
+                        }
+                    });
+                }
             }
         }
     }
 }`}</Highlight>
     <p>The serializer assumes (per Confluent convention) that the value subject for <code>example_topic</code> is <code>example_topic-value</code>. (The key subject would be <code>example_topic-key</code>.) When messages are published, the serializer will attempt to pull down a schema from the Schema Registry. The serializer can be configured to generate and register a schema automatically if one doesn’t exist.</p>
-    <p>Building consumers works in a similar way—using {projectName}’s <DotnetReference id='T:Chr.Avro.Confluent.AsyncSchemaRegistryDeserializer`1'> Schema Registry deserializer</DotnetReference>, schemas will be retrieved from the Schema Registry as messages are consumed:</p>
+    <p>Building consumers works in a similar way—schemas will be retrieved from the Schema Registry as messages are consumed:</p>
     <Highlight language='csharp'>{`using Chr.Avro.Confluent;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
@@ -114,20 +114,21 @@ namespace Chr.Avro.Examples.KafkaConsumer
                 SchemaRegistryUrl = "http://registry:8081"
             };
 
-            var builder = new ConsumerBuilder<Ignore, ExampleValue>(consumerConfig)
-                .SetErrorHandler((consumer, error) => Console.Error.WriteLine(error.ToString()))
-                .SetValueDeserializer(new AsyncSchemaRegistryDeserializer<ExampleValue>(
-                    registryConfig
-                ).AsSyncOverAsync());
-
-            using (var consumer = builder.Build())
+            using (var registry = new CachedSchemaRegistryClient(registryClient))
             {
-                consumer.Subscribe("example_topic");
+                var builder = new ConsumerBuilder<Ignore, ExampleValue>(consumerConfig)
+                    .SetAvroValueDeserializer(registry)
+                    .SetErrorHandler((_, error) => Console.Error.WriteLine(error.ToString()));
 
-                while (true)
+                using (var consumer = builder.Build())
                 {
-                    var result = consumer.Consume();
-                    Console.WriteLine($"{result.Key}: {result.Value.Property}");
+                    consumer.Subscribe("example_topic");
+
+                    while (true)
+                    {
+                        var result = consumer.Consume();
+                        Console.WriteLine(result.Value.Property);
+                    }
                 }
             }
         }

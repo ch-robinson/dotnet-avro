@@ -46,10 +46,12 @@ $ dotnet avro registry-test -a out/example.dll -t ExampleRecord -r http://regist
 A deserializer cannot be created for ExampleRecord: ExampleRecord does not have a field or property that matches the correlation_id field on example_record.
 ```
 
-`SchemaRegistryProducerBuilder` and `SchemaRegistryConsumerBuilder` create Kafka clients to produce and consume CLR objects:
+Extensions to the Confluent.Kafka `ProducerBuilder` and `ConsumerBuilder` configure Kafka clients to produce and consume Avro-encoded CLR objects:
 
 ```csharp
 using Chr.Avro.Confluent;
+using Confluent.Kafka;
+using Confluent.SchemaRegistry;
 using System;
 using System.Collections.Generic;
 
@@ -65,19 +67,29 @@ namespace Example
     {
         static void Main(string[] args)
         {
-            var builder = new SchemaRegistryConsumerBuilder<string, ExampleRecord>(new ConsumerConfig()
+            var consumerConfig = new ConsumerConfig()
             {
                 BootstrapServers = "broker1:9092,broker2:9092",
                 GroupId = "example_consumer_group"
-            }, new SchemaRegistryConfig()
+            };
+
+            var registryConfig = new SchemaRegistryConfig()
             {
                 SchemaRegistryUrl = "http://registry:8081"
-            });
+            };
 
-            using (var consumer = builder.Build())
+            var builder = new ConsumerBuilder<string, ExampleRecord>(consumerConfig);
+
+            using (var registry = new CachedSchemaRegistryClient(registryConfig))
             {
-                var result = consumer.Consume(CancellationToken.None);
-                Console.WriteLine($"Consumed message! {result.Key}: {result.Value.Timestamp}");
+                builder.SetAvroKeySerializer(registry);
+                builder.SetAvroValueSerializer(registry);
+
+                using (var consumer = builder.Build())
+                {
+                    var result = consumer.Consume(CancellationToken.None);
+                    Console.WriteLine($"Consumed message! {result.Key}: {result.Value.Timestamp}");
+                }
             }
         }
     }
