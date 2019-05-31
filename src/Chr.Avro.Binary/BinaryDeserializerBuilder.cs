@@ -1118,7 +1118,10 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedTypeException(target, $"{target.Name} has no value that matches {name}.");
                 }
 
-                return Expression.SwitchCase(Expression.Constant(match.Value), Expression.Constant(index));
+                return Expression.SwitchCase(
+                    Expression.ConvertChecked(Expression.Constant(match.Value), target),
+                    Expression.Constant(index)
+                );
             });
 
             var exceptionConstructor = typeof(OverflowException)

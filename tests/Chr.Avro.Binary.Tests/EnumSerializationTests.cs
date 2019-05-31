@@ -39,6 +39,25 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Throws<UnsupportedTypeException>(() => SerializerBuilder.BuildSerializer<Suit>(schema));
         }
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData(Suit.Clubs)]
+        [InlineData(Suit.Diamonds)]
+        [InlineData(Suit.Hearts)]
+        [InlineData(Suit.Spades)]
+        public void NullableEnumValues(Suit? value)
+        {
+            var schema = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" })
+            });
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<Suit?>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<Suit?>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
         public enum Suit
         {
             Clubs,
