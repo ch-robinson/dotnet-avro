@@ -587,23 +587,21 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                if (target == typeof(Guid))
+                if (target == typeof(Guid) || target == typeof(Guid?))
                 {
                     var guidConstructor = typeof(Guid)
                         .GetConstructor(new[] { typeof(byte[]) });
 
                     result = Expression.New(guidConstructor, result);
                 }
-                else
+
+                try
                 {
-                    try
-                    {
-                        result = Expression.ConvertChecked(result, target);
-                    }
-                    catch (InvalidOperationException inner)
-                    {
-                        throw new UnsupportedTypeException(target, $"A bytes deserializer cannot be built for type {target.FullName}.", inner);
-                    }
+                    result = Expression.ConvertChecked(result, target);
+                }
+                catch (InvalidOperationException inner)
+                {
+                    throw new UnsupportedTypeException(target, $"A bytes deserializer cannot be built for type {target.FullName}.", inner);
                 }
             }
 
@@ -981,14 +979,14 @@ namespace Chr.Avro.Serialization
 
             var target = resolution.Type;
 
-            if (target != typeof(TimeSpan))
+            if (!(target == typeof(TimeSpan) || target == typeof(TimeSpan?)))
             {
                 throw new ArgumentException($"A duration deserializer cannot be built for {target.Name}.");
             }
 
-            uint read(Stream stream)
+            Func<Stream, long> read = input =>
             {
-                var bytes = Codec.Read(stream, 4);
+                var bytes = Codec.Read(input, 4);
 
                 if (!BitConverter.IsLittleEndian)
                 {
@@ -996,26 +994,47 @@ namespace Chr.Avro.Serialization
                 }
 
                 return BitConverter.ToUInt32(bytes, 0);
-            }
-
-            Func<Stream, TimeSpan> result = stream =>
-            {
-                var months = read(stream);
-
-                if (months != 0)
-                {
-                    throw new OverflowException("Durations containing months cannot be accurately deserialized to a TimeSpan.");
-                }
-
-                var dayTicks = read(stream) * TimeSpan.TicksPerDay;
-                var millisecondTicks = read(stream) * TimeSpan.TicksPerMillisecond;
-
-                return new TimeSpan(dayTicks + millisecondTicks);
             };
 
-            cache.Add((target, schema), result);
+            var codec = Expression.Constant(Codec);
+            var stream = Expression.Parameter(typeof(Stream));
 
-            return result;
+            Expression result = Expression.Block(
+                Expression.IfThen(
+                    Expression.NotEqual(
+                        Expression.Invoke(Expression.Constant(read), stream),
+                        Expression.Constant(0L)
+                    ),
+                    Expression.Throw(
+                        Expression.New(
+                            typeof(OverflowException).GetConstructor(new[] { typeof(string )}),
+                            Expression.Constant("Durations containing months cannot be accurately deserialized to a TimeSpan.")
+                        )
+                    )
+                ),
+                Expression.ConvertChecked(
+                    Expression.New(
+                        typeof(TimeSpan).GetConstructor(new[] { typeof(long) }),
+                        Expression.AddChecked(
+                            Expression.MultiplyChecked(
+                                Expression.Invoke(Expression.Constant(read), stream),
+                                Expression.Constant(TimeSpan.TicksPerDay)
+                            ),
+                            Expression.MultiplyChecked(
+                                Expression.Invoke(Expression.Constant(read), stream),
+                                Expression.Constant(TimeSpan.TicksPerMillisecond)
+                            )
+                        )
+                    ),
+                    target
+                )
+            );
+
+            var lambda = Expression.Lambda(result, $"duration deserializer", new[] { stream });
+            var compiled = lambda.Compile();
+            cache.Add((target, schema), compiled);
+
+            return compiled;
         }
 
         /// <summary>
@@ -1034,11 +1053,11 @@ namespace Chr.Avro.Serialization
         /// Determines whether the case can be applied to a type resolution.
         /// </summary>
         /// <returns>
-        /// Whether the type is <see cref="TimeSpan" />.
+        /// Whether the type is <see cref="TimeSpan" /> or <see cref="Nullable{TimeSpan}" />.
         /// </returns>
         public override bool IsMatch(TypeResolution resolution)
         {
-            return resolution.Type == typeof(TimeSpan);
+            return resolution.Type == typeof(TimeSpan) || resolution.Type == typeof(TimeSpan?);
         }
     }
 
@@ -1225,7 +1244,7 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                if (target == typeof(Guid))
+                if (target == typeof(Guid) || target == typeof(Guid?))
                 {
                     if (fixedSchema.Size != 16)
                     {
@@ -1237,16 +1256,14 @@ namespace Chr.Avro.Serialization
 
                     result = Expression.New(guidConstructor, result);
                 }
-                else
+
+                try
                 {
-                    try
-                    {
-                        result = Expression.ConvertChecked(result, target);
-                    }
-                    catch (InvalidOperationException inner)
-                    {
-                        throw new UnsupportedTypeException(target, $"A fixed deserializer cannot be built for type {target.FullName}.", inner);
-                    }
+                    result = Expression.ConvertChecked(result, target);
+                }
+                catch (InvalidOperationException inner)
+                {
+                    throw new UnsupportedTypeException(target, $"A fixed deserializer cannot be built for type {target.FullName}.", inner);
                 }
             }
 
@@ -1973,7 +1990,7 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                if (target == typeof(DateTime) || target == typeof(DateTimeOffset))
+                if (target == typeof(DateTime) || target == typeof(DateTime?) || target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?))
                 {
                     var parseDateTime = typeof(DateTime)
                         .GetMethod(nameof(DateTime.ParseExact), new[]
@@ -1996,14 +2013,14 @@ namespace Chr.Avro.Serialization
                         target
                     );
                 }
-                else if (target == typeof(Guid))
+                else if (target == typeof(Guid) || target == typeof(Guid?))
                 {
                     var guidConstructor = typeof(Guid)
                         .GetConstructor(new[] { typeof(string) });
 
                     result = Expression.New(guidConstructor, result);
                 }
-                else if (target == typeof(TimeSpan))
+                else if (target == typeof(TimeSpan) || target == typeof(TimeSpan?))
                 {
                     var parseTimeSpan = typeof(XmlConvert)
                         .GetMethod(nameof(XmlConvert.ToTimeSpan));
@@ -2017,16 +2034,14 @@ namespace Chr.Avro.Serialization
 
                     result = Expression.New(uriConstructor, result);
                 }
-                else
+
+                try
                 {
-                    try
-                    {
-                        result = Expression.ConvertChecked(result, target);
-                    }
-                    catch (InvalidOperationException inner)
-                    {
-                        throw new UnsupportedTypeException(target, $"A string deserializer cannot be built for type {target.FullName}.", inner);
-                    }
+                    result = Expression.ConvertChecked(result, target);
+                }
+                catch (InvalidOperationException inner)
+                {
+                    throw new UnsupportedTypeException(target, $"A string deserializer cannot be built for type {target.FullName}.", inner);
                 }
             }
 
@@ -2112,7 +2127,7 @@ namespace Chr.Avro.Serialization
 
             var target = resolution.Type;
 
-            if (target != typeof(DateTime) && target != typeof(DateTimeOffset))
+            if (!(target == typeof(DateTime) || target == typeof(DateTime?) || target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?)))
             {
                 throw new ArgumentException($"A timestamp serializer cannot be built for {target.Name}.");
             }
@@ -2145,12 +2160,10 @@ namespace Chr.Avro.Serialization
                 .GetMethod(nameof(DateTime.AddTicks));
 
             // result = epoch.AddTicks(value * factor);
-            result = Expression.Call(epoch, addTicks, Expression.Multiply(result, factor));
-
-            if (target != typeof(DateTime))
-            {
-                result = Expression.ConvertChecked(result, target);
-            }
+            result = Expression.ConvertChecked(
+                Expression.Call(epoch, addTicks, Expression.Multiply(result, factor)),
+                target
+            );
 
             var lambda = Expression.Lambda(result, "timestamp deserializer", new[] { stream });
             var compiled = lambda.Compile();
@@ -2179,7 +2192,7 @@ namespace Chr.Avro.Serialization
         /// </returns>
         public override bool IsMatch(TypeResolution resolution)
         {
-            return resolution.Type == typeof(DateTime) || resolution.Type == typeof(DateTimeOffset);
+            return resolution.Type == typeof(DateTime) || resolution.Type == typeof(DateTime?) || resolution.Type == typeof(DateTimeOffset) || resolution.Type == typeof(DateTimeOffset?);
         }
     }
 

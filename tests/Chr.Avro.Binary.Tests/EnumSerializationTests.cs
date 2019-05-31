@@ -40,21 +40,16 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(null)]
         [InlineData(Suit.Clubs)]
         [InlineData(Suit.Diamonds)]
         [InlineData(Suit.Hearts)]
         [InlineData(Suit.Spades)]
-        public void NullableEnumValues(Suit? value)
+        public void NullableEnumValues(Suit value)
         {
-            var schema = new UnionSchema(new Schema[]
-            {
-                new NullSchema(),
-                new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" })
-            });
+            var schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" });
 
             var deserializer = DeserializerBuilder.BuildDeserializer<Suit?>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Suit?>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<Suit>(schema);
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
         }
 

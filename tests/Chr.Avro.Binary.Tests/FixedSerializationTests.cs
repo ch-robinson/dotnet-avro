@@ -43,6 +43,18 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
         }
 
+        [Theory]
+        [MemberData(nameof(GuidData))]
+        public void NullableGuidValues(Guid value)
+        {
+            var schema = new FixedSchema("test", 16);
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<Guid?>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<Guid>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
         [Fact]
         public void InvalidGuidLength()
         {

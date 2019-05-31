@@ -32,6 +32,21 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
         }
 
+        [Theory]
+        [MemberData(nameof(Guids))]
+        public void NullableGuidValues(Guid value)
+        {
+            var schema = new StringSchema()
+            {
+                LogicalType = new UuidLogicalType()
+            };
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<Guid?>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<Guid>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
         public static IEnumerable<object[]> Guids => new List<object[]>
         {
             new object[] { Guid.Empty },

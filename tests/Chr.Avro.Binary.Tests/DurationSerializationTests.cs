@@ -45,6 +45,22 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserializer.Deserialize(encoding));
         }
 
+        [Theory]
+        [MemberData(nameof(TimeSpanEncodings))]
+        public void NullableTimeSpanValues(TimeSpan value, byte[] encoding)
+        {
+            var schema = new FixedSchema("duration", DurationLogicalType.DurationSize)
+            {
+                LogicalType = new DurationLogicalType()
+            };
+
+            var serializer = SerializerBuilder.BuildSerializer<TimeSpan>(schema);
+            Assert.Equal(encoding, serializer.Serialize(value));
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<TimeSpan?>(schema);
+            Assert.Equal(value, deserializer.Deserialize(encoding));
+        }
+
         public static IEnumerable<object[]> TimeSpanEncodings => new List<object[]>
         {
             new object[]

@@ -30,6 +30,18 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
+        [MemberData(nameof(DateTimes))]
+        public void NullableDateTimeValues(DateTime value)
+        {
+            var schema = new StringSchema();
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<DateTime?>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<DateTime>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
         [MemberData(nameof(DateTimeOffsets))]
         public void DateTimeOffsetValues(DateTimeOffset value)
         {
@@ -42,12 +54,36 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
+        [MemberData(nameof(DateTimeOffsets))]
+        public void NullableDateTimeOffsetValues(DateTimeOffset value)
+        {
+            var schema = new StringSchema();
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<DateTimeOffset?>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<DateTimeOffset>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
         [MemberData(nameof(Guids))]
         public void GuidValues(Guid value)
         {
             var schema = new StringSchema();
 
             var deserializer = DeserializerBuilder.BuildDeserializer<Guid>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<Guid>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
+        [MemberData(nameof(Guids))]
+        public void NullableGuidValues(Guid value)
+        {
+            var schema = new StringSchema();
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<Guid?>(schema);
             var serializer = SerializerBuilder.BuildSerializer<Guid>(schema);
 
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
@@ -75,6 +111,18 @@ namespace Chr.Avro.Serialization.Tests
             var schema = new StringSchema();
 
             var deserializer = DeserializerBuilder.BuildDeserializer<TimeSpan>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<TimeSpan>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
+        [MemberData(nameof(TimeSpans))]
+        public void NullableTimeSpanValues(TimeSpan value)
+        {
+            var schema = new StringSchema();
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<TimeSpan?>(schema);
             var serializer = SerializerBuilder.BuildSerializer<TimeSpan>(schema);
 
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
