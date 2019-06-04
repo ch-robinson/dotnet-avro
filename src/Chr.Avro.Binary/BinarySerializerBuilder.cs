@@ -2246,6 +2246,7 @@ namespace Chr.Avro.Serialization
             // if there are non-null schemas, select the first matching one:
             if (candidates.Count > 0)
             {
+                var exceptions = new List<Exception>();
                 var underlying = Nullable.GetUnderlyingType(source) ?? source;
 
                 foreach (var candidate in candidates)
@@ -2268,8 +2269,9 @@ namespace Chr.Avro.Serialization
                             )
                         );
                     }
-                    catch (TargetInvocationException)
+                    catch (TargetInvocationException indirect)
                     {
+                        exceptions.Add(indirect.InnerException);
                         continue;
                     }
 
@@ -2287,7 +2289,11 @@ namespace Chr.Avro.Serialization
 
                 if (result == null)
                 {
-                    throw new UnsupportedTypeException(source, $"{source.Name} does not match any non-null members of the union [{string.Join(", ", schemas.Select(s => s.GetType().Name))}].");
+                    throw new UnsupportedTypeException(
+                        source,
+                        $"{source.Name} does not match any non-null members of the union [{string.Join(", ", schemas.Select(s => s.GetType().Name))}].",
+                        new AggregateException(exceptions)
+                    );
                 }
             }
 
