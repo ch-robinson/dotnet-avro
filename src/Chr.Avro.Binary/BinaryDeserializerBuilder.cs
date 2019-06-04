@@ -1836,9 +1836,9 @@ namespace Chr.Avro.Serialization
                 }
 
                 return action;
-            });
+            }).ToList();
 
-            result = Expression.Block(typeof(void), assignments);
+            result = assignments.Count > 0 ? Expression.Block(typeof(void), assignments) : Expression.Empty() as Expression;
             lambda = Expression.Lambda(result, $"{recordSchema.Name} field assigner", new[] { stream, value });
             assign = lambda.Compile();
 

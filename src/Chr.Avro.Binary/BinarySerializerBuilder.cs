@@ -1852,9 +1852,9 @@ namespace Chr.Avro.Serialization
                 action = Expression.Invoke(action, getter, stream);
 
                 return action;
-            });
+            }).ToList();
 
-            result = Expression.Block(typeof(void), writes);
+            result = writes.Count > 0 ? Expression.Block(typeof(void), writes) : Expression.Empty() as Expression;
             lambda = Expression.Lambda(result, $"{recordSchema.Name} field writer", new[] { value, stream });
             write = lambda.Compile();
 
