@@ -1,11 +1,11 @@
 import React from 'react'
 import { LightAsync as SyntaxHighlighter } from 'react-syntax-highlighter'
 
-import csharp from 'react-syntax-highlighter/dist/languages/hljs/cs'
-import json from 'react-syntax-highlighter/dist/languages/hljs/json'
-import shell from 'react-syntax-highlighter/dist/languages/hljs/shell'
+import csharp from 'react-syntax-highlighter/dist/esm/languages/hljs/cs'
+import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json'
+import shell from 'react-syntax-highlighter/dist/esm/languages/hljs/shell'
 
-import github from 'react-syntax-highlighter/dist/styles/hljs/github'
+import github from 'react-syntax-highlighter/dist/esm/styles/hljs/github'
 
 SyntaxHighlighter.registerLanguage('avro', json)
 SyntaxHighlighter.registerLanguage('csharp', csharp)
