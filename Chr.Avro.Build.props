@@ -4,9 +4,11 @@
     <Authors>chrobinson</Authors>
     <Company>C.H. Robinson</Company>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <IncludeSymbols>true</IncludeSymbols>
     <PackageIconUrl>https://engineering.chrobinson.com/dotnet-avro/nuget-icon.png</PackageIconUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Version>2.0.3</Version>
   </PropertyGroup>
 
