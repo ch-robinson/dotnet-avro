@@ -1,10 +1,17 @@
 <Project>
 
   <PropertyGroup>
+    <Authors>chrobinson</Authors>
     <Company>C.H. Robinson</Company>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <PackageIconUrl>https://engineering.chrobinson.com/dotnet-avro/nuget-icon.png</PackageIconUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
     <Version>2.0.3</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)\LICENSE.md" Pack="true" PackagePath="LICENSE.md" />
+  </ItemGroup>
 
 </Project>
