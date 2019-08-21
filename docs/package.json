@@ -18,8 +18,8 @@
   },
   "private": true,
   "scripts": {
-    "build": "gatsby build",
-    "publish": "gh-pages -d public",
+    "build": "gatsby build --prefix-paths",
+    "publish": "gh-pages -t -d public",
     "start": "gatsby develop"
   }
 }

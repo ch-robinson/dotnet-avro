@@ -8,6 +8,7 @@ module.exports = {
     latestRelease: '2.0.3',
     projectName: 'Chr.Avro'
   },
+  pathPrefix: '/dotnet-avro',
   plugins: [
     {
       resolve: 'gatsby-plugin-layout',
