@@ -9,11 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
-    <PackageReference Include="Newtonsoft.Json" Version="[5.0.1,)" />
+    <PackageReference Include="Newtonsoft.Json" Version="[5.0.1,13)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' != 'net452'">
-    <PackageReference Include="Newtonsoft.Json" Version="[9.0.1,)" />
+    <PackageReference Include="Newtonsoft.Json" Version="[9.0.1,13)" />
   </ItemGroup>
 
   <ItemGroup>
