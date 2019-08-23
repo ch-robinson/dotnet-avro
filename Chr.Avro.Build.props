@@ -9,7 +9,7 @@
     <PackageIconUrl>https://engineering.chrobinson.com/dotnet-avro/nuget-icon.png</PackageIconUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
-    <SignAssembly>true</SignAssembly>
+    <SignAssembly>false</SignAssembly>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Version>2.0.3</Version>
   </PropertyGroup>
