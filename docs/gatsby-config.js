@@ -5,7 +5,7 @@ const path = require('path')
 module.exports = {
   siteMetadata: {
     githubUrl: 'https://github.com/ch-robinson/dotnet-avro',
-    latestRelease: '2.0.3',
+    latestRelease: '2.0.4',
     projectName: 'Chr.Avro'
   },
   pathPrefix: '/dotnet-avro',
