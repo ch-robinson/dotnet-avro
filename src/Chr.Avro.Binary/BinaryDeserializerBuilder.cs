@@ -1993,9 +1993,8 @@ namespace Chr.Avro.Serialization
                 if (target == typeof(DateTime) || target == typeof(DateTime?) || target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?))
                 {
                     var parseDateTime = typeof(DateTime)
-                        .GetMethod(nameof(DateTime.ParseExact), new[]
+                        .GetMethod(nameof(DateTime.Parse), new[]
                         {
-                            typeof(string),
                             typeof(string),
                             typeof(IFormatProvider),
                             typeof(DateTimeStyles)
@@ -2006,7 +2005,6 @@ namespace Chr.Avro.Serialization
                             null,
                             parseDateTime,
                             result,
-                            Expression.Constant("O"),
                             Expression.Constant(CultureInfo.InvariantCulture),
                             Expression.Constant(DateTimeStyles.RoundtripKind)
                         ),
