@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)\Chr.Avro.snk</AssemblyOriginatorKeyFile>
-    <Authors>chrobinson</Authors>
+    <Authors>C.H. Robinson</Authors>
     <Company>C.H. Robinson</Company>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <IncludeSymbols>true</IncludeSymbols>
