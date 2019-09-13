@@ -117,7 +117,8 @@ namespace Chr.Avro.Abstract
                 new StringSchemaBuilderCase(),
                 new TimestampSchemaBuilderCase(),
                 new UriSchemaBuilderCase(),
-                new UuidSchemaBuilderCase()
+                new UuidSchemaBuilderCase(),
+                new InterfaceSchemaBuilderCase(this)
             };
         }
 
@@ -175,7 +176,16 @@ namespace Chr.Avro.Abstract
 
             if (resolution.IsNullable)
             {
-                return new UnionSchema(new Schema[] { new NullSchema(), schema });
+                if (resolution is InterfaceResolution)
+                {
+                    var unionSchema = (UnionSchema)schema;
+                    unionSchema.Schemas.Add(new NullSchema());
+                }
+                else
+                {
+                    return new UnionSchema(new Schema[] { new NullSchema(), schema });
+                }
+                
             }
 
             return schema;
@@ -273,6 +283,75 @@ namespace Chr.Avro.Abstract
         public override bool IsMatch(TypeResolution resolution)
         {
             return resolution is ArrayResolution;
+        }
+    }
+
+    /// <summary>
+    /// A schema builder case that matches <see cref="BooleanResolution" />.
+    /// </summary>
+    public class InterfaceSchemaBuilderCase : SchemaBuilderCase
+    {
+        /// <summary>
+        /// A schema builder instance that will be used to resolve record field types.
+        /// </summary>
+        protected readonly ISchemaBuilder SchemaBuilder;
+
+        /// <summary>
+        /// Creates a new record schema builder case.
+        /// </summary>
+        /// <param name="schemaBuilder">
+        /// A schema builder instance that will be used to resolve record field types.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the schema builder is null.
+        /// </exception>
+        public InterfaceSchemaBuilderCase(ISchemaBuilder schemaBuilder)
+        {
+            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder cannot be null.");
+        }
+
+        /// <summary>
+        /// Builds a union schema.
+        /// </summary>
+        /// <param name="resolution">
+        /// A type resolution.
+        /// </param>
+        /// <param name="cache">
+        /// A schema cache.
+        /// </param>
+        /// <returns>
+        /// A <see cref="UnionSchema" /> that matches the type resolution.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when the resolution is not a <see cref="InterfaceResolution" />.
+        /// </exception>
+        public override Schema BuildSchema(TypeResolution resolution, IDictionary<Type, Schema> cache)
+        {
+            if (!(resolution is InterfaceResolution union))
+            {
+                throw new ArgumentException("The union case can only be applied to union resolutions.", nameof(resolution));
+            }
+
+            var innerSchemas = union.KnownTypes
+             .Select(knownType => SchemaBuilder.BuildSchema(knownType.Key, cache))
+             .ToArray();
+
+            var schema = new UnionSchema(innerSchemas);
+
+            cache.Add(union.Type, schema);
+
+            return schema;
+        }        
+
+        /// <summary>
+        /// Determines whether the case can be applied to a resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="BooleanResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is InterfaceResolution;
         }
     }
 

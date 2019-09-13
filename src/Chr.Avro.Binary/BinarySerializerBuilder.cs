@@ -152,6 +152,10 @@ namespace Chr.Avro.Serialization
                 // records:
                 new RecordSerializerBuilderCase(this),
 
+                // interfaces:
+                new InterfaceSerializerBuilderCase(codec, this),
+                new ConcreteClassSerializerBuilderCase(this),
+
                 // unions:
                 new UnionSerializerBuilderCase(codec, this)
             };
@@ -1737,6 +1741,246 @@ namespace Chr.Avro.Serialization
         public override bool IsMatch(TypeResolution resolution)
         {
             return true;
+        }
+    }
+
+    
+
+    /// <summary>
+    /// A serializer builder case that matches <see cref="RecordSchema" /> and attempts to map
+    /// it to classes or structs.
+    /// </summary>
+    public class ConcreteClassSerializerBuilderCase : BinarySerializerBuilderCase
+    {
+        /// <summary>
+        /// The serializer builder to use to build field serializers.
+        /// </summary>
+        protected readonly IBinarySerializerBuilder SerializerBuilder;
+
+        /// <summary>
+        /// Creates a new record serializer builder case.
+        /// </summary>
+        /// <param name="serializerBuilder">
+        /// The serializer builder to use to build field serializers.
+        /// </param>
+        public ConcreteClassSerializerBuilderCase(IBinarySerializerBuilder serializerBuilder)
+        {
+            SerializerBuilder = serializerBuilder;
+        }
+
+        /// <summary>
+        /// Builds a record serializer for a type-schema pair.
+        /// </summary>
+        /// <param name="resolution">
+        /// The resolution to obtain type information from.
+        /// </param>
+        /// <param name="schema">
+        /// The schema to map to the type.
+        /// </param>
+        /// <param name="cache">
+        /// A delegate cache.
+        /// </param>
+        /// <returns>
+        /// An action that accepts an object and a <see cref="Stream" /> and writes the serialized
+        /// object to the stream.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when the schema is not a <see cref="RecordSchema" /> or the resolution is not a
+        /// <see cref="RecordResolution" />.
+        /// </exception>
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        {
+            if (!(resolution is InterfaceResolution interfaceResolution))
+            {
+                throw new ArgumentException("An interface serializer can only be built for an interface resolution.");
+            }
+
+            if (!(schema is RecordSchema recordSchema))
+            {
+                throw new ArgumentException("A record serializer can only be built for a record schema.");
+            }
+
+            var source = resolution.Type;
+
+            var stream = Expression.Parameter(typeof(Stream));
+            var value = Expression.Parameter(source);
+
+            // declare an action that writes the record fields in order:
+            Delegate write = null;
+
+            // bind to this scope:
+            Expression result = Expression.Invoke(Expression.Constant((Func<Delegate>)(() => write)));
+
+            // coerce Delegate to Action<TSource, Stream>:
+            result = Expression.ConvertChecked(result, typeof(Action<,>).MakeGenericType(source, typeof(Stream)));
+
+            // serialize the record:
+            result = Expression.Invoke(result, value, stream);
+
+            var lambda = Expression.Lambda(result, $"{recordSchema.Name} serializer", new[] { value, stream });
+            var compiled = lambda.Compile();
+            cache.Add((source, schema), compiled);
+
+            var switchCases = new List<SwitchCase>();
+
+            foreach(var knownType in interfaceResolution.KnownTypes)
+            {
+                // now that an infinite cycle won’t happen, build the write function:
+                var writes = knownType.Value.Fields.Select(field =>
+                {
+                    var match = knownType.Value.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
+
+                    if (match == null)
+                    {
+                        throw new UnsupportedTypeException(source, $"{source.FullName} does not have a field or property that matches the {field.Name} field on {recordSchema.Name}.");
+                    }
+
+                    var type = match.Type;
+
+                    Expression action = null;
+
+                    try
+                    {
+                        var build = typeof(IBinarySerializerBuilder)
+                            .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
+                            .MakeGenericMethod(type);
+
+                        // https://i.imgur.com/kZW9iiW.gif
+                        action = Expression.Constant(
+                            build.Invoke(SerializerBuilder, new object[] { field.Type, cache }),
+                            typeof(Action<,>).MakeGenericType(type, typeof(Stream))
+                        );
+                    }
+                    catch (TargetInvocationException exception)
+                    {
+                        ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
+                    }
+
+                    Expression getter = Expression.PropertyOrField(Expression.Convert(value, knownType.Key), match.Member.Name);
+
+                    // do the write:
+                    action = Expression.Invoke(action, getter, stream);
+
+                    return action;
+                }).ToList();
+
+                result = writes.Count > 0 ? Expression.Block(typeof(void), writes) : Expression.Empty() as Expression;
+
+                switchCases.Add(Expression.SwitchCase(result, Expression.Constant(knownType.Key.FullName)));
+            }
+
+            var getTypeFullName = Expression.Call(Expression.Call(value, typeof(object).GetMethod("GetType")), typeof(Type).GetProperty("FullName").GetMethod);
+            var formatMethod = typeof(string).GetMethod("Format", BindingFlags.Static | BindingFlags.Public, null, new[] { typeof(string), typeof(object) }, null);
+            var argumentExceptionConstructor = typeof(ArgumentException).GetConstructor(new[] { typeof(string) });
+            
+            var throwIfUnknownType = Expression.Throw(
+                Expression.New(
+                    argumentExceptionConstructor,
+                    Expression.Call(formatMethod, Expression.Constant("Could not find type {0}"), getTypeFullName)));
+
+            result = Expression.Switch(getTypeFullName, throwIfUnknownType, switchCases.ToArray());
+
+            lambda = Expression.Lambda(result, $"{recordSchema.Name} field writer", new[] { value, stream });
+            write = lambda.Compile();
+
+            return compiled;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a schema.
+        /// </summary>
+        /// <returns>
+        /// Whether the schema is a <see cref="RecordSchema" />.
+        /// </returns>
+        public override bool IsMatch(Schema schema)
+        {
+            return schema is RecordSchema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a type resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="RecordResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is InterfaceResolution;
+        }
+    }
+
+    /// <summary>
+    /// A serializer builder case that matches <see cref="RecordSchema" /> and attempts to map
+    /// it to classes or structs.
+    /// </summary>
+    public class InterfaceSerializerBuilderCase : UnionSerializerBuilderCase
+    {
+        /// <summary>
+        /// The serializer builder to use to build field serializers.
+        /// </summary>
+        protected readonly IBinarySerializerBuilder SerializerBuilder;
+
+        /// <summary>
+        /// Creates a new record serializer builder case.
+        /// </summary>
+        /// <param name="serializerBuilder">
+        /// The serializer builder to use to build field serializers.
+        /// </param>
+        public InterfaceSerializerBuilderCase(IBinaryCodec codec, IBinarySerializerBuilder serializerBuilder): base(codec, serializerBuilder)
+        {
+            SerializerBuilder = serializerBuilder;
+        }
+
+        /// <summary>
+        /// Builds a record serializer for a type-schema pair.
+        /// </summary>
+        /// <param name="resolution">
+        /// The resolution to obtain type information from.
+        /// </param>
+        /// <param name="schema">
+        /// The schema to map to the type.
+        /// </param>
+        /// <param name="cache">
+        /// A delegate cache.
+        /// </param>
+        /// <returns>
+        /// An action that accepts an object and a <see cref="Stream" /> and writes the serialized
+        /// object to the stream.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when the schema is not a <see cref="RecordSchema" /> or the resolution is not a
+        /// <see cref="RecordResolution" />.
+        /// </exception>
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        {
+            if (!(resolution is InterfaceResolution recordResolution))
+            {
+                throw new ArgumentException("An interface serializer can only be built for an interface resolution.");
+            }
+
+            return base.BuildDelegate(resolution, schema, cache);
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a schema.
+        /// </summary>
+        /// <returns>
+        /// Whether the schema is a <see cref="RecordSchema" />.
+        /// </returns>
+        public override bool IsMatch(Schema schema)
+        {
+            return schema is UnionSchema;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a type resolution.
+        /// </summary>
+        /// <returns>
+        /// Whether the resolution is a <see cref="RecordResolution" />.
+        /// </returns>
+        public override bool IsMatch(TypeResolution resolution)
+        {
+            return resolution is InterfaceResolution;
         }
     }
 

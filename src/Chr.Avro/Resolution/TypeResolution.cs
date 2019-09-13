@@ -103,6 +103,19 @@ namespace Chr.Avro.Resolution
         }
     }
 
+    public class InterfaceResolution: TypeResolution
+    {
+        public Dictionary<Type, RecordResolution> KnownTypes { get; }
+
+
+        private readonly IdentifierResolution _namespace;
+
+        public InterfaceResolution(Dictionary<Type, RecordResolution> knownTypes, IdentifierResolution @namespace, Type type, bool isNullable = false) : base(type, isNullable)
+        {
+            KnownTypes = knownTypes;
+        }
+    }
+
     /// <summary>
     /// Contains resolved information about a boolean type.
     /// </summary>

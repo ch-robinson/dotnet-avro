@@ -1,3 +1,4 @@
+using Chr.Avro.Attributes;
 using Chr.Avro.Infrastructure;
 using System;
 using System.Collections.Generic;
@@ -63,7 +64,10 @@ namespace Chr.Avro.Resolution
                 new UriResolverCase(),
 
                 // classes and structs:
-                new ObjectResolverCase()
+                new ObjectResolverCase(),
+
+                // interfaces and abstract classes
+                new InterfaceResolverCase()
             };
         }
     }
@@ -97,6 +101,19 @@ namespace Chr.Avro.Resolution
             return type.GetCustomAttributes(typeof(T), true)
                 .OfType<T>()
                 .SingleOrDefault();
+        }
+
+        /// <summary>
+        /// Gets the attributes on a type.
+        /// </summary>
+        /// <returns>
+        /// The attributes
+        /// </returns>
+        protected virtual T[] GetAttributes<T>(Type type) where T : Attribute
+        {
+            return type.GetCustomAttributes(typeof(T), true)
+                .OfType<T>()
+                .ToArray();
         }
 
         /// <summary>
@@ -794,11 +811,11 @@ namespace Chr.Avro.Resolution
         /// Determines whether the case can be applied to a type.
         /// </summary>
         /// <returns>
-        /// Whether the type is a class, interface, or struct.
+        /// Whether the type is a class, or struct.
         /// </returns>
         public override bool IsMatch(Type type)
         {
-            return !type.IsArray && !type.IsPrimitive;
+            return !type.IsArray && !type.IsPrimitive & !type.IsInterface;
         }
         
         /// <summary>
@@ -839,7 +856,81 @@ namespace Chr.Avro.Resolution
             return new RecordResolution(type, name, @namespace, fields);
         }
     }
-    
+
+    /// <summary>
+    /// A general type resolver case that resolves interfaces and it's specific types.
+    /// </summary>
+    public class InterfaceResolverCase : ReflectionResolverCase
+    {
+        /// <summary>
+        /// The binding flags that will be used to select fields and properties.
+        /// </summary>
+        protected readonly BindingFlags MemberVisibility;
+
+        /// <summary>
+        /// Creates a new object resolver case.
+        /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags that will be used to select fields and properties. If none are provided,
+        /// public instance members will be selected by default.
+        /// </param>
+        public InterfaceResolverCase(BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance)
+        {
+            MemberVisibility = memberVisibility;
+        }
+
+        /// <summary>
+        /// Determines whether the case can be applied to a type.
+        /// </summary>
+        /// <returns>
+        /// Whether the type is a class, interface, or struct.
+        /// </returns>
+        public override bool IsMatch(Type type)
+        {
+            return type.IsInterface && type.IsAbstract;
+        }
+
+        /// <summary>
+        /// Resolves class, interface, or struct type information.
+        /// </summary>
+        /// <param name="type">
+        /// The type to resolve.
+        /// </param>
+        /// <returns>
+        /// A <see cref="RecordResolution" /> with information about the type.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when the type is an array type or a primitive type.
+        /// </exception>
+        public override TypeResolution Resolve(Type type)
+        {
+            if (!IsMatch(type))
+            {
+                throw new ArgumentException("The interface resolver can only be applied to interfaces and abstract classes.", nameof(type));
+            }
+
+            var name = new IdentifierResolution(type.Name);
+
+            var @namespace = string.IsNullOrEmpty(type.Namespace)
+                ? null
+                : new IdentifierResolution(type.Namespace);
+
+            var contracts = GetAttributes<SchemaKnownTypeAttribute>(type);
+
+            if (contracts.Length < 1)
+            {
+                throw new ArgumentException("If using an interface, you must specify SchemaKnownType attributes.", nameof(type));
+            }
+
+            var objectResolverCase = new ObjectResolverCase();
+            var types = contracts
+                .Select(x => new { x.Type, Resolution = (RecordResolution)objectResolverCase.Resolve(x.Type) })
+                .ToDictionary(x => x.Type, x => x.Resolution);            
+            
+            return new InterfaceResolution(types, @namespace, type, true);
+        }
+    }
+
     /// <summary>
     /// A type resolver case that matches <see cref="sbyte" />.
     /// </summary>
@@ -953,7 +1044,7 @@ namespace Chr.Avro.Resolution
                 throw new ArgumentException($"The string case can only be applied to {typeof(string).FullName}.", nameof(type));
             }
 
-            return new StringResolution(type);
+            return new StringResolution(type, true);
         }
     }
 

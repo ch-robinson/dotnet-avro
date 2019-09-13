@@ -62,7 +62,10 @@ namespace Chr.Avro.Resolution
                 new UriResolverCase(),
 
                 // classes and structs:
-                new DataContractObjectResolverCase()
+                new DataContractObjectResolverCase(),
+
+                // interfaces and abstract classes
+                new InterfaceResolverCase()
             };
         }
     }
@@ -223,7 +226,7 @@ namespace Chr.Avro.Resolution
         /// </returns>
         public override bool IsMatch(Type type)
         {
-            return !type.IsArray && !type.IsPrimitive;
+            return !type.IsArray && !type.IsPrimitive && !type.IsInterface;
         }
 
         /// <summary>
