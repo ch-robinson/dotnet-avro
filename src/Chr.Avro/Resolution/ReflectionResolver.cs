@@ -953,7 +953,7 @@ namespace Chr.Avro.Resolution
                 throw new ArgumentException($"The string case can only be applied to {typeof(string).FullName}.", nameof(type));
             }
 
-            return new StringResolution(type);
+            return new StringResolution(type, true);
         }
     }
 
