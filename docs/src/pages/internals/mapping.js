@@ -345,7 +345,7 @@ deserializer.Deserialize(serializer.Serialize(epoch)); // 0L`}</Highlight>
         </tr>
       </tbody>
     </table>
-    <p>Generally speaking, it’s a good idea to fit the precision and scale of a decimal schema to a specific use case. For example, air temperature measurements in ℉ might have a precision of 4 and a scale of 1. (29 and 14 are reasonable defaults, but in most cases they’re not the best choice.) All decimal values are resized to fit the schema—digits are truncated and zeros are added as necessary.</p>
+    <p>Generally speaking, it’s a good idea to fit the precision and scale of a decimal schema to a specific use case. For example, air temperature measurements in ℉ might have a precision of 4 and a scale of 1. (29 and 14, the schema builder defaults, were selected to fit any .NET decimal.) Decimal values are resized to fit the scale specified by the schema—when serializing, digits may be truncated; when deserializing, zeros may be added.</p>
     <h3>Caveats</h3>
     <p>Because the serializer and deserializer rely on predefined conversions, the <ExternalLink to='https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/explicit-numeric-conversions-table#remarks'>remarks from the C# numeric conversions table</ExternalLink> are relevant. Notably:</p>
     <ul>
