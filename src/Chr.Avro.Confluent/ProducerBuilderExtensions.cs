@@ -26,6 +26,9 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// Whether to automatically register schemas that match the type being serialized.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         /// <param name="subjectNameBuilder">
         /// A function that determines the subject name given the topic name and a component type
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
@@ -35,10 +38,12 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false,
             Func<SerializationContext, string> subjectNameBuilder = null
         ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
             registryClient,
             registerAutomatically: registerAutomatically,
+            resolveReferenceTypesAsNullable: resolveReferenceTypesAsNullable,
             subjectNameBuilder: subjectNameBuilder
         ));
 
@@ -55,6 +60,9 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// Whether to automatically register schemas that match the type being serialized.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         /// <param name="subjectNameBuilder">
         /// A function that determines the subject name given the topic name and a component type
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
@@ -64,10 +72,12 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false,
             Func<SerializationContext, string> subjectNameBuilder = null
         ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
             registryConfiguration,
             registerAutomatically: registerAutomatically,
+            resolveReferenceTypesAsNullable: resolveReferenceTypesAsNullable,
             subjectNameBuilder: subjectNameBuilder
         ));
 
@@ -153,11 +163,15 @@ namespace Chr.Avro.Confluent
         /// Whether to automatically register a schema that matches <typeparamref name="TKey" />
         /// if one does not already exist.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             string subject,
-            bool registerAutomatically = false
+            bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
@@ -183,11 +197,15 @@ namespace Chr.Avro.Confluent
         /// Whether to automatically register a schema that matches <typeparamref name="TKey" />
         /// if one does not already exist.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             string subject,
-            bool registerAutomatically = false
+            bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
@@ -212,11 +230,15 @@ namespace Chr.Avro.Confluent
         /// Whether to automatically register a schema that matches <typeparamref name="TKey" />
         /// if one does not already exist.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
-            bool registerAutomatically = false
+            bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false
         ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, registerAutomatically));
 
 
@@ -311,6 +333,9 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// Whether to automatically register schemas that match the type being serialized.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         /// <param name="subjectNameBuilder">
         /// A function that determines the subject name given the topic name and a component type
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
@@ -320,6 +345,7 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false,
             Func<SerializationContext, string> subjectNameBuilder = null
         ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
             registryClient,
@@ -340,6 +366,9 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// Whether to automatically register schemas that match the type being serialized.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         /// <param name="subjectNameBuilder">
         /// A function that determines the subject name given the topic name and a component type
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
@@ -349,6 +378,7 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false,
             Func<SerializationContext, string> subjectNameBuilder = null
         ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
             registryConfiguration,
@@ -438,11 +468,15 @@ namespace Chr.Avro.Confluent
         /// Whether to automatically register a schema that matches <typeparamref name="TValue" />
         /// if one does not already exist.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             string subject,
-            bool registerAutomatically = false
+            bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
@@ -468,11 +502,15 @@ namespace Chr.Avro.Confluent
         /// Whether to automatically register a schema that matches <typeparamref name="TValue" />
         /// if one does not already exist.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             string subject,
-            bool registerAutomatically = false
+            bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {

@@ -28,6 +28,8 @@ namespace Chr.Avro.Confluent
 
         private readonly bool _registerAutomatically;
 
+        private readonly bool _resolveReferenceTypesAsNullable;
+
         private readonly Func<string, Task<Schema>> _resolve;
 
         private readonly Abstract.ISchemaBuilder _schemaBuilder;
@@ -49,6 +51,9 @@ namespace Chr.Avro.Confluent
         /// </param>
         /// <param name="registerAutomatically">
         /// Whether to automatically register schemas that match the type being serialized.
+        /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
         /// </param>
         /// <param name="schemaBuilder">
         /// A schema builder (used to build a schema for a C# type when registering automatically).
@@ -77,6 +82,7 @@ namespace Chr.Avro.Confluent
         public AsyncSchemaRegistrySerializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false,
             Abstract.ISchemaBuilder schemaBuilder = null,
             IJsonSchemaReader schemaReader = null,
             IJsonSchemaWriter schemaWriter = null,
@@ -84,6 +90,7 @@ namespace Chr.Avro.Confluent
             Func<SerializationContext, string> subjectNameBuilder = null
         ) : this(
             registerAutomatically,
+            resolveReferenceTypesAsNullable,
             schemaBuilder,
             schemaReader,
             schemaWriter,
@@ -121,6 +128,9 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// Whether to automatically register schemas that match the type being serialized.
         /// </param>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
         /// <param name="schemaBuilder">
         /// A schema builder (used to build a schema for a C# type when registering automatically).
         /// If none is provided, the default schema builder will be used.
@@ -148,6 +158,7 @@ namespace Chr.Avro.Confluent
         public AsyncSchemaRegistrySerializer(
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false,
             Abstract.ISchemaBuilder schemaBuilder = null,
             IJsonSchemaReader schemaReader = null,
             IJsonSchemaWriter schemaWriter = null,
@@ -155,6 +166,7 @@ namespace Chr.Avro.Confluent
             Func<SerializationContext, string> subjectNameBuilder = null
         ) : this(
             registerAutomatically,
+            resolveReferenceTypesAsNullable,
             schemaBuilder,
             schemaReader,
             schemaWriter,
@@ -172,6 +184,7 @@ namespace Chr.Avro.Confluent
 
         private AsyncSchemaRegistrySerializer(
             bool registerAutomatically = false,
+            bool resolveReferenceTypesAsNullable = false,
             Abstract.ISchemaBuilder schemaBuilder = null,
             IJsonSchemaReader schemaReader = null,
             IJsonSchemaWriter schemaWriter = null,
@@ -180,10 +193,11 @@ namespace Chr.Avro.Confluent
         ) {
             _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
             _registerAutomatically = registerAutomatically;
+            _resolveReferenceTypesAsNullable = resolveReferenceTypesAsNullable;
             _schemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
             _schemaReader = schemaReader ?? new JsonSchemaReader();
             _schemaWriter = schemaWriter ?? new JsonSchemaWriter();
-            _serializerBuilder = serializerBuilder ?? new BinarySerializerBuilder();
+            _serializerBuilder = serializerBuilder ?? new BinarySerializerBuilder(resolveReferenceTypesAsNullable: _resolveReferenceTypesAsNullable);
             _subjectNameBuilder = subjectNameBuilder ??
                 (c => $"{c.Topic}-{(c.Component == MessageComponentType.Key ? "key" : "value")}");
         }

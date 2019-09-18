@@ -116,9 +116,12 @@ namespace Chr.Avro.Serialization
         /// <param name="resolver">
         /// A resolver to obtain type information from.
         /// </param>
-        public BinarySerializerBuilder(IReadOnlyCollection<IBinarySerializerBuilderCase> cases = null, IBinaryCodec codec = null, ITypeResolver resolver = null)
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
+        public BinarySerializerBuilder(IReadOnlyCollection<IBinarySerializerBuilderCase> cases = null, IBinaryCodec codec = null, ITypeResolver resolver = null, bool resolveReferenceTypesAsNullable = false)
         {
-            Resolver = resolver ?? new DataContractResolver();
+            Resolver = resolver ?? new DataContractResolver(resolveReferenceTypesAsNullable);
 
             if (codec == null)
             {
