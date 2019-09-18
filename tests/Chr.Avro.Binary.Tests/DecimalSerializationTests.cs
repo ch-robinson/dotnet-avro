@@ -49,11 +49,11 @@ namespace Chr.Avro.Serialization.Tests
 
         public static IEnumerable<object[]> Resizings => new List<object[]>
         {
-            new object[] { 1, 0, 404.04m, 400m },
+            new object[] { 1, 0, 404.04m, 404m },
             new object[] { 3, 0, 404.04m, 404m },
             new object[] { 5, 0, 404.0404m, 404m },
             new object[] { 5, 2, -404.0m, -404.00m },
-            new object[] { 5, 4, -404.0404m, -404.0400m },
+            new object[] { 5, 4, -404.040404m, -404.0404m },
         };
 
         public static IEnumerable<object[]> ZeroScaleEncodings => new List<object[]>

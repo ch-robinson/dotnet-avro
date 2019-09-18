@@ -709,67 +709,26 @@ namespace Chr.Avro.Serialization
                 }
             }
 
-            // declare storage variables:
+            // buffer:
             var bytes = Expression.Variable(typeof(byte[]));
-            var integer = Expression.Variable(typeof(BigInteger));
 
             var integerConstructor = typeof(BigInteger)
                 .GetConstructor(new[] { typeof(decimal) });
 
-            var abs = typeof(BigInteger)
-                .GetMethod(nameof(BigInteger.Abs), new[] { typeof(BigInteger) });
-
-            var ceil = typeof(Math)
-                 .GetMethod(nameof(Math.Ceiling), new[] { typeof(double) });
-
-            var log = typeof(BigInteger)
-                .GetMethod(nameof(BigInteger.Log10), new[] { typeof(BigInteger) });
-
-            var max = typeof(Math)
-                .GetMethod(nameof(Math.Max), new[] { typeof(double), typeof(double) });
-
-            var pow = typeof(Math)
-                .GetMethod(nameof(Math.Pow), new[] { typeof(double), typeof(double) });
-
             var reverse = typeof(Array)
                 .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
-
-            var round = typeof(Math)
-                .GetMethod(nameof(Math.Round), new[] { typeof(decimal), typeof(int) });
 
             var toByteArray = typeof(BigInteger)
                 .GetMethod(nameof(BigInteger.ToByteArray), Type.EmptyTypes);
 
             result = Expression.Block(
-                new[] { integer },
-
-                // scale and get the digits:
-                //   integer = new BigInteger(Math.Round(result, scale) * (decimal)Math.Pow(10, scale));
-                Expression.Assign(integer,
-                    Expression.New(integerConstructor,
-                        Expression.Multiply(
-                            Expression.Call(null, round, result, Expression.Constant(scale)),
-                            Expression.Constant((decimal)Math.Pow(10, scale))))),
-
-                // arithmetic:
-                //   var digits = Math.Ceiling(BigInteger.Log10(BigInteger.Abs(integer)));
-                //   var truncated = integer - (integer % (BigInteger)Math.Pow(10, Math.Max(0, digits - precision)));
-                //
-                //   bytes = truncated.ToByteArray();
+                // bytes = new BigInteger(result * (decimal)Math.Pow(10, scale)).ToByteArray();
                 Expression.Assign(bytes,
                     Expression.Call(
-                        Expression.Subtract(integer,
-                            Expression.Modulo(integer,
-                                Expression.ConvertChecked(
-                                    Expression.Call(null, pow, Expression.Constant(10.0),
-                                        Expression.Call(null, max, Expression.Constant(0.0),
-                                            Expression.Subtract(
-                                                Expression.Call(null, ceil,
-                                                    Expression.Call(null, log,
-                                                        Expression.Call(null, abs, integer))),
-                                                Expression.Constant((double)precision)
-                                            ))),
-                                    typeof(BigInteger)))),
+                        Expression.New(integerConstructor,
+                            Expression.Multiply(
+                                result,
+                                Expression.Constant((decimal)Math.Pow(10, scale)))),
                         toByteArray)),
 
                 // BigInteger is little-endian, so reverse:
@@ -805,7 +764,7 @@ namespace Chr.Avro.Serialization
                     result,
                     Expression.IfThen(
                         Expression.NotEqual(Expression.ArrayLength(bytes), Expression.Constant(fixedSchema.Size)),
-                        Expression.Throw(Expression.New(exceptionConstructor, Expression.Constant($"Size mismatch between {fixedSchema.Name} (size {fixedSchema.Size}) and decimal with precision {decimalLogicalType.Precision} and scale {decimalLogicalType.Scale}.")))
+                        Expression.Throw(Expression.New(exceptionConstructor, Expression.Constant($"Size mismatch between {fixedSchema.Name} (size {fixedSchema.Size}) and decimal with precision {precision} and scale {scale}.")))
                     ),
                     Expression.Call(codec, writeValue, bytes, stream)
                 );

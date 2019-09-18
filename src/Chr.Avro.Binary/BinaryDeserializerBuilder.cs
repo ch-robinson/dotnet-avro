@@ -721,59 +721,26 @@ namespace Chr.Avro.Serialization
 
             // declare some variables for in-place transformation:
             var bytes = Expression.Variable(typeof(byte[]));
-            var integer = Expression.Variable(typeof(BigInteger));
 
             var integerConstructor = typeof(BigInteger)
                 .GetConstructor(new[] { typeof(byte[]) });
-
-            var abs = typeof(BigInteger)
-                .GetMethod(nameof(BigInteger.Abs), new[] { typeof(BigInteger) });
-
-            var ceil = typeof(Math)
-                 .GetMethod(nameof(Math.Ceiling), new[] { typeof(double) });
-
-            var log = typeof(BigInteger)
-                .GetMethod(nameof(BigInteger.Log10), new[] { typeof(BigInteger) });
-
-            var max = typeof(Math)
-                .GetMethod(nameof(Math.Max), new[] { typeof(double), typeof(double) });
-
-            var pow = typeof(Math)
-                .GetMethod(nameof(Math.Pow), new[] { typeof(double), typeof(double) });
 
             var reverse = typeof(Array)
                 .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
 
             result = Expression.Block(
-                new[] { bytes, integer },
+                new[] { bytes },
 
                 // store the bytes in a variable:
                 Expression.Assign(bytes, result),
 
-                // BigInteger is little-endian, so reverse:
+                // BigInteger is little-endian, so reverse before creating:
                 Expression.Call(null, reverse, bytes),
 
-                // create the BigInteger:
-                Expression.Assign(integer, Expression.New(integerConstructor, bytes)),
-
-                // arithmetic:
-                //   var digits = Math.Ceiling(BigInteger.Log10(BigInteger.Abs(integer)));
-                //   var truncated = integer - (integer % (BigInteger)Math.Pow(10, Math.Max(0, digits - precision)));
-                //
-                //   return (decimal)truncated / (decimal)Math.Pow(10, scale);
+                // return (decimal)new BigInteger(bytes) / (decimal)Math.Pow(10, scale);
                 Expression.Divide(
                     Expression.ConvertChecked(
-                        Expression.Subtract(integer,
-                            Expression.Modulo(integer,
-                                Expression.ConvertChecked(
-                                    Expression.Call(null, pow, Expression.Constant(10.0),
-                                        Expression.Call(null, max, Expression.Constant(0.0),
-                                            Expression.Subtract(
-                                                Expression.Call(null, ceil,
-                                                    Expression.Call(null, log,
-                                                        Expression.Call(null, abs, integer))),
-                                                Expression.Constant((double)precision)))),
-                                    typeof(BigInteger)))),
+                        Expression.New(integerConstructor, bytes),
                         typeof(decimal)),
                     Expression.Constant((decimal)Math.Pow(10, scale)))
             );
