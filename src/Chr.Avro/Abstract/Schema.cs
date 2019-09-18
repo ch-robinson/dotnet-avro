@@ -54,7 +54,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Arrays">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class ArraySchema : ComplexSchema
+    public class ArraySchema : ComplexSchema
     {
         private Schema item;
 
@@ -98,7 +98,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Maps">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class MapSchema : ComplexSchema
+    public class MapSchema : ComplexSchema
     {
         private Schema value;
 
@@ -142,7 +142,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Unions">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class UnionSchema : ComplexSchema
+    public class UnionSchema : ComplexSchema
     {
         private ConstrainedSet<Schema> schemas;
 
@@ -375,7 +375,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Enums">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class EnumSchema : NamedSchema
+    public class EnumSchema : NamedSchema
     {
         private ConstrainedSet<string> symbols;
 
@@ -449,7 +449,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Fixed">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class FixedSchema : NamedSchema
+    public class FixedSchema : NamedSchema
     {
         private int size;
 
@@ -507,7 +507,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#schema_record">Avro spec</a>
     /// for details.
     /// </remarks>
-    public sealed class RecordSchema : NamedSchema
+    public class RecordSchema : NamedSchema
     {
         private ConstrainedSet<RecordField> fields;
 
@@ -664,40 +664,40 @@ namespace Chr.Avro.Abstract
     /// <summary>
     /// An Avro schema representing a boolean value.
     /// </summary>
-    public sealed class BooleanSchema : PrimitiveSchema { }
+    public class BooleanSchema : PrimitiveSchema { }
 
     /// <summary>
     /// An Avro schema representing a variable-length sequence of bytes.
     /// </summary>
-    public sealed class BytesSchema : PrimitiveSchema { }
+    public class BytesSchema : PrimitiveSchema { }
 
     /// <summary>
     /// An Avro schema representing a double-precision (64-bit) floating-point number.
     /// </summary>
-    public sealed class DoubleSchema : PrimitiveSchema { }
+    public class DoubleSchema : PrimitiveSchema { }
 
     /// <summary>
     /// An Avro schema representing a single-precision (32-bit) floating-point number.
     /// </summary>
-    public sealed class FloatSchema : PrimitiveSchema { }
+    public class FloatSchema : PrimitiveSchema { }
 
     /// <summary>
     /// An Avro schema representing a 32-bit signed integer.
     /// </summary>
-    public sealed class IntSchema : PrimitiveSchema { }
+    public class IntSchema : PrimitiveSchema { }
 
     /// <summary>
     /// An Avro schema representing a 64-bit signed integer.
     /// </summary>
-    public sealed class LongSchema : PrimitiveSchema { }
+    public class LongSchema : PrimitiveSchema { }
 
     /// <summary>
     /// An Avro schema representing an absent value.
     /// </summary>
-    public sealed class NullSchema : PrimitiveSchema { }
+    public class NullSchema : PrimitiveSchema { }
 
     /// <summary>
     /// An Avro schema representing a Unicode character sequence.
     /// </summary>
-    public sealed class StringSchema : PrimitiveSchema { }
+    public class StringSchema : PrimitiveSchema { }
 }
