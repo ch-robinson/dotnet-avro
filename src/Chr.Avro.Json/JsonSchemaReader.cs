@@ -1,12 +1,10 @@
 using Chr.Avro.Abstract;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
+using System.Text.Json;
 
 namespace Chr.Avro.Representation
 {
@@ -32,45 +30,12 @@ namespace Chr.Avro.Representation
         /// Returns a deserialized schema object.
         /// </returns>
         Schema Read(string schema, ConcurrentDictionary<string, Schema> cache = null, string scope = null);
-    }
 
-    /// <summary>
-    /// Reads Avro schemas from specific JSON tokens. Used by <see cref="JsonSchemaReader" /> to
-    /// break apart read logic.
-    /// </summary>
-    public interface IJsonSchemaReaderCase
-    {
-        /// <summary>
-        /// Determines whether the case can be applied to a token.
-        /// </summary>
-        bool IsMatch(JToken token);
-
-        /// <summary>
-        /// Reads a schema from a JSON token.
-        /// </summary>
-        /// <param name="token">
-        /// The token to parse.
-        /// </param>
-        /// <param name="cache">
-        /// An optional schema cache. The cache is populated as the schema is read and can be used
-        /// to provide schemas for certain names or cache keys.
-        /// </param>
-        /// <param name="scope">
-        /// The surrounding namespace, if any.
-        /// </param>
-        Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope);
-    }
-
-    /// <summary>
-    /// Reads an Avro schema from JSON using <see cref="Newtonsoft.Json" /> components.
-    /// </summary>
-    public interface INewtonsoftJsonSchemaReader : IJsonSchemaReader
-    {
         /// <summary>
         /// Reads a serialized Avro schema.
         /// </summary>
-        /// <param name="token">
-        /// A JSON token representing a schema.
+        /// <param name="element">
+        /// A JSON element representing a schema.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -82,13 +47,40 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a deserialized schema object.
         /// </returns>
-        Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache = null, string scope = null);
+        Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache = null, string scope = null);
+    }
+
+    /// <summary>
+    /// Reads Avro schemas from specific JSON tokens. Used by <see cref="JsonSchemaReader" /> to
+    /// break apart read logic.
+    /// </summary>
+    public interface IJsonSchemaReaderCase
+    {
+        /// <summary>
+        /// Determines whether the case can be applied to an element.
+        /// </summary>
+        bool IsMatch(JsonElement element);
+
+        /// <summary>
+        /// Reads a schema from a JSON element.
+        /// </summary>
+        /// <param name="element">
+        /// The element to parse.
+        /// </param>
+        /// <param name="cache">
+        /// An optional schema cache. The cache is populated as the schema is read and can be used
+        /// to provide schemas for certain names or cache keys.
+        /// </param>
+        /// <param name="scope">
+        /// The surrounding namespace, if any.
+        /// </param>
+        Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope);
     }
 
     /// <summary>
     /// A customizable JSON schema reader backed by a list of cases.
     /// </summary>
-    public class JsonSchemaReader : INewtonsoftJsonSchemaReader
+    public class JsonSchemaReader : IJsonSchemaReader
     {
         /// <summary>
         /// A list of cases that the read methods will attempt to apply. If the first case does not
@@ -152,9 +144,9 @@ namespace Chr.Avro.Representation
         /// </returns>
         public Schema Read(string schema, ConcurrentDictionary<string, Schema> cache = null, string scope = null)
         {
-            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(schema)))
+            using (var document = JsonDocument.Parse(schema))
             {
-                return Read(stream, cache, scope);
+                return Read(document.RootElement, cache, scope);
             }
         }
 
@@ -176,18 +168,17 @@ namespace Chr.Avro.Representation
         /// </returns>
         public Schema Read(Stream stream, ConcurrentDictionary<string, Schema> cache = null, string scope = null)
         {
-            using (var reader = new StreamReader(stream, Encoding.UTF8, true, 1024, true))
-            using (var json = new JsonTextReader(reader))
+            using (var document = JsonDocument.Parse(stream))
             {
-                return Read(JToken.Load(json), cache, scope);
+                return Read(document.RootElement, cache, scope);
             }
         }
 
         /// <summary>
         /// Reads a serialized Avro schema.
         /// </summary>
-        /// <param name="token">
-        /// A JSON token representing a schema.
+        /// <param name="element">
+        /// A JSON element representing a schema.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -199,21 +190,21 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a deserialized schema object.
         /// </returns>
-        public Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache = null, string scope = null)
+        public Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache = null, string scope = null)
         {
             if (cache == null)
             {
                 cache = new ConcurrentDictionary<string, Schema>();
             }
 
-            var match = Cases.FirstOrDefault(c => c.IsMatch(token));
+            var match = Cases.FirstOrDefault(c => c.IsMatch(element));
 
             if (match == null)
             {
-                throw new UnknownSchemaException($"No schema respresentation case matched {token.ToString()}");
+                throw new UnknownSchemaException($"No schema respresentation case matched {element.ToString()}");
             }
 
-            return match.Read(token, cache, scope);
+            return match.Read(element, cache, scope);
         }
     }
 
@@ -223,15 +214,15 @@ namespace Chr.Avro.Representation
     public abstract class JsonSchemaReaderCase : IJsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public abstract bool IsMatch(JToken token);
+        public abstract bool IsMatch(JsonElement element);
 
         /// <summary>
-        /// Reads a schema from a JSON token.
+        /// Reads a schema from a JSON element.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -240,7 +231,7 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public abstract Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope);
+        public abstract Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope);
 
         /// <summary>
         /// Qualifies a name if it’s in a scope.
@@ -261,42 +252,58 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts fully-qualified aliases from a named schema.
         /// </summary>
-        protected virtual ICollection<string> GetQualifiedAliases(JObject @object, string scope)
+        protected virtual ICollection<string> GetQualifiedAliases(JsonElement element, string scope)
         {
-            if (!(@object[JsonAttributeToken.Aliases] is JToken aliases))
+            if (!element.TryGetProperty(JsonAttributeToken.Aliases, out var aliases))
             {
                 return null;
             }
 
-            if (!(aliases is JArray && aliases.All(t => t.Type == JTokenType.String)))
+            if (aliases.ValueKind != JsonValueKind.Array)
             {
-                throw new InvalidDataException("An \"aliases\" key must have an array of strings as its value.");
+                throw new InvalidDataException("An \"aliases\" key must have an array as its value.");
             }
 
-            return aliases.Select(alias => QualifyName((string)alias, scope)).ToList();
+            return aliases
+                .EnumerateArray()
+                .Select(alias =>
+                {
+                    if (alias.ValueKind != JsonValueKind.String)
+                    {
+                        throw new InvalidDataException("An \"aliases\" item must be a string.");
+                    }
+
+                    return QualifyName(alias.GetString(), scope);
+                })
+                .ToList();
         }
 
         /// <summary>
         /// Extracts the fully-qualified name from a named schema.
         /// </summary>
-        protected virtual string GetQualifiedName(JObject @object, string scope)
+        protected virtual string GetQualifiedName(JsonElement element, string scope)
         {
-            if (!(@object[JsonAttributeToken.Name] is JValue name && name.Type == JTokenType.String))
+            if (!element.TryGetProperty(JsonAttributeToken.Name, out var name))
             {
-                throw new InvalidDataException("A named schema must contain a \"name\" key with a string as its value.");
+                throw new InvalidDataException("A named schema must contain a \"name\" key.");
             }
 
-            if (!(@object[JsonAttributeToken.Namespace] is JToken @namespace))
+            if (name.ValueKind != JsonValueKind.String)
             {
-                return QualifyName((string)name, scope);
+                throw new InvalidDataException("A \"name\" key must have a string as its value.");
             }
 
-            if (!(@namespace is JValue && @namespace.Type == JTokenType.String))
+            if (!element.TryGetProperty(JsonAttributeToken.Namespace, out var @namespace))
+            {
+                return QualifyName(name.GetString(), scope);
+            }
+
+            if (@namespace.ValueKind != JsonValueKind.String)
             {
                 throw new InvalidDataException("A \"namespace\" key must have a string as its value.");
             }
 
-            return $"{(string)@namespace}.{(string)name}";
+            return $"{@namespace.GetString()}.{name.GetString()}";
         }
     }
 
@@ -308,7 +315,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// A schema reader to use to resolve item types.
         /// </summary>
-        protected readonly INewtonsoftJsonSchemaReader Reader;
+        protected readonly IJsonSchemaReader Reader;
 
         /// <summary>
         /// Creates a new array case.
@@ -316,24 +323,27 @@ namespace Chr.Avro.Representation
         /// <param name="reader">
         /// A schema reader to use to resolve item types.
         /// </param>
-        public ArrayJsonSchemaReaderCase(INewtonsoftJsonSchemaReader reader)
+        public ArrayJsonSchemaReaderCase(IJsonSchemaReader reader)
         {
             Reader = reader ?? throw new ArgumentNullException(nameof(reader), "Schema reader cannot be null.");
         }
 
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Array;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Array;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -342,14 +352,14 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!(token is JObject @object && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Array))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The array case can only be applied to valid array schema representations.");
             }
 
-            var child = Reader.Read(GetItems(@object), cache, scope);
+            var child = Reader.Read(GetItems(element), cache, scope);
             var key = cache.Single(p => p.Value == child).Key;
 
             return cache.GetOrAdd($"{JsonSchemaToken.Array}<{key}>", _ => new ArraySchema(child));
@@ -358,9 +368,9 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the item type from an array schema.
         /// </summary>
-        protected virtual JToken GetItems(JObject @object)
+        protected virtual JsonElement GetItems(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Items] is JToken items))
+            if (!element.TryGetProperty(JsonAttributeToken.Items, out var items))
             {
                 throw new InvalidDataException("Array schemas must contain an \"items\" key.");
             }
@@ -375,20 +385,24 @@ namespace Chr.Avro.Representation
     public class DateJsonSchemaReaderCase : JsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object
-                && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Int
-                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.Date;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Int
+                && element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType)
+                && logicalType.ValueKind == JsonValueKind.String
+                && logicalType.GetString() == JsonSchemaToken.Date;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -397,9 +411,9 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!IsMatch(token))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The date case can only be applied to \"int\" schemas with a \"date\" logical type.");
             }
@@ -417,20 +431,24 @@ namespace Chr.Avro.Representation
     public class DecimalJsonSchemaReaderCase : FixedJsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object
-                && ((string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Bytes || (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Fixed)
-                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.Decimal;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && (type.GetString() == JsonSchemaToken.Bytes || type.GetString() == JsonSchemaToken.Fixed)
+                && element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType)
+                && logicalType.ValueKind == JsonValueKind.String
+                && logicalType.GetString() == JsonSchemaToken.Decimal;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -439,19 +457,19 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!(token is JObject @object && IsMatch(@object)))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The decimal case can only be applied to \"bytes\" schemas with a \"decimal\" logical type.");
             }
 
-            if ((string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Fixed)
+            if (element.GetProperty(JsonAttributeToken.Type).GetString() == JsonSchemaToken.Fixed)
             {
-                var schema = new FixedSchema(GetQualifiedName(@object, scope), GetSize(@object))
+                var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
                 {
-                    Aliases = GetQualifiedAliases(@object, scope) ?? new string[0],
-                    LogicalType = new DecimalLogicalType(GetPrecision(@object), GetScale(@object))
+                    Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
+                    LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element))
                 };
 
                 if (!cache.TryAdd(schema.FullName, schema))
@@ -473,7 +491,7 @@ namespace Chr.Avro.Representation
             {
                 return cache.GetOrAdd($"{JsonSchemaToken.Bytes}!{JsonSchemaToken.Decimal}", new BytesSchema()
                 {
-                    LogicalType = new DecimalLogicalType(GetPrecision(@object), GetScale(@object))
+                    LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element))
                 });
             }
         }
@@ -481,27 +499,27 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the precision from a decimal schema.
         /// </summary>
-        protected virtual int GetPrecision(JToken @object)
+        protected virtual int GetPrecision(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Precision] is JValue precision && precision.Type == JTokenType.Integer))
+            if (!element.TryGetProperty(JsonAttributeToken.Precision, out var precision) || precision.ValueKind != JsonValueKind.Number)
             {
                 throw new InvalidDataException("Decimal schemas must contain a \"precision\" key with an integer as its value.");
             }
 
-            return (int)precision;
+            return precision.GetInt32();
         }
 
         /// <summary>
         /// Extracts the scale from a decimal schema.
         /// </summary>
-        protected virtual int GetScale(JToken @object)
+        protected virtual int GetScale(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Scale] is JValue scale && scale.Type == JTokenType.Integer))
+            if (!element.TryGetProperty(JsonAttributeToken.Scale, out var scale) || scale.ValueKind != JsonValueKind.Number)
             {
                 throw new InvalidDataException("Decimal schemas must contain a \"scale\" key with an integer as its value.");
             }
 
-            return (int)scale;
+            return scale.GetInt32();
         }
     }
 
@@ -511,23 +529,23 @@ namespace Chr.Avro.Representation
     public class DefaultJsonSchemaReaderCase : JsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            if (token is JObject @object)
+            if (element.ValueKind == JsonValueKind.Object)
             {
-                token = @object[JsonAttributeToken.Type];
+                element.TryGetProperty(JsonAttributeToken.Type, out element);
             }
 
-            return token is JValue value && value.Type == JTokenType.String;
+            return element.ValueKind == JsonValueKind.String;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -536,19 +554,19 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (token is JObject @object)
+            if (element.ValueKind == JsonValueKind.Object)
             {
-                token = @object[JsonAttributeToken.Type];
+                element.TryGetProperty(JsonAttributeToken.Type, out element);
             }
 
-            if (!(token is JValue value && value.Type == JTokenType.String))
+            if (element.ValueKind != JsonValueKind.String)
             {
                 throw new ArgumentException("The primitive case can only be applied to valid primitive schema representations.");
             }
 
-            var type = (string)value;
+            var type = element.GetString();
 
             switch (type)
             {
@@ -600,20 +618,24 @@ namespace Chr.Avro.Representation
     public class DurationJsonSchemaReaderCase : FixedJsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object
-                && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Fixed
-                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.Duration;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Fixed
+                && element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType)
+                && logicalType.ValueKind == JsonValueKind.String
+                && logicalType.GetString() == JsonSchemaToken.Duration;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -622,16 +644,16 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!(token is JObject @object && IsMatch(@object)))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The duration case can only be applied to \"fixed\" schemas with a \"duration\" logical type.");
             }
 
-            var schema = new FixedSchema(GetQualifiedName(@object, scope), GetSize(@object))
+            var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
             {
-                Aliases = GetQualifiedAliases(@object, scope) ?? new string[0],
+                Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
                 LogicalType = new DurationLogicalType()
             };
 
@@ -658,18 +680,21 @@ namespace Chr.Avro.Representation
     public class EnumJsonSchemaReaderCase : NamedJsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Enum;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Enum;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -678,17 +703,17 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!(token is JObject @object && (string)token[JsonAttributeToken.Type] == JsonSchemaToken.Enum))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The enum case can only be applied to valid enum schema representations.");
             }
 
-            var schema = new EnumSchema(GetQualifiedName(@object, scope), GetSymbols(@object))
+            var schema = new EnumSchema(GetQualifiedName(element, scope), GetSymbols(element))
             {
-                Aliases = GetQualifiedAliases(@object, scope) ?? new string[0],
-                Documentation = GetDoc(@object)
+                Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
+                Documentation = GetDoc(element)
             };
 
             if (!cache.TryAdd(schema.FullName, schema))
@@ -710,32 +735,48 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the documentation field from an enum schema.
         /// </summary>
-        protected virtual string GetDoc(JToken @object)
+        protected virtual string GetDoc(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Doc] is JToken doc))
+            if (!element.TryGetProperty(JsonAttributeToken.Doc, out var doc))
             {
                 return null;
             }
 
-            if (!(doc is JValue && doc.Type == JTokenType.String))
+            if (doc.ValueKind != JsonValueKind.String)
             {
                 throw new InvalidDataException("A \"doc\" key must have a string as its value.");
             }
 
-            return (string)doc;
+            return doc.GetString();
         }
 
         /// <summary>
         /// Extracts the symbols from an enum schema.
         /// </summary>
-        protected virtual ICollection<string> GetSymbols(JToken @object)
+        protected virtual ICollection<string> GetSymbols(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Symbols] is JArray symbols && symbols.All(s => s.Type == JTokenType.String)))
+            if (!element.TryGetProperty(JsonAttributeToken.Symbols, out var symbols))
             {
-                throw new InvalidDataException("Enum schemas must contain a \"symbols\" key with an array of strings as its value.");
+                throw new InvalidDataException("Enum schemas must contain a \"symbols\" key.");
             }
 
-            return symbols.Select(s => (string)s).ToList();
+            if (symbols.ValueKind != JsonValueKind.Array)
+            {
+                throw new InvalidDataException("A \"symbols\" key must have an array as its value.");
+            }
+
+            return symbols
+                .EnumerateArray()
+                .Select(symbol =>
+                {
+                    if (symbol.ValueKind != JsonValueKind.String)
+                    {
+                        throw new InvalidDataException("A \"symbols\" item must be a string.");
+                    }
+
+                    return symbol.GetString();
+                })
+                .ToList();
         }
     }
 
@@ -745,18 +786,21 @@ namespace Chr.Avro.Representation
     public class FixedJsonSchemaReaderCase : NamedJsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Fixed;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Fixed;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -765,16 +809,16 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!(token is JObject @object && (string)token[JsonAttributeToken.Type] == JsonSchemaToken.Fixed))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The fixed case can only be applied to valid fixed schema representations.");
             }
 
-            var schema = new FixedSchema(GetQualifiedName(@object, scope), GetSize(@object))
+            var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
             {
-                Aliases = GetQualifiedAliases(@object, scope) ?? new string[0]
+                Aliases = GetQualifiedAliases(element, scope) ?? new string[0]
             };
 
             if (!cache.TryAdd(schema.FullName, schema))
@@ -796,14 +840,14 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the size from a fixed schema.
         /// </summary>
-        protected virtual int GetSize(JToken @object)
+        protected virtual int GetSize(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Size] is JValue size && size.Type == JTokenType.Integer))
+            if (!element.TryGetProperty(JsonAttributeToken.Size, out var size) || size.ValueKind != JsonValueKind.Number)
             {
                 throw new InvalidDataException("Fixed schemas must contain a \"size\" key with an integer as its value.");
             }
 
-            return (int)size;
+            return size.GetInt32();
         }
     }
 
@@ -815,7 +859,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// A schema reader to use to resolve value types.
         /// </summary>
-        protected readonly INewtonsoftJsonSchemaReader Reader;
+        protected readonly IJsonSchemaReader Reader;
 
         /// <summary>
         /// Creates a new map case.
@@ -823,24 +867,27 @@ namespace Chr.Avro.Representation
         /// <param name="reader">
         /// A schema reader to use to resolve item types.
         /// </param>
-        public MapJsonSchemaReaderCase(INewtonsoftJsonSchemaReader reader)
+        public MapJsonSchemaReaderCase(IJsonSchemaReader reader)
         {
             Reader = reader ?? throw new ArgumentNullException(nameof(reader), "Schema reader cannot be null.");
         }
 
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Map;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Map;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -849,14 +896,14 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!(token is JObject @object && (string)token[JsonAttributeToken.Type] == JsonSchemaToken.Map))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The map case can only be applied to valid map schema representations.");
             }
 
-            var child = Reader.Read(GetValues(@object), cache, scope);
+            var child = Reader.Read(GetValues(element), cache, scope);
             var key = cache.Single(p => p.Value == child).Key;
 
             return cache.GetOrAdd($"{JsonSchemaToken.Map}<{key}>", _ => new MapSchema(child));
@@ -865,9 +912,9 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the value type from a map schema.
         /// </summary>
-        protected virtual JToken GetValues(JObject @object)
+        protected virtual JsonElement GetValues(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Values] is JToken values))
+            if (!element.TryGetProperty(JsonAttributeToken.Values, out var values))
             {
                 throw new InvalidDataException("Map schemas must contain a \"values\" key.");
             }
@@ -882,20 +929,24 @@ namespace Chr.Avro.Representation
     public class MicrosecondTimeJsonSchemaReaderCase : JsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object
-                && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Long
-                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.TimeMicroseconds;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Long
+                && element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType)
+                && logicalType.ValueKind == JsonValueKind.String
+                && logicalType.GetString() == JsonSchemaToken.TimeMicroseconds;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -904,9 +955,9 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!IsMatch(token))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The microsecond time case can only be applied to \"long\" schemas with a \"time-micros\" logical type.");
             }
@@ -924,20 +975,24 @@ namespace Chr.Avro.Representation
     public class MicrosecondTimestampJsonSchemaReaderCase : JsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object
-                && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Long
-                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.TimestampMicroseconds;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Long
+                && element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType)
+                && logicalType.ValueKind == JsonValueKind.String
+                && logicalType.GetString() == JsonSchemaToken.TimestampMicroseconds;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -946,9 +1001,9 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!IsMatch(token))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The microsecond timestamp case can only be applied to \"long\" schemas with a \"timestamp-micros\" logical type.");
             }
@@ -966,20 +1021,24 @@ namespace Chr.Avro.Representation
     public class MillisecondTimeJsonSchemaReaderCase : JsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object
-                && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Int
-                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.TimeMilliseconds;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Int
+                && element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType)
+                && logicalType.ValueKind == JsonValueKind.String
+                && logicalType.GetString() == JsonSchemaToken.TimeMilliseconds;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -988,9 +1047,9 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!IsMatch(token))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The millisecond time case can only be applied to \"int\" schemas with a \"time-millis\" logical type.");
             }
@@ -1008,20 +1067,24 @@ namespace Chr.Avro.Representation
     public class MillisecondTimestampJsonSchemaReaderCase : JsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object
-                && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Long
-                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.TimestampMilliseconds;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Long
+                && element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType)
+                && logicalType.ValueKind == JsonValueKind.String
+                && logicalType.GetString() == JsonSchemaToken.TimestampMilliseconds;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -1030,9 +1093,9 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!IsMatch(token))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The millisecond time case can only be applied to \"long\" schemas with a \"timestamp-millis\" logical type.");
             }
@@ -1052,7 +1115,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// A schema reader to use to resolve field types.
         /// </summary>
-        protected readonly INewtonsoftJsonSchemaReader Reader;
+        protected readonly IJsonSchemaReader Reader;
 
         /// <summary>
         /// Creates a new record case.
@@ -1060,24 +1123,27 @@ namespace Chr.Avro.Representation
         /// <param name="reader">
         /// A schema reader to use to resolve field types.
         /// </param>
-        public RecordJsonSchemaReaderCase(INewtonsoftJsonSchemaReader reader)
+        public RecordJsonSchemaReaderCase(IJsonSchemaReader reader)
         {
             Reader = reader ?? throw new ArgumentNullException(nameof(reader), "Schema reader cannot be null.");
         }
 
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Record;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.Record;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -1086,20 +1152,20 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!(token is JObject @object && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.Record))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The record case can only be applied to valid record schema representations.");
             }
 
-            var schema = new RecordSchema(GetQualifiedName(@object, scope))
+            var schema = new RecordSchema(GetQualifiedName(element, scope))
             {
-                Aliases = GetQualifiedAliases(@object, scope) ?? new string[0],
-                Documentation = GetDoc(@object)
+                Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
+                Documentation = GetDoc(element)
             };
 
-            var fields = GetFields(@object);
+            var fields = GetFields(element);
 
             if (!cache.TryAdd(schema.FullName, schema))
             {
@@ -1114,7 +1180,7 @@ namespace Chr.Avro.Representation
                 }
             }
 
-            foreach (JObject field in fields)
+            foreach (JsonElement field in fields)
             {
                 var type = Reader.Read(GetType(field), cache, schema.Namespace);
 
@@ -1130,53 +1196,64 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the documentation field from a record schema.
         /// </summary>
-        protected virtual string GetDoc(JToken @object)
+        protected virtual string GetDoc(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Doc] is JToken doc))
+            if (!element.TryGetProperty(JsonAttributeToken.Doc, out var doc))
             {
                 return null;
             }
 
-            if (!(doc is JValue && doc.Type == JTokenType.String))
+            if (doc.ValueKind != JsonValueKind.String)
             {
                 throw new InvalidDataException("A \"doc\" key must have a string as its value.");
             }
 
-            return (string)doc;
+            return doc.GetString();
         }
 
         /// <summary>
         /// Extracts the fields from a record schema.
         /// </summary>
-        protected virtual JArray GetFields(JObject @object)
+        protected virtual IEnumerable<JsonElement> GetFields(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Fields] is JArray fields && fields.All(f => f is JObject)))
+            if (!element.TryGetProperty(JsonAttributeToken.Fields, out var fields) || fields.ValueKind != JsonValueKind.Array)
             {
                 throw new InvalidDataException("Record schemas must contain an \"fields\" key with an array as its value.");
             }
 
-            return fields;
+            return fields
+                .EnumerateArray()
+                .Select(field =>
+                {
+                    if (field.ValueKind != JsonValueKind.Object)
+                    {
+                        throw new InvalidDataException("A \"fields\" item must be an object.");
+                    }
+
+                    return field;
+                })
+                .ToList();
         }
 
         /// <summary>
         /// Extracts the name from a record field.
         /// </summary>
-        protected virtual string GetName(JObject @object)
+        protected virtual string GetName(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Name] is JValue name && name.Type == JTokenType.String))
+            if (!element.TryGetProperty(JsonAttributeToken.Name, out var name) || name.ValueKind != JsonValueKind.String)
             {
                 throw new InvalidDataException("Record fields must contain a \"name\" key with an string as its value.");
             }
 
-            return (string)name;
+            return name.GetString();
         }
 
         /// <summary>
         /// Extracts the type from a record field.
         /// </summary>
-        protected virtual JToken GetType(JObject @object)
+        protected virtual JsonElement GetType(JsonElement element)
         {
-            if (!(@object[JsonAttributeToken.Type] is JToken type))
+            if (!element.TryGetProperty(JsonAttributeToken.Type, out var type))
             {
                 throw new InvalidDataException("Record fields must contain a \"type\" key.");
             }
@@ -1193,7 +1270,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// A schema reader to use to resolve child types.
         /// </summary>
-        protected readonly INewtonsoftJsonSchemaReader Reader;
+        protected readonly IJsonSchemaReader Reader;
 
         /// <summary>
         /// Creates a new union case.
@@ -1201,24 +1278,24 @@ namespace Chr.Avro.Representation
         /// <param name="reader">
         /// A schema reader to use to resolve child types.
         /// </param>
-        public UnionJsonSchemaReaderCase(INewtonsoftJsonSchemaReader reader)
+        public UnionJsonSchemaReaderCase(IJsonSchemaReader reader)
         {
             Reader = reader ?? throw new ArgumentNullException(nameof(reader), "Schema reader cannot be null.");
         }
 
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JArray;
+            return element.ValueKind == JsonValueKind.Array;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -1227,15 +1304,16 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!(token is JArray array))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The union case can only be applied to valid union schema representations.");
             }
 
-            var children = array.Children()
-                .Select(c => Reader.Read(c, cache, scope))
+            var children = element
+                .EnumerateArray()
+                .Select(child => Reader.Read(child, cache, scope))
                 .ToList();
 
             var keys = children
@@ -1251,20 +1329,24 @@ namespace Chr.Avro.Representation
     public class UuidJsonSchemaReaderCase : JsonSchemaReaderCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a token.
+        /// Determines whether the case can be applied to an element.
         /// </summary>
-        public override bool IsMatch(JToken token)
+        public override bool IsMatch(JsonElement element)
         {
-            return token is JObject @object
-                && (string)@object[JsonAttributeToken.Type] == JsonSchemaToken.String
-                && (string)@object[JsonAttributeToken.LogicalType] == JsonSchemaToken.Uuid;
+            return element.ValueKind == JsonValueKind.Object
+                && element.TryGetProperty(JsonAttributeToken.Type, out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == JsonSchemaToken.String
+                && element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType)
+                && logicalType.ValueKind == JsonValueKind.String
+                && logicalType.GetString() == JsonSchemaToken.Uuid;
         }
 
         /// <summary>
         /// Reads a schema from a JSON token.
         /// </summary>
-        /// <param name="token">
-        /// The token to parse.
+        /// <param name="element">
+        /// The element to parse.
         /// </param>
         /// <param name="cache">
         /// An optional schema cache. The cache is populated as the schema is read and can be used
@@ -1273,9 +1355,9 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JToken token, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
         {
-            if (!IsMatch(token))
+            if (!IsMatch(element))
             {
                 throw new ArgumentException("The UUID case can only be applied to \"string\" schemas with a \"uuid\" logical type.");
             }

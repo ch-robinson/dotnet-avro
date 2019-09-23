@@ -19,7 +19,7 @@ namespace Chr.Avro.Representation
         /// The stream to write the schema to.
         /// </param>
         /// <param name="canonical">
-        /// Whether the schema should be written in Parsing Canonical Form (i.e., built without
+        /// Whether the schema should be written in Parsing Canonical Form (i.e., without
         /// nonessential attributes).
         /// </param>
         /// <param name="names">
