@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -9,60 +10,78 @@ namespace Chr.Avro.Resolution
     /// A type resolver that extends <see cref="ReflectionResolver" /> with support for
     /// <see cref="System.Runtime.Serialization" /> attributes.
     /// </summary>
-    public class DataContractResolver : ReflectionResolver
+    public class DataContractResolver : TypeResolver
     {
         /// <summary>
         /// Creates a new data contract resolver.
         /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags that will be used to select fields and properties. If none are provided,
+        /// public instance members will be selected by default.
+        /// </param>
         /// <param name="resolveReferenceTypesAsNullable">
         /// Whether to resolve reference types as nullable.
         /// </param>
         /// <param name="resolveUnderlyingEnumTypes">
         /// Whether to resolve enum types as their underlying integral types.
         /// </param>
-        public DataContractResolver(bool resolveReferenceTypesAsNullable = false, bool resolveUnderlyingEnumTypes = false)
-            : base(resolveReferenceTypesAsNullable, resolveUnderlyingEnumTypes)
+        public DataContractResolver(
+            BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance,
+            bool resolveReferenceTypesAsNullable = false,
+            bool resolveUnderlyingEnumTypes = false
+        ) : base(CreateDataContractCaseBuilders(memberVisibility, resolveUnderlyingEnumTypes), resolveReferenceTypesAsNullable) { }
+
+        /// <summary>
+        /// Creates a default list of case builders.
+        /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags that will be used to select fields and properties.
+        /// </param>
+        /// <param name="resolveUnderlyingEnumTypes">
+        /// Whether to resolve enum types as their underlying integral types.
+        /// </param>
+        public static IEnumerable<Func<ITypeResolver, ITypeResolverCase>> CreateDataContractCaseBuilders(BindingFlags memberVisibility, bool resolveUnderlyingEnumTypes)
         {
-            Cases = new ITypeResolverCase[]
+            return new Func<ITypeResolver, ITypeResolverCase>[]
             {
                 // nullables:
-                new NullableResolverCase(this),
+                resolver => new NullableResolverCase(resolver),
 
                 // primitives:
-                new BooleanResolverCase(),
-                new ByteResolverCase(),
-                new ByteArrayResolverCase(),
-                new DecimalResolverCase(),
-                new DoubleResolverCase(),
-                new SingleResolverCase(),
-                new Int16ResolverCase(),
-                new Int32ResolverCase(),
-                new Int64ResolverCase(),
-                new SByteResolverCase(),
-                new StringResolverCase(),
-                new UInt16ResolverCase(),
-                new UInt32ResolverCase(),
-                new UInt64ResolverCase(),
+                resolver => new BooleanResolverCase(),
+                resolver => new ByteResolverCase(),
+                resolver => new ByteArrayResolverCase(),
+                resolver => new DecimalResolverCase(),
+                resolver => new DoubleResolverCase(),
+                resolver => new SingleResolverCase(),
+                resolver => new Int16ResolverCase(),
+                resolver => new Int32ResolverCase(),
+                resolver => new Int64ResolverCase(),
+                resolver => new SByteResolverCase(),
+                resolver => new StringResolverCase(),
+                resolver => new UInt16ResolverCase(),
+                resolver => new UInt32ResolverCase(),
+                resolver => new UInt64ResolverCase(),
 
                 // enums:
-                resolveUnderlyingEnumTypes
-                    ? new EnumUnderlyingTypeResolverCase(this)
+                resolver => resolveUnderlyingEnumTypes
+                    ? new EnumUnderlyingTypeResolverCase(resolver)
                     : new DataContractEnumResolverCase() as ITypeResolverCase,
 
                 // dictionaries:
-                new DictionaryResolverCase(),
+                resolver => new DictionaryResolverCase(),
 
                 // enumerables:
-                new EnumerableResolverCase(),
+                resolver => new EnumerableResolverCase(),
 
                 // built-ins:
-                new DateTimeResolverCase(),
-                new GuidResolverCase(),
-                new TimeSpanResolverCase(),
-                new UriResolverCase(),
+                resolver => new DateTimeResolverCase(),
+                resolver => new GuidResolverCase(),
+                resolver => new TimeSpanResolverCase(),
+                resolver => new UriResolverCase(),
 
                 // classes and structs:
-                new DataContractObjectResolverCase()
+                resolver => new DataContractObjectResolverCase(memberVisibility)
             };
         }
     }
@@ -102,7 +121,7 @@ namespace Chr.Avro.Resolution
                 ? new IdentifierResolution(type.Name)
                 : new IdentifierResolution(attribute.Name, true);
         }
-        
+
         /// <summary>
         /// Creates a namespace resolution for a <see cref="DataContractAttribute" />-annotated
         /// type.
@@ -124,17 +143,6 @@ namespace Chr.Avro.Resolution
     public class DataContractEnumResolverCase : DataContractResolverCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a type.
-        /// </summary>
-        /// <returns>
-        /// Whether the type is an enum type.
-        /// </returns>
-        public override bool IsMatch(Type type)
-        {
-            return type.IsEnum;
-        }
-
-        /// <summary>
         /// Resolves enum type information.
         /// </summary>
         /// <param name="type">
@@ -143,14 +151,14 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// An <see cref="EnumResolution" /> with information about the type.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is not an enum type.
         /// </exception>
         public override TypeResolution Resolve(Type type)
         {
-            if (!IsMatch(type))
+            if (!type.IsEnum)
             {
-                throw new ArgumentException("The object resolver can only be applied to non-array, non-primitive types.", nameof(type));
+                throw new UnsupportedTypeException(type);
             }
 
             var contract = GetAttribute<DataContractAttribute>(type);
@@ -201,29 +209,17 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The binding flags that will be used to select fields and properties.
         /// </summary>
-        protected readonly BindingFlags MemberVisibility;
+        public BindingFlags MemberVisibility { get; }
 
         /// <summary>
         /// Creates a new object resolver case.
         /// </summary>
         /// <param name="memberVisibility">
-        /// The binding flags that will be used to select fields and properties. If none are provided,
-        /// public instance members will be selected by default.
+        /// The binding flags that will be used to select fields and properties.
         /// </param>
-        public DataContractObjectResolverCase(BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance)
+        public DataContractObjectResolverCase(BindingFlags memberVisibility)
         {
             MemberVisibility = memberVisibility;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type.
-        /// </summary>
-        /// <returns>
-        /// Whether the type is a class, interface, or struct.
-        /// </returns>
-        public override bool IsMatch(Type type)
-        {
-            return !type.IsArray && !type.IsPrimitive;
         }
 
         /// <summary>
@@ -235,14 +231,14 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// A <see cref="RecordResolution" /> with information about the type.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is an array type or a primitive type.
         /// </exception>
         public override TypeResolution Resolve(Type type)
         {
-            if (!IsMatch(type))
+            if (type.IsArray || type.IsPrimitive)
             {
-                throw new ArgumentException("The object resolver can only be applied to non-array, non-primitive types.", nameof(type));
+                throw new UnsupportedTypeException(type);
             }
 
             var contract = GetAttribute<DataContractAttribute>(type);

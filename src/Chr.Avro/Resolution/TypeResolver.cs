@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Chr.Avro.Resolution
 {
@@ -53,13 +52,8 @@ namespace Chr.Avro.Resolution
     public interface ITypeResolverCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a type.
-        /// </summary>
-        bool IsMatch(Type type);
-
-        /// <summary>
         /// Resolves information for a .NET type. If the case does not apply to the provided type,
-        /// this method should throw an exception.
+        /// this method should throw <see cref="UnsupportedTypeException" />.
         /// </summary>
         /// <param name="type">
         /// The type to resolve.
@@ -80,30 +74,45 @@ namespace Chr.Avro.Resolution
     public class TypeResolver : ITypeResolver
     {
         /// <summary>
-        /// A list of cases that the resolver will attempt to apply. If the first case fails, the
-        /// resolver will try the next case, and so on until all cases have been attempted.
+        /// A list of cases that the resolver will attempt to apply. If the first case does not
+        /// match, the resolver will try the next case, and so on until all cases have been tested.
         /// </summary>
-        protected ICollection<ITypeResolverCase> Cases;
+        public IEnumerable<ITypeResolverCase> Cases { get; }
 
         /// <summary>
         /// Whether to resolve reference types as nullable.
         /// </summary>
-        protected bool ResolveReferenceTypesAsNullable;
+        public bool ResolveReferenceTypesAsNullable { get; }
 
         /// <summary>
         /// Creates a new type resolver.
         /// </summary>
+        /// <param name="caseBuilders">
+        /// An optional list of case builders. If provided, this collection will replace the
+        /// default list.
+        /// </param>
         /// <param name="resolveReferenceTypesAsNullable">
         /// Whether to resolve reference types as nullable.
         /// </param>
-        public TypeResolver(bool resolveReferenceTypesAsNullable = false)
+        public TypeResolver(IEnumerable<Func<TypeResolver, ITypeResolverCase>> caseBuilders = null, bool resolveReferenceTypesAsNullable = false)
         {
-            Cases = new ITypeResolverCase[0];
+            var cases = new List<ITypeResolverCase>();
+
+            Cases = cases;
             ResolveReferenceTypesAsNullable = resolveReferenceTypesAsNullable;
+
+            // initialize cases last so that the type resolver is fully ready:
+            if (caseBuilders != null)
+            {
+                foreach (var builder in caseBuilders)
+                {
+                    cases.Add(builder(this));
+                }
+            }
         }
 
         /// <summary>
-        /// Resolves information for a .NET type, trying each case until a match is found.
+        /// Resolves information for a .NET type.
         /// </summary>
         /// <typeparam name="T">
         /// The type to resolve.
@@ -122,7 +131,7 @@ namespace Chr.Avro.Resolution
         }
 
         /// <summary>
-        /// Resolves information for a .NET type, trying each case until a match is found.
+        /// Resolves information for a .NET type.
         /// </summary>
         /// <param name="type">
         /// The type to resolve.
@@ -135,21 +144,28 @@ namespace Chr.Avro.Resolution
         /// </exception>
         public virtual TypeResolution ResolveType(Type type)
         {
-            var match = Cases.FirstOrDefault(c => c.IsMatch(type));
+            var exceptions = new List<Exception>();
 
-            if (match == null)
+            foreach (var @case in Cases)
             {
-                throw new UnsupportedTypeException(type, $"No type resolver case could be applied to {type.FullName}.");
+                try
+                {
+                    var resolution = @case.Resolve(type);
+
+                    if (ResolveReferenceTypesAsNullable && !type.IsValueType)
+                    {
+                        resolution.IsNullable = true;
+                    }
+
+                    return resolution;
+                }
+                catch (UnsupportedTypeException exception)
+                {
+                    exceptions.Add(exception);
+                }
             }
 
-            var resolution = match.Resolve(type);
-
-            if (ResolveReferenceTypesAsNullable && !type.IsValueType)
-            {
-                resolution.IsNullable = true;
-            }
-
-            return resolution;
+            throw new UnsupportedTypeException(type, $"No type resolver case could be applied to {type.FullName}.", new AggregateException(exceptions));
         }
     }
 
@@ -163,13 +179,8 @@ namespace Chr.Avro.Resolution
     public abstract class TypeResolverCase : ITypeResolverCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a type.
-        /// </summary>
-        public abstract bool IsMatch(Type type);
-
-        /// <summary>
         /// Resolves information for a .NET type. If the case does not apply to the provided type,
-        /// this method should throw an exception.
+        /// this method should throw <see cref="UnsupportedTypeException" />.
         /// </summary>
         /// <param name="type">
         /// The type to resolve.

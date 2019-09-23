@@ -70,11 +70,6 @@ namespace Chr.Avro.Abstract
     public class SchemaBuilder : ISchemaBuilder
     {
         /// <summary>
-        /// A default list of cases to apply.
-        /// </summary>
-        public static readonly IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> DefaultCaseBuilders;
-
-        /// <summary>
         /// A list of cases that the schema builder will attempt to apply. If the first case does
         /// not match, the schema builder will try the next case, and so on until all cases have
         /// been tested.
@@ -86,35 +81,12 @@ namespace Chr.Avro.Abstract
         /// </summary>
         public ITypeResolver Resolver { get; }
 
-        static SchemaBuilder()
-        {
-            DefaultCaseBuilders = new Func<ISchemaBuilder, ISchemaBuilderCase>[]
-            {
-                builder => new ArraySchemaBuilderCase(builder),
-                builder => new BooleanSchemaBuilderCase(),
-                builder => new BytesSchemaBuilderCase(),
-                builder => new DecimalSchemaBuilderCase(),
-                builder => new DoubleSchemaBuilderCase(),
-                builder => new DurationSchemaBuilderCase(),
-                builder => new EnumSchemaBuilderCase(),
-                builder => new FloatSchemaBuilderCase(),
-                builder => new IntSchemaBuilderCase(),
-                builder => new LongSchemaBuilderCase(),
-                builder => new MapSchemaBuilderCase(builder),
-                builder => new RecordSchemaBuilderCase(builder),
-                builder => new StringSchemaBuilderCase(),
-                builder => new TimestampSchemaBuilderCase(),
-                builder => new UriSchemaBuilderCase(),
-                builder => new UuidSchemaBuilderCase()
-            };
-        }
-
         /// <summary>
         /// Creates a new schema builder.
         /// </summary>
         /// <param name="caseBuilders">
-        /// An optional list of cases builders. If provided, this collection will replace the
-        /// default list, <see cref="DefaultCaseBuilders" />.
+        /// An optional list of case builders. If provided, this collection will replace the
+        /// default list.
         /// </param>
         /// <param name="typeResolver">
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
@@ -128,7 +100,7 @@ namespace Chr.Avro.Abstract
             Resolver = typeResolver ?? new DataContractResolver();
 
             // initialize cases last so that the schema builder is fully ready:
-            foreach (var builder in caseBuilders ?? DefaultCaseBuilders)
+            foreach (var builder in caseBuilders ?? CreateCaseBuilders())
             {
                 cases.Add(builder(this));
             }
@@ -203,6 +175,32 @@ namespace Chr.Avro.Abstract
             }
 
             return schema;
+        }
+
+        /// <summary>
+        /// Creates a default list of case builders.
+        /// </summary>
+        public static IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> CreateCaseBuilders()
+        {
+            return new Func<ISchemaBuilder, ISchemaBuilderCase>[]
+            {
+                builder => new ArraySchemaBuilderCase(builder),
+                builder => new BooleanSchemaBuilderCase(),
+                builder => new BytesSchemaBuilderCase(),
+                builder => new DecimalSchemaBuilderCase(),
+                builder => new DoubleSchemaBuilderCase(),
+                builder => new DurationSchemaBuilderCase(),
+                builder => new EnumSchemaBuilderCase(),
+                builder => new FloatSchemaBuilderCase(),
+                builder => new IntSchemaBuilderCase(),
+                builder => new LongSchemaBuilderCase(),
+                builder => new MapSchemaBuilderCase(builder),
+                builder => new RecordSchemaBuilderCase(builder),
+                builder => new StringSchemaBuilderCase(),
+                builder => new TimestampSchemaBuilderCase(),
+                builder => new UriSchemaBuilderCase(),
+                builder => new UuidSchemaBuilderCase()
+            };
         }
     }
 
