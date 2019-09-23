@@ -11,7 +11,7 @@ namespace Chr.Avro
         /// <summary>
         /// The type that caused the exception to be thrown.
         /// </summary>
-        public Type UnsupportedType { get; private set; }
+        public Type UnsupportedType { get; }
 
         /// <summary>
         /// Creates an exception describing the error.

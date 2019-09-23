@@ -4,7 +4,7 @@ using System;
 namespace Chr.Avro
 {
     /// <summary>
-    /// The exception that is thrown when an operation does not support a .NET type.
+    /// The exception that is thrown when an operation does not support a schema.
     /// </summary>
     [Serializable]
     public class UnsupportedSchemaException : Exception
@@ -12,7 +12,7 @@ namespace Chr.Avro
         /// <summary>
         /// The schema that caused the exception to be thrown.
         /// </summary>
-        public Schema UnsupportedSchema { get; private set; }
+        public Schema UnsupportedSchema { get; }
 
         /// <summary>
         /// Creates an exception describing the error.
