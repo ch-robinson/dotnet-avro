@@ -19,7 +19,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Date">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class DateLogicalType : LogicalType { }
+    public class DateLogicalType : LogicalType { }
 
     /// <summary>
     /// A logical type representing an arbitrary-precision signed decimal number.
@@ -28,7 +28,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Decimal">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class DecimalLogicalType : LogicalType
+    public class DecimalLogicalType : LogicalType
     {
         private int precision;
 
@@ -118,7 +118,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Duration">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class DurationLogicalType : LogicalType
+    public class DurationLogicalType : LogicalType
     {
         /// <summary>
         /// The size of a duration (three 32-bit unsigned integers).
@@ -139,7 +139,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Time+(microsecond+precision)">Avro spec</a>
     /// for details.
     /// </remarks>
-    public sealed class MicrosecondTimeLogicalType : TimeLogicalType { }
+    public class MicrosecondTimeLogicalType : TimeLogicalType { }
 
     /// <summary>
     /// A logical type representing a time of day (with no reference to a particular time zone) as
@@ -149,7 +149,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Time+(millisecond+precision)">Avro spec</a>
     /// for details.
     /// </remarks>
-    public sealed class MillisecondTimeLogicalType : TimeLogicalType { }
+    public class MillisecondTimeLogicalType : TimeLogicalType { }
 
     /// <summary>
     /// A logical type that represents an instant in time.
@@ -163,7 +163,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Timestamp+(microsecond+precision)">Avro spec</a>
     /// for details.
     /// </remarks>
-    public sealed class MicrosecondTimestampLogicalType : TimestampLogicalType { }
+    public class MicrosecondTimestampLogicalType : TimestampLogicalType { }
 
     /// <summary>
     /// A logical type representing an instant in time as milliseconds from the Unix epoch.
@@ -172,7 +172,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#Timestamp+(millisecond+precision)">Avro spec</a>
     /// for details.
     /// </remarks>
-    public sealed class MillisecondTimestampLogicalType : TimestampLogicalType { }
+    public class MillisecondTimestampLogicalType : TimestampLogicalType { }
 
     /// <summary>
     /// A logical type representing a universally unique identifier as defined by RFC 4122.
@@ -181,5 +181,5 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#UUID">Avro spec</a> for
     /// details.
     /// </remarks>
-    public sealed class UuidLogicalType : LogicalType { }
+    public class UuidLogicalType : LogicalType { }
 }
