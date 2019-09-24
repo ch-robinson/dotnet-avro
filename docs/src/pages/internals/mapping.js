@@ -16,7 +16,7 @@ export default () =>
     <h1>{title}</h1>
     <p>Chr.Avro supports mapping .NET’s <ExternalLink to='https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/built-in-types-table'>built-in types</ExternalLink>, as well as commonly used types like <DotnetReference id='T:System.DateTime' /> and <DotnetReference id='T:System.Uri' />, to Avro schemas. This document is a comprehensive explanation of how that mapping works.</p>
 
-    <p>The <DotnetReference id='T:Chr.Avro.Serialization.BinarySerializerBuilder'>serializer builder</DotnetReference> and <DotnetReference id='T:Chr.Avro.Serialization.BinaryDeserializerBuilder'>deserializer builder</DotnetReference> generally throw <DotnetReference id='T:Chr.Avro.UnsupportedTypeException' /> when a type can’t be mapped to a schema. Other exceptions, usually <DotnetReference id='T:System.OverflowException' /> and <DotnetReference id='T:System.FormatException' />, are thrown when errors occur during serialization or deserialization.</p>
+    <p>The <DotnetReference id='T:Chr.Avro.Serialization.BinarySerializerBuilder'>serializer builder</DotnetReference> and <DotnetReference id='T:Chr.Avro.Serialization.BinaryDeserializerBuilder'>deserializer builder</DotnetReference> generally throw <DotnetReference id='T:System.AggregateException' /> when a type can’t be mapped to a schema. Other exceptions, usually <DotnetReference id='T:System.OverflowException' /> and <DotnetReference id='T:System.FormatException' />, are thrown when errors occur during serialization or deserialization.</p>
 
     <h2 id='arrays'>Arrays</h2>
     <p>Avro specifies an <Highlight inline language='avro'>"array"</Highlight> type for variable-length lists of items. Chr.Avro can map a .NET type to <Highlight inline language='avro'>"array"</Highlight> if either of the following is true:</p>
@@ -153,10 +153,10 @@ deserializer.Deserialize(serializer.Serialize(epoch)); // 0L`}</Highlight>
         <p>Enumerator names don’t need to be an exact match—all non-alphanumeric characters are stripped and comparisons are case-insensitive. For example, a <code>PRIMARY_RESIDENCE</code> symbol will match enumerators named <code>PrimaryResidence</code>, <code>primaryResidence</code>, etc.</p>
       </li>
       <li>
-        <p>When the serializer builder and deserializer builder find multiple matching enumerators, <DotnetReference id='T:Chr.Avro.UnsupportedTypeException' /> is thrown.</p>
+        <p>When the serializer builder and deserializer builder find multiple matching enumerators, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
       </li>
       <li>
-        <p>When the deserializer builder can’t find a matching enumerator, <DotnetReference id='T:Chr.Avro.UnsupportedTypeException' /> is thrown.</p>
+        <p>When the deserializer builder can’t find a matching enumerator, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
       </li>
     </ul>
     <p>By default, Chr.Avro also honors data contract attributes if a <DotnetReference id='T:System.Runtime.Serialization.DataContractAttribute' /> is present on the enumeration. In that case, if <DotnetReference id='P:System.Runtime.Serialization.EnumMemberAttribute.Value' /> is set on an enumerator, the custom value must match the symbol exactly. If it’s not set, the enumerator name will be compared inexactly as described above.</p>
@@ -399,13 +399,13 @@ deserializer.Deserialize(bytes); // throws OverflowException`}</Highlight>
         <p>Type member names don’t need to match the schema exactly—all non-alphanumeric characters are stripped and comparisons are case-insensitive. So, for example, a record field named <code>addressLine1</code> will match type members named <code>AddressLine1</code>, <code>AddressLine_1</code>, <code>ADDRESS_LINE_1</code>, etc.</p>
       </li>
       <li>
-        <p>When the serializer builder and deserializer builder find multiple matching type members, <DotnetReference id='T:Chr.Avro.UnsupportedTypeException' /> is thrown.</p>
+        <p>When the serializer builder and deserializer builder find multiple matching type members, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
       </li>
       <li>
-        <p>When the serializer builder can’t find a matching type member, <DotnetReference id='T:Chr.Avro.UnsupportedTypeException' /> is thrown. When the deserializer can’t find a matching type member, the field is ignored.</p>
+        <p>When the serializer builder can’t find a matching type member, <DotnetReference id='T:System.AggregateException' /> is thrown. When the deserializer can’t find a matching type member, the field is ignored.</p>
       </li>
       <li>
-        <p>The deserializer builder throws <DotnetReference id='T:Chr.Avro.UnsupportedTypeException' /> if a type doesn’t have a parameterless public constructor.</p>
+        <p>The deserializer builder throws <DotnetReference id='T:System.AggregateException' /> if a type doesn’t have a parameterless public constructor.</p>
       </li>
     </ul>
     <p>By default, Chr.Avro also honors data contract attributes if a <DotnetReference id='T:System.Runtime.Serialization.DataContractAttribute' /> is present on the type. In that case, two additional rules apply:</p>

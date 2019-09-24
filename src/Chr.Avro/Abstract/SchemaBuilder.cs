@@ -84,15 +84,23 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// Creates a new schema builder.
         /// </summary>
+        /// <param name="typeResolver">
+        /// A resolver to retrieve type information from. If no resolver is provided, the schema
+        /// builder will use the default <see cref="DataContractResolver" />.
+        /// </param>
+        public SchemaBuilder(ITypeResolver typeResolver = null) : this(CreateCaseBuilders(), typeResolver) { }
+
+        /// <summary>
+        /// Creates a new schema builder.
+        /// </summary>
         /// <param name="caseBuilders">
-        /// An optional list of case builders. If provided, this collection will replace the
-        /// default list.
+        /// A list of case builders.
         /// </param>
         /// <param name="typeResolver">
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public SchemaBuilder(IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> caseBuilders = null, ITypeResolver typeResolver = null)
+        public SchemaBuilder(IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> caseBuilders, ITypeResolver typeResolver = null)
         {
             var cases = new List<ISchemaBuilderCase>();
 
@@ -119,6 +127,10 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A schema that matches the type.
         /// </returns>
+        /// <exception cref="AggregateException">
+        /// Thrown when no case matches the type. <see cref="AggregateException.InnerExceptions" />
+        /// will be contain the exceptions thrown by each case.
+        /// </exception>
         public Schema BuildSchema<T>(IDictionary<Type, Schema> cache = null)
         {
             return BuildSchema(typeof(T), cache);
@@ -137,6 +149,10 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A schema that matches the type.
         /// </returns>
+        /// <exception cref="AggregateException">
+        /// Thrown when no case matches the type. <see cref="AggregateException.InnerExceptions" />
+        /// will be contain the exceptions thrown by each case.
+        /// </exception>
         public Schema BuildSchema(Type type, IDictionary<Type, Schema> cache = null)
         {
             if (cache == null)
@@ -165,7 +181,7 @@ namespace Chr.Avro.Abstract
 
                 if (schema == null)
                 {
-                    throw new UnsupportedTypeException(type, $"No schema builder case could be applied to {resolution.Type.FullName} ({resolution.GetType().Name}).", new AggregateException(exceptions));
+                    throw new AggregateException($"No schema builder case could be applied to {resolution.Type.FullName} ({resolution.GetType().Name}).");
                 }
             }
 

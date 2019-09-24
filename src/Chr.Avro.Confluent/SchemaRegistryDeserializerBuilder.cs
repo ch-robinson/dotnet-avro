@@ -87,7 +87,7 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to deserialize data.
         /// </param>
-        /// <exception cref="UnsupportedTypeException">
+        /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
         public virtual async Task<IDeserializer<T>> Build<T>(int id)
@@ -102,7 +102,7 @@ namespace Chr.Avro.Confluent
         /// The subject of the schema that should be used to deserialize data. The latest version
         /// of the subject will be resolved.
         /// </param>
-        /// <exception cref="UnsupportedTypeException">
+        /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
         public virtual async Task<IDeserializer<T>> Build<T>(string subject)
@@ -121,7 +121,7 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
-        /// <exception cref="UnsupportedTypeException">
+        /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
         public virtual async Task<IDeserializer<T>> Build<T>(string subject, int version)

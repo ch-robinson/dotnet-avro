@@ -4,6 +4,7 @@ using Confluent.SchemaRegistry;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Confluent
@@ -115,7 +116,7 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize data.
         /// </param>
-        /// <exception cref="UnsupportedTypeException">
+        /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
         public async Task<ISerializer<T>> Build<T>(int id)
@@ -134,7 +135,7 @@ namespace Chr.Avro.Confluent
         /// Whether to automatically register a schema that matches <typeparamref name="T" /> if
         /// one does not already exist.
         /// </param>
-        /// <exception cref="UnsupportedTypeException">
+        /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema or a matching schema
         /// cannot be generated.
         /// </exception>
@@ -148,7 +149,7 @@ namespace Chr.Avro.Confluent
             }
             catch (Exception e) when (registerAutomatically && (
                 (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                (e is UnsupportedTypeException)
+                (e is AggregateException a && a.InnerExceptions.All(e => e is UnsupportedTypeException))
             ))
             {
                 var schema = _schemaBuilder.BuildSchema<T>();
@@ -169,7 +170,7 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
-        /// <exception cref="UnsupportedTypeException">
+        /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
         public virtual async Task<ISerializer<T>> Build<T>(string subject, int version)

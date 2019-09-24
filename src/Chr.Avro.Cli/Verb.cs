@@ -6,6 +6,7 @@ using Chr.Avro.Representation;
 using Chr.Avro.Resolution;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Chr.Avro.Serialization;
 
@@ -87,7 +88,7 @@ namespace Chr.Avro.Cli
             {
                 return builder.BuildSchema(type);
             }
-            catch (UnsupportedTypeException inner)
+            catch (AggregateException inner) when (inner.InnerExceptions.All(e => e is UnsupportedTypeException))
             {
                 throw new ProgramException(message: $"Failed to create a schema for {type}: The type is not supported by the resolver.", inner: inner);
             }

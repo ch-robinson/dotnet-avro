@@ -511,7 +511,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(int[,]))]
         public void ThrowsWhenNoCaseMatches(Type type)
         {
-            Assert.Throws<UnsupportedTypeException>(() => Resolver.ResolveType(type));
+            Assert.Throws<AggregateException>(() => Resolver.ResolveType(type));
         }
     }
 }

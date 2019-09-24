@@ -21,9 +21,6 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolver does not support the type.
-        /// </exception>
         TypeResolution ResolveType<T>();
 
         /// <summary>
@@ -35,9 +32,6 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolver does not support the type.
-        /// </exception>
         TypeResolution ResolveType(Type type);
     }
 
@@ -87,14 +81,21 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// Creates a new type resolver.
         /// </summary>
+        /// <param name="resolveReferenceTypesAsNullable">
+        /// Whether to resolve reference types as nullable.
+        /// </param>
+        public TypeResolver(bool resolveReferenceTypesAsNullable = false) : this(new Func<TypeResolver, ITypeResolverCase>[0], resolveReferenceTypesAsNullable) { }
+
+        /// <summary>
+        /// Creates a new type resolver.
+        /// </summary>
         /// <param name="caseBuilders">
-        /// An optional list of case builders. If provided, this collection will replace the
-        /// default list.
+        /// A list of case builders.
         /// </param>
         /// <param name="resolveReferenceTypesAsNullable">
         /// Whether to resolve reference types as nullable.
         /// </param>
-        public TypeResolver(IEnumerable<Func<TypeResolver, ITypeResolverCase>> caseBuilders = null, bool resolveReferenceTypesAsNullable = false)
+        public TypeResolver(IEnumerable<Func<TypeResolver, ITypeResolverCase>> caseBuilders, bool resolveReferenceTypesAsNullable = false)
         {
             var cases = new List<ITypeResolverCase>();
 
@@ -102,12 +103,9 @@ namespace Chr.Avro.Resolution
             ResolveReferenceTypesAsNullable = resolveReferenceTypesAsNullable;
 
             // initialize cases last so that the type resolver is fully ready:
-            if (caseBuilders != null)
+            foreach (var builder in caseBuilders)
             {
-                foreach (var builder in caseBuilders)
-                {
-                    cases.Add(builder(this));
-                }
+                cases.Add(builder(this));
             }
         }
 
@@ -120,10 +118,9 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no matching case is found for the type. <see cref="Exception.InnerException" />
-        /// will be an <see cref="AggregateException" /> containing the exceptions thrown by each
-        /// attempted case.
+        /// <exception cref="AggregateException">
+        /// Thrown when no case matches the type. <see cref="AggregateException.InnerExceptions" />
+        /// will be contain the exceptions thrown by each case.
         /// </exception>
         public virtual TypeResolution ResolveType<T>()
         {
@@ -139,8 +136,9 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no matching case is found for the type.
+        /// <exception cref="AggregateException">
+        /// Thrown when no case matches the type. <see cref="AggregateException.InnerExceptions" />
+        /// will be contain the exceptions thrown by each case.
         /// </exception>
         public virtual TypeResolution ResolveType(Type type)
         {
@@ -165,7 +163,7 @@ namespace Chr.Avro.Resolution
                 }
             }
 
-            throw new UnsupportedTypeException(type, $"No type resolver case could be applied to {type.FullName}.", new AggregateException(exceptions));
+            throw new AggregateException($"No type resolver case could be applied to {type.FullName}.", exceptions);
         }
     }
 

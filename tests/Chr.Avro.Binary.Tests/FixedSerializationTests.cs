@@ -60,8 +60,8 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new FixedSchema("test", 8);
 
-            Assert.Throws<UnsupportedSchemaException>(() => DeserializerBuilder.BuildDeserializer<Guid>(schema));
-            Assert.Throws<UnsupportedSchemaException>(() => SerializerBuilder.BuildSerializer<Guid>(schema));
+            Assert.Throws<AggregateException>(() => DeserializerBuilder.BuildDeserializer<Guid>(schema));
+            Assert.Throws<AggregateException>(() => SerializerBuilder.BuildSerializer<Guid>(schema));
         }
 
         public static IEnumerable<object[]> GuidData => new List<object[]>

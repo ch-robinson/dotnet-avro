@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Confluent
@@ -208,7 +209,7 @@ namespace Chr.Avro.Confluent
                 }
                 catch (Exception e) when (_registerAutomatically && (
                     (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                    (e is UnsupportedTypeException)
+                    (e is AggregateException a && a.InnerExceptions.All(e => e is UnsupportedTypeException))
                 ))
                 {
                     var schema = _schemaBuilder.BuildSchema<T>();

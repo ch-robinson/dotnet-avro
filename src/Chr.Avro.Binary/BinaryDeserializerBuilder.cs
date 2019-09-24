@@ -1,6 +1,7 @@
 using Chr.Avro.Abstract;
 using Chr.Avro.Resolution;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -75,16 +76,6 @@ namespace Chr.Avro.Serialization
         /// this is not a typed method, the general <see cref="Delegate" /> type is used.
         /// </returns>
         Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache);
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        bool IsMatch(Schema schema);
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        bool IsMatch(TypeResolution resolution);
     }
 
     /// <summary>
@@ -96,20 +87,16 @@ namespace Chr.Avro.Serialization
         /// A list of cases that the build methods will attempt to apply. If the first case does
         /// not match, the next case will be tested, and so on.
         /// </summary>
-        protected readonly IReadOnlyCollection<IBinaryDeserializerBuilderCase> Cases;
+        public IEnumerable<IBinaryDeserializerBuilderCase> Cases { get; }
 
         /// <summary>
         /// A resolver to obtain type information from.
         /// </summary>
-        protected readonly ITypeResolver Resolver;
+        public ITypeResolver Resolver { get; }
 
         /// <summary>
         /// Creates a new deserializer builder.
         /// </summary>
-        /// <param name="cases">
-        /// An optional collection of cases. If no case collection is provided, the default set will
-        /// be used.
-        /// </param>
         /// <param name="codec">
         /// A codec implementation that generated deserializers will use for read operations. If
         /// no codec is provided, <see cref="BinaryCodec" /> will be used.
@@ -117,45 +104,29 @@ namespace Chr.Avro.Serialization
         /// <param name="resolver">
         /// A resolver to obtain type information from.
         /// </param>
-        public BinaryDeserializerBuilder(IReadOnlyCollection<IBinaryDeserializerBuilderCase> cases = null, IBinaryCodec codec = null, ITypeResolver resolver = null)
+        public BinaryDeserializerBuilder(IBinaryCodec codec = null, ITypeResolver resolver = null)
+            : this(CreateBinaryDeserializerCaseBuilders(codec ?? new BinaryCodec()), resolver) { }
+
+        /// <summary>
+        /// Creates a new deserializer builder.
+        /// </summary>
+        /// <param name="caseBuilders">
+        /// A list of case builders.
+        /// </param>
+        /// <param name="resolver">
+        /// A resolver to obtain type information from.
+        /// </param>
+        public BinaryDeserializerBuilder(IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> caseBuilders, ITypeResolver resolver = null)
         {
+            var cases = new List<IBinaryDeserializerBuilderCase>();
+
+            Cases = cases;
             Resolver = resolver ?? new DataContractResolver();
 
-            if (codec == null)
+            foreach (var builder in caseBuilders)
             {
-                codec = new BinaryCodec();
+                cases.Add(builder(this));
             }
-
-            Cases = cases ?? new List<IBinaryDeserializerBuilderCase>()
-            {
-                // logical types:
-                new DecimalDeserializerBuilderCase(codec),
-                new DurationDeserializerBuilderCase(codec),
-                new TimestampDeserializerBuilderCase(codec),
-
-                // primitives:
-                new BooleanDeserializerBuilderCase(codec),
-                new BytesDeserializerBuilderCase(codec),
-                new DoubleDeserializerBuilderCase(codec),
-                new FixedDeserializerBuilderCase(codec),
-                new FloatDeserializerBuilderCase(codec),
-                new IntegerDeserializerBuilderCase(codec),
-                new NullDeserializerBuilderCase(),
-                new StringDeserializerBuilderCase(codec),
-
-                // collections:
-                new ArrayDeserializerBuilderCase(codec, this),
-                new MapDeserializerBuilderCase(codec, this),
-
-                // enums:
-                new EnumDeserializerBuilderCase(codec),
-
-                // records:
-                new RecordDeserializerBuilderCase(this),
-
-                // unions:
-                new UnionDeserializerBuilderCase(codec, this)
-            };
         }
 
         /// <summary>
@@ -175,17 +146,15 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the deserializer builder is unable to build a delegate for the schema.
-        /// </exception>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the deserializer builder is unable to build a delegate for the type.
+        /// <exception cref="AggregateException">
+        /// Thrown when no case matches the schema or type. <see cref="AggregateException.InnerExceptions" />
+        /// will be contain the exceptions thrown by each case.
         /// </exception>
         public virtual Func<Stream, T> BuildDelegate<T>(Schema schema, IDictionary<(Type, Schema), Delegate> cache = null)
         {
             if (cache == null)
             {
-                cache = new Dictionary<(Type, Schema), Delegate>();
+                cache = new ConcurrentDictionary<(Type, Schema), Delegate>();
             }
 
             var resolution = Resolver.ResolveType(typeof(T));
@@ -195,21 +164,25 @@ namespace Chr.Avro.Serialization
                 return existing as Func<Stream, T>;
             }
 
-            var candidates = Cases.Where(c => c.IsMatch(schema));
+            var exceptions = new List<Exception>();
 
-            if (candidates.Count() == 0)
+            foreach (var @case in Cases)
             {
-                throw new UnsupportedSchemaException(schema, $"No deserializer builder case matched {schema.GetType().Name}.");
+                try
+                {
+                    return @case.BuildDelegate(resolution, schema, cache) as Func<Stream, T>;
+                }
+                catch (UnsupportedSchemaException exception)
+                {
+                    exceptions.Add(exception);
+                }
+                catch (UnsupportedTypeException exception)
+                {
+                    exceptions.Add(exception);
+                }
             }
 
-            var match = candidates.FirstOrDefault(c => c.IsMatch(resolution));
-
-            if (match == null)
-            {
-                throw new UnsupportedTypeException(resolution.Type, $"No deserializer builder case matched {resolution.GetType().Name}.");
-            }
-
-            return match.BuildDelegate(resolution, schema, cache) as Func<Stream, T>;
+            throw new AggregateException($"No deserializer builder case matched {resolution.GetType().Name}.", exceptions);
         }
 
         /// <summary>
@@ -222,15 +195,53 @@ namespace Chr.Avro.Serialization
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the deserializer builder is unable to build a deserializer for the schema.
-        /// </exception>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the deserializer builder is unable to build a deserializer for the type.
+        /// <exception cref="AggregateException">
+        /// Thrown when no case matches the schema or type. <see cref="AggregateException.InnerExceptions" />
+        /// will be contain the exceptions thrown by each case.
         /// </exception>
         public virtual IBinaryDeserializer<T> BuildDeserializer<T>(Schema schema)
         {
             return new BinaryDeserializer<T>(BuildDelegate<T>(schema));
+        }
+
+        /// <summary>
+        /// Creates a default list of case builders.
+        /// </summary>
+        /// <param name="codec">
+        /// A codec implementation that generated deserializers will use for read operations.
+        /// </param>
+        public static IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> CreateBinaryDeserializerCaseBuilders(IBinaryCodec codec)
+        {
+            return new Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>[]
+            {
+                // logical types:
+                builder => new DecimalDeserializerBuilderCase(codec),
+                builder => new DurationDeserializerBuilderCase(codec),
+                builder => new TimestampDeserializerBuilderCase(codec),
+
+                // primitives:
+                builder => new BooleanDeserializerBuilderCase(codec),
+                builder => new BytesDeserializerBuilderCase(codec),
+                builder => new DoubleDeserializerBuilderCase(codec),
+                builder => new FixedDeserializerBuilderCase(codec),
+                builder => new FloatDeserializerBuilderCase(codec),
+                builder => new IntegerDeserializerBuilderCase(codec),
+                builder => new NullDeserializerBuilderCase(),
+                builder => new StringDeserializerBuilderCase(codec),
+
+                // collections:
+                builder => new ArrayDeserializerBuilderCase(codec, builder),
+                builder => new MapDeserializerBuilderCase(codec, builder),
+
+                // enums:
+                builder => new EnumDeserializerBuilderCase(codec),
+
+                // records:
+                builder => new RecordDeserializerBuilderCase(builder),
+
+                // unions:
+                builder => new UnionDeserializerBuilderCase(codec, builder)
+            };
         }
     }
 
@@ -257,16 +268,6 @@ namespace Chr.Avro.Serialization
         /// this is not a typed method, the general <see cref="Delegate" /> type is used.
         /// </returns>
         public abstract Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache);
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public abstract bool IsMatch(Schema schema);
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        public abstract bool IsMatch(TypeResolution resolution);
     }
 
     /// <summary>
@@ -278,12 +279,12 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// The deserializer builder to use to build item deserializers.
         /// </summary>
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Creates a new array deserializer builder case.
@@ -315,9 +316,8 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
-        /// Thrown when the schema is not an <see cref="ArraySchema" /> or the resolution is not an
-        /// <see cref="ArrayResolution" />.
+        /// <exception cref="UnsupportedSchemaException">
+        /// Thrown when the schema is not an <see cref="ArraySchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type is neither an array type nor a type assignable from
@@ -327,12 +327,12 @@ namespace Chr.Avro.Serialization
         {
             if (!(resolution is ArrayResolution arrayResolution))
             {
-                throw new ArgumentException("An array deserializer can only be built for an array resolution.");
+                throw new UnsupportedTypeException(resolution.Type, "An array deserializer can only be built for an array resolution.");
             }
 
             if (!(schema is ArraySchema arraySchema))
             {
-                throw new ArgumentException("An array deserializer can only be built for an array schema.");
+                throw new UnsupportedSchemaException(schema, "An array deserializer can only be built for an array schema.");
             }
 
             var target = arrayResolution.Type;
@@ -392,28 +392,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is an <see cref="ArraySchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is ArraySchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Whether the resolution is an <see cref="ArrayResolution" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return resolution is ArrayResolution;
-        }
     }
 
     /// <summary>
@@ -425,7 +403,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new boolean deserializer builder case.
@@ -453,7 +431,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="BooleanSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
@@ -463,7 +441,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema is BooleanSchema))
             {
-                throw new ArgumentException("A boolean deserializer can only be built for a boolean schema.");
+                throw new UnsupportedSchemaException(schema, "A boolean deserializer can only be built for a boolean schema.");
             }
 
             var source = typeof(bool);
@@ -495,28 +473,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="BooleanSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is BooleanSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if no conversion exists from <see cref="bool" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -528,7 +484,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new variable-length bytes deserializer builder case.
@@ -556,7 +512,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="BytesSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
@@ -566,7 +522,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema is BytesSchema))
             {
-                throw new ArgumentException("A bytes deserializer can only be built for a bytes schema.");
+                throw new UnsupportedSchemaException(schema, "A bytes deserializer can only be built for a bytes schema.");
             }
 
             var source = typeof(byte[]);
@@ -611,28 +567,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="BytesSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is BytesSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if no conversion exists from <see cref="T:System.Byte[]" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -644,7 +578,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new decimal deserializer builder case.
@@ -672,7 +606,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="BytesSchema" /> or a <see cref="FixedSchema "/>
         /// with logical type <see cref="DecimalLogicalType" />.
         /// </exception>
@@ -683,7 +617,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema.LogicalType is DecimalLogicalType decimalLogicalType))
             {
-                throw new ArgumentException("A decimal deserializer can only be built for schema with a decimal logical type.");
+                throw new UnsupportedSchemaException(schema, "A decimal deserializer can only be built for schema with a decimal logical type.");
             }
 
             var precision = decimalLogicalType.Precision;
@@ -710,7 +644,7 @@ namespace Chr.Avro.Serialization
             }
             else
             {
-                throw new ArgumentException("A decimal deserializer can only be built for a bytes or a fixed schema.");
+                throw new UnsupportedSchemaException(schema, "A decimal deserializer can only be built for a bytes or a fixed schema.");
             }
 
             var readValue = typeof(IBinaryCodec)
@@ -763,29 +697,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="BytesSchema" /> or a <see cref="FixedSchema "/> with
-        /// logical type <see cref="DecimalLogicalType" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return (schema is BytesSchema || schema is FixedSchema) && schema.LogicalType is DecimalLogicalType;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if no conversion exists from <see cref="decimal" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -797,7 +708,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new double deserializer builder case.
@@ -825,7 +736,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="DoubleSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
@@ -835,7 +746,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema is DoubleSchema))
             {
-                throw new ArgumentException("A double deserializer can only be built for a double schema.");
+                throw new UnsupportedSchemaException(schema, "A double deserializer can only be built for a double schema.");
             }
 
             var source = typeof(double);
@@ -867,28 +778,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="DoubleSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is DoubleSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if no conversion exists from <see cref="double" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -900,7 +789,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new duration deserializer builder case.
@@ -928,27 +817,30 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="FixedSchema" /> with size 12 and logical
-        /// type <see cref="DurationLogicalType" /> or when the type is not <see cref="TimeSpan" />.
+        /// type <see cref="DurationLogicalType" />.
+        /// </exception>
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when the type is not <see cref="TimeSpan" />.
         /// </exception>
         public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema.LogicalType is DurationLogicalType))
             {
-                throw new ArgumentException("A duration deserializer can only be built for a schema with a duration logical type.");
+                throw new UnsupportedSchemaException(schema, "A duration deserializer can only be built for a schema with a duration logical type.");
             }
 
             if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == 12))
             {
-                throw new ArgumentException("A duration deserializer can only be built for a fixed schema with size 12.");
+                throw new UnsupportedSchemaException(schema, "A duration deserializer can only be built for a fixed schema with size 12.");
             }
 
             var target = resolution.Type;
 
             if (!(target == typeof(TimeSpan) || target == typeof(TimeSpan?)))
             {
-                throw new ArgumentException($"A duration deserializer cannot be built for {target.Name}.");
+                throw new UnsupportedTypeException(target, $"A duration deserializer cannot be built for {target.Name}.");
             }
 
             Func<Stream, long> read = input =>
@@ -1003,29 +895,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="FixedSchema" /> with size 12 and logical type
-        /// <see cref="DurationLogicalType" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is FixedSchema fixedSchema && fixedSchema.LogicalType is DurationLogicalType && fixedSchema.Size == 12;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Whether the type is <see cref="TimeSpan" /> or <see cref="Nullable{TimeSpan}" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return resolution.Type == typeof(TimeSpan) || resolution.Type == typeof(TimeSpan?);
-        }
     }
 
     /// <summary>
@@ -1037,7 +906,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new enum deserializer builder case.
@@ -1065,23 +934,23 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
-        /// Thrown when the schema is not an <see cref="EnumSchema" /> or the resolution is not an
-        /// <see cref="EnumResolution" />.
+        /// <exception cref="UnsupportedSchemaException">
+        /// Thrown when the schema is not an <see cref="EnumSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type does not contain a matching symbol for each symbol in the schema.
+        /// Thrown when the resolution is not an <see cref="EnumResolution" /> or the type does not
+        /// contain a matching symbol for each symbol in the schema.
         /// </exception>
         public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is EnumResolution enumResolution))
             {
-                throw new ArgumentException("An enum deserializer can only be built for an enum resolution.");
+                throw new UnsupportedTypeException(resolution.Type, "An enum deserializer can only be built for an enum resolution.");
             }
 
             if (!(schema is EnumSchema enumSchema))
             {
-                throw new ArgumentException("An enum deserializer can only be built for an enum schema.");
+                throw new UnsupportedSchemaException(schema, "An enum deserializer can only be built for an enum schema.");
             }
 
             var target = resolution.Type;
@@ -1124,28 +993,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is an <see cref="EnumSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is EnumSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Whether the resolution is an <see cref="EnumResolution" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return resolution is EnumResolution;
-        }
     }
 
     /// <summary>
@@ -1157,7 +1004,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new fixed-length bytes deserializer builder case.
@@ -1185,7 +1032,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="FixedSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
@@ -1195,7 +1042,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema is FixedSchema fixedSchema))
             {
-                throw new ArgumentException("A fixed deserializer can only be built for a fixed schema.");
+                throw new UnsupportedSchemaException(schema, "A fixed deserializer can only be built for a fixed schema.");
             }
 
             var source = typeof(byte[]);
@@ -1240,28 +1087,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="FixedSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is FixedSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if no conversion exists from <see cref="T:System.Byte[]" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -1273,7 +1098,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new float deserializer builder case.
@@ -1301,7 +1126,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="FloatSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
@@ -1311,7 +1136,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema is FloatSchema))
             {
-                throw new ArgumentException("A float deserializer can only be built for a float schema.");
+                throw new UnsupportedSchemaException(schema, "A float deserializer can only be built for a float schema.");
             }
 
             var source = typeof(float);
@@ -1343,28 +1168,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="FloatSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is FloatSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if no conversion exists from <see cref="float" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -1376,7 +1179,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new integer deserializer builder case.
@@ -1404,7 +1207,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not an <see cref="IntSchema" /> or a <see cref="LongSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
@@ -1414,7 +1217,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema is IntSchema || schema is LongSchema))
             {
-                throw new ArgumentException("An integer deserializer can only be built for an int or long schema.");
+                throw new UnsupportedSchemaException(schema, "An integer deserializer can only be built for an int or long schema.");
             }
 
             var source = typeof(long);
@@ -1446,28 +1249,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is an <see cref="IntSchema" /> or a <see cref="LongSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is IntSchema || schema is LongSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if no conversion exists from <see cref="long" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -1479,12 +1260,12 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// The deserializer builder to use to build key and value deserializers.
         /// </summary>
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Creates a new map deserializer builder case.
@@ -1516,23 +1297,23 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
-        /// Thrown when the schema is not a <see cref="MapSchema" /> or the resolution is not a
-        /// <see cref="MapResolution" />.
+        /// <exception cref="UnsupportedSchemaException">
+        /// Thrown when the schema is not a <see cref="MapSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved type is not assignable from <see cref="Dictionary{TKey, TValue}" />.
+        /// Thrown when the resolution is not a <see cref="MapResolution" /> or the resolved type
+        /// is not assignable from <see cref="Dictionary{TKey, TValue}" />.
         /// </exception>
         public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is MapResolution mapResolution))
             {
-                throw new ArgumentException("A map deserializer can only be built for a map resolution.");
+                throw new UnsupportedTypeException(resolution.Type, "A map deserializer can only be built for a map resolution.");
             }
 
             if (!(schema is MapSchema mapSchema))
             {
-                throw new ArgumentException("A map deserializer can only be built for a map schema.");
+                throw new UnsupportedSchemaException(schema, "A map deserializer can only be built for a map schema.");
             }
 
             var target = mapResolution.Type;
@@ -1600,28 +1381,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="MapSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is MapSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Whether the resolution is a <see cref="MapResolution" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return resolution is MapResolution;
-        }
     }
 
     /// <summary>
@@ -1644,14 +1403,14 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a null value.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="NullSchema" />.
         /// </exception>
         public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is NullSchema))
             {
-                throw new ArgumentException("A null deserializer can only be built for a null schema.");
+                throw new UnsupportedSchemaException(schema, "A null deserializer can only be built for a null schema.");
             }
 
             var target = resolution.Type;
@@ -1665,28 +1424,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="NullSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is NullSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; the null deserializer returns the default value for the type.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -1698,7 +1435,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The deserializer builder to use to build field deserializers.
         /// </summary>
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Creates a new record deserializer builder case.
@@ -1726,20 +1463,22 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
-        /// Thrown when the schema is not a <see cref="RecordSchema" /> or the resolution is not a
-        /// <see cref="RecordResolution" />.
+        /// <exception cref="UnsupportedSchemaException">
+        /// Thrown when the schema is not a <see cref="RecordSchema" />.
+        /// </exception>
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when the resolution is not a <see cref="RecordResolution" />.
         /// </exception>
         public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is RecordResolution recordResolution))
             {
-                throw new ArgumentException("A record deserializer can only be built for a record resolution.");
+                throw new UnsupportedTypeException(resolution.Type, "A record deserializer can only be built for a record resolution.");
             }
 
             if (!(schema is RecordSchema recordSchema))
             {
-                throw new ArgumentException("A record deserializer can only be built for a record schema.");
+                throw new UnsupportedSchemaException(schema, "A record deserializer can only be built for a record schema.");
             }
 
             var target = resolution.Type;
@@ -1813,28 +1552,6 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="RecordSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is RecordSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Whether the resolution is a <see cref="RecordResolution" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return resolution is RecordResolution;
-        }
-
-        /// <summary>
         /// Creates a type that can be used to deserialize missing record fields.
         /// </summary>
         /// <param name="schema">
@@ -1891,7 +1608,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new string deserializer builder case.
@@ -1919,7 +1636,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="StringSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
@@ -1931,7 +1648,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema is StringSchema))
             {
-                throw new ArgumentException("A string deserializer can only be built for a string schema.");
+                throw new UnsupportedSchemaException(schema, "A string deserializer can only be built for a string schema.");
             }
 
             var source = typeof(string);
@@ -2016,28 +1733,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="StringSchema" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is StringSchema;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if no conversion exists from <see cref="string" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
-        }
     }
 
     /// <summary>
@@ -2050,7 +1745,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// Creates a new timestamp deserializer builder case.
@@ -2078,23 +1773,25 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="LongSchema" /> with logical type
-        /// <see cref="MicrosecondTimestampLogicalType" /> or <see cref="MillisecondTimestampLogicalType" />
-        /// or the type is not <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
+        /// <see cref="MicrosecondTimestampLogicalType" /> or <see cref="MillisecondTimestampLogicalType" />.
+        /// </exception>
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when the type is not <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
         /// </exception>
         public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is LongSchema))
             {
-                throw new ArgumentException("A timestamp deserializer can only be built for a long schema.");
+                throw new UnsupportedSchemaException(schema, "A timestamp deserializer can only be built for a long schema.");
             }
 
             var target = resolution.Type;
 
             if (!(target == typeof(DateTime) || target == typeof(DateTime?) || target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?)))
             {
-                throw new ArgumentException($"A timestamp serializer cannot be built for {target.Name}.");
+                throw new UnsupportedTypeException(target, $"A timestamp serializer cannot be built for {target.Name}.");
             }
 
             var codec = Expression.Constant(Codec);
@@ -2113,7 +1810,7 @@ namespace Chr.Avro.Serialization
             }
             else
             {
-                throw new ArgumentException("A timestamp deserializer can only be built for a schema with a timestamp logical type.");
+                throw new UnsupportedSchemaException(schema, "A timestamp deserializer can only be built for a schema with a timestamp logical type.");
             }
 
             var readValue = typeof(IBinaryCodec)
@@ -2136,29 +1833,6 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="LongSchema" /> with logical type
-        /// <see cref="MicrosecondTimestampLogicalType" /> or <see cref="MillisecondTimestampLogicalType" />.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is LongSchema longSchema && (longSchema.LogicalType is MicrosecondTimestampLogicalType || longSchema.LogicalType is MillisecondTimestampLogicalType);
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Whether the type is <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return resolution.Type == typeof(DateTime) || resolution.Type == typeof(DateTime?) || resolution.Type == typeof(DateTimeOffset) || resolution.Type == typeof(DateTimeOffset?);
-        }
     }
 
     /// <summary>
@@ -2170,12 +1844,12 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// The codec that generated deserializers should use for read operations.
         /// </summary>
-        protected readonly IBinaryCodec Codec;
+        public IBinaryCodec Codec { get; }
 
         /// <summary>
         /// The deserializer builder to use to build child deserializers.
         /// </summary>
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Creates a new record deserializer builder case.
@@ -2207,7 +1881,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="ArgumentException">
+        /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="UnionSchema" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
@@ -2217,7 +1891,7 @@ namespace Chr.Avro.Serialization
         {
             if (!(schema is UnionSchema unionSchema && unionSchema.Schemas.Count > 0))
             {
-                throw new ArgumentException("A union deserializer can only be built for a union schema of one or more schemas.");
+                throw new UnsupportedSchemaException(schema, "A union deserializer can only be built for a union schema of one or more schemas.");
             }
 
             var target = resolution.Type;
@@ -2279,29 +1953,6 @@ namespace Chr.Avro.Serialization
             cache.Add((target, schema), compiled);
 
             return compiled;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        /// <returns>
-        /// Whether the schema is a <see cref="UnionSchema" /> of one or more schemas.
-        /// </returns>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is UnionSchema unionSchema && unionSchema.Schemas.Count > 0;
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a type resolution.
-        /// </summary>
-        /// <returns>
-        /// Always true; this case will apply but fail if the type cannot be mapped to each schema
-        /// in the union.
-        /// </returns>
-        public override bool IsMatch(TypeResolution resolution)
-        {
-            return true;
         }
     }
 }
