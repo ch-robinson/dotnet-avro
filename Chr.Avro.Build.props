@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)\Chr.Avro.snk</AssemblyOriginatorKeyFile>
+    <AssemblyVersion>3.0.0.0</AssemblyVersion>
     <Authors>C.H. Robinson</Authors>
     <Company>C.H. Robinson</Company>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -9,9 +10,9 @@
     <PackageIconUrl>https://engineering.chrobinson.com/dotnet-avro/nuget-icon.png</PackageIconUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
-    <SignAssembly>false</SignAssembly>
+    <SignAssembly>true</SignAssembly>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Version>2.0.5</Version>
+    <Version>3.0.0-rc.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
