@@ -37,7 +37,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        Func<Stream, T> BuildDelegate<T>(Schema schema, IDictionary<(Type, Schema), Delegate> cache = null);
+        Func<Stream, T> BuildDelegate<T>(Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache = null);
 
         /// <summary>
         /// Builds a binary deserializer.
@@ -75,7 +75,7 @@ namespace Chr.Avro.Serialization
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object. Since
         /// this is not a typed method, the general <see cref="Delegate" /> type is used.
         /// </returns>
-        Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache);
+        Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache);
     }
 
     /// <summary>
@@ -150,7 +150,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when no case matches the schema or type. <see cref="AggregateException.InnerExceptions" />
         /// will be contain the exceptions thrown by each case.
         /// </exception>
-        public virtual Func<Stream, T> BuildDelegate<T>(Schema schema, IDictionary<(Type, Schema), Delegate> cache = null)
+        public virtual Func<Stream, T> BuildDelegate<T>(Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache = null)
         {
             if (cache == null)
             {
@@ -267,7 +267,7 @@ namespace Chr.Avro.Serialization
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object. Since
         /// this is not a typed method, the general <see cref="Delegate" /> type is used.
         /// </returns>
-        public abstract Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache);
+        public abstract Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache);
     }
 
     /// <summary>
@@ -323,7 +323,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when the resolved type is neither an array type nor a type assignable from
         /// <see cref="List{T}" />.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is ArrayResolution arrayResolution))
             {
@@ -388,9 +388,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "array deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -437,7 +436,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="bool" /> exists.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is BooleanSchema))
             {
@@ -469,9 +468,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "boolean deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -518,7 +516,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="T:System.Byte[]" /> exists.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is BytesSchema))
             {
@@ -563,9 +561,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "bytes deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -613,7 +610,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="decimal" /> exists.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema.LogicalType is DecimalLogicalType decimalLogicalType))
             {
@@ -693,9 +690,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "decimal deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -742,7 +738,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="double" /> exists.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is DoubleSchema))
             {
@@ -774,9 +770,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "double deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -824,7 +819,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is not <see cref="TimeSpan" />.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema.LogicalType is DurationLogicalType))
             {
@@ -891,9 +886,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, $"duration deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -941,7 +935,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when the resolution is not an <see cref="EnumResolution" /> or the type does not
         /// contain a matching symbol for each symbol in the schema.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is EnumResolution enumResolution))
             {
@@ -989,9 +983,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, $"{enumSchema.Name} deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -1038,7 +1031,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="T:System.Byte[]" /> exists.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is FixedSchema fixedSchema))
             {
@@ -1083,9 +1076,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, $"{fixedSchema.Name} deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -1132,7 +1124,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="float" /> exists.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is FloatSchema))
             {
@@ -1164,9 +1156,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "float deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -1213,7 +1204,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no conversion from <see cref="long" /> exists.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is IntSchema || schema is LongSchema))
             {
@@ -1245,9 +1236,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "integer deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -1304,7 +1294,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when the resolution is not a <see cref="MapResolution" /> or the resolved type
         /// is not assignable from <see cref="Dictionary{TKey, TValue}" />.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is MapResolution mapResolution))
             {
@@ -1377,9 +1367,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "map deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -1406,7 +1395,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="NullSchema" />.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is NullSchema))
             {
@@ -1420,9 +1409,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "null deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -1469,7 +1457,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolution is not a <see cref="RecordResolution" />.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(resolution is RecordResolution recordResolution))
             {
@@ -1504,8 +1492,7 @@ namespace Chr.Avro.Serialization
             );
 
             var lambda = Expression.Lambda(result, $"{recordSchema.Name} deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
+            var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
 
             // now that an infinite cycle won’t happen, build the assign function:
             var assignments = recordSchema.Fields.Select(field =>
@@ -1644,7 +1631,7 @@ namespace Chr.Avro.Serialization
         /// <see cref="Guid" />, <see cref="TimeSpan"/>, <see cref="Uri" />) can be applied and no
         /// conversion from <see cref="string" /> exists.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is StringSchema))
             {
@@ -1729,9 +1716,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "string deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -1780,7 +1766,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type is not <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is LongSchema))
             {
@@ -1829,9 +1815,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "timestamp deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 
@@ -1887,7 +1872,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type cannot be mapped to each schema in the union.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, IDictionary<(Type, Schema), Delegate> cache)
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
             if (!(schema is UnionSchema unionSchema && unionSchema.Schemas.Count > 0))
             {
@@ -1950,9 +1935,8 @@ namespace Chr.Avro.Serialization
 
             var lambda = Expression.Lambda(result, "union deserializer", new[] { stream });
             var compiled = lambda.Compile();
-            cache.Add((target, schema), compiled);
 
-            return compiled;
+            return cache.GetOrAdd((target, schema), compiled);
         }
     }
 }
