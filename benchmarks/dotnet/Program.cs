@@ -55,7 +55,7 @@ namespace Chr.Avro.Benchmarks
                 {
                     yield return new Result()
                     {
-                        Runtime = "netcoreapp2.2",
+                        Runtime = "netcoreapp3.0",
                         Library = runner.Library,
                         Suite = runner.Suite,
                         Iterations = runner.Iterations,
