@@ -19,7 +19,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ProducerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use for Schema Registry operations. The client should only be disposed
+        /// The client to use for Schema Registry operations. The client should only be disposed
         /// after the producer; the serializer will use it to request schemas as messages are being
         /// produced.
         /// </param>
@@ -78,7 +78,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ProducerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="id">
         /// The ID of the schema that should be used to serialize keys.
@@ -143,7 +143,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ProducerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="subject">
         /// The subject of the schema that should be used to serialize keys. The latest version of
@@ -227,7 +227,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ProducerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="subject">
         /// The subject of the schema that should be used to serialize keys.
@@ -304,7 +304,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ProducerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use for Schema Registry operations. The client should only be disposed
+        /// The client to use for Schema Registry operations. The client should only be disposed
         /// after the producer; the serializer will use it to request schemas as messages are being
         /// produced.
         /// </param>
@@ -363,7 +363,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ProducerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="id">
         /// The ID of the schema that should be used to serialize values.
@@ -428,7 +428,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ProducerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="subject">
         /// The subject of the schema that should be used to serialize values. The latest version
@@ -511,7 +511,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ProducerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="subject">
         /// The subject of the schema that should be used to serialize values.

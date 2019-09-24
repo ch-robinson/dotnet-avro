@@ -17,15 +17,27 @@ namespace Chr.Avro.Confluent
     /// If a schema with that ID is not found in cache, it will attempt to pull down a matching
     /// schema from the Schema Registry.
     /// </summary>
-    public class AsyncSchemaRegistryDeserializer<T> : IAsyncDeserializer<T>
+    public class AsyncSchemaRegistryDeserializer<T> : IAsyncDeserializer<T>, IDisposable
     {
+        /// <summary>
+        /// The deserializer builder used to generate deserialization functions for C# types.
+        /// </summary>
+        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
+
+        /// <summary>
+        /// The client used for Schema Registry operations.
+        /// </summary>
+        public ISchemaRegistryClient RegistryClient { get; }
+
+        /// <summary>
+        /// The JSON schema reader used to convert schemas received from the registry into abstract
+        /// representations.
+        /// </summary>
+        public IJsonSchemaReader SchemaReader { get; }
+
         private readonly ConcurrentDictionary<int, Task<Func<Stream, T>>> _cache;
 
-        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
-
-        private readonly Func<int, Task<string>> _resolve;
-
-        private readonly IJsonSchemaReader _schemaReader;
+        private readonly bool _disposeRegistryClient;
 
         /// <summary>
         /// Creates a deserializer.
@@ -35,12 +47,12 @@ namespace Chr.Avro.Confluent
         /// highly recommended.
         /// </param>
         /// <param name="deserializerBuilder">
-        /// A deserializer builder (used to build deserialization functions for C# types). If none
-        /// is provided, the default deserializer builder will be used.
+        /// The deserializer builder to use to to generate deserialization functions for C# types.
+        /// If none is provided, the default deserializer builder will be used.
         /// </param>
         /// <param name="schemaReader">
-        /// A JSON schema reader (used to convert schemas received from the registry into abstract
-        /// representations). If none is provided, the default schema reader will be used.
+        /// The JSON schema reader to use to convert schemas received from the registry into abstract
+        /// representations. If none is provided, the default schema reader will be used.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the registry configuration is null.
@@ -58,28 +70,23 @@ namespace Chr.Avro.Confluent
                 throw new ArgumentNullException(nameof(registryConfiguration));
             }
 
-            _resolve = async id =>
-            {
-                using (var registry = new CachedSchemaRegistryClient(registryConfiguration))
-                {
-                    return await registry.GetSchemaAsync(id).ConfigureAwait(false);
-                }
-            };
+            RegistryClient = new CachedSchemaRegistryClient(registryConfiguration);
+            _disposeRegistryClient = true;
         }
 
         /// <summary>
         /// Creates a deserializer.
         /// </summary>
         /// <param name="registryClient">
-        /// A client to use for Schema Registry operations. (The client will not be disposed.)
+        /// The client to use for Schema Registry operations. (The client will not be disposed.)
         /// </param>
         /// <param name="deserializerBuilder">
-        /// A deserializer builder (used to build deserialization functions for C# types). If none
-        /// is provided, the default deserializer builder will be used.
+        /// The deserializer builder used to generate deserialization functions for C# types. If
+        /// none is provided, the default deserializer builder will be used.
         /// </param>
         /// <param name="schemaReader">
-        /// A JSON schema reader (used to convert schemas received from the registry into abstract
-        /// representations). If none is provided, the default schema reader will be used.
+        /// The JSON schema reader used to convert schemas received from the registry into abstract
+        /// representations. If none is provided, the default schema reader will be used.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the registry client is null.
@@ -97,7 +104,8 @@ namespace Chr.Avro.Confluent
                 throw new ArgumentNullException(nameof(registryClient));
             }
 
-            _resolve = id => registryClient.GetSchemaAsync(id);
+            RegistryClient = registryClient;
+            _disposeRegistryClient = false;
         }
 
         private AsyncSchemaRegistryDeserializer(
@@ -105,8 +113,9 @@ namespace Chr.Avro.Confluent
             IJsonSchemaReader schemaReader = null
         ) {
             _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
-            _deserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
-            _schemaReader = schemaReader ?? new JsonSchemaReader();
+
+            DeserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
+            SchemaReader = schemaReader ?? new JsonSchemaReader();
         }
 
         /// <summary>
@@ -130,13 +139,36 @@ namespace Chr.Avro.Confluent
 
                 var @delegate = await (_cache.GetOrAdd(BitConverter.ToInt32(bytes, 0), async id =>
                 {
-                    var json = await _resolve(id).ConfigureAwait(false);
-                    var schema = _schemaReader.Read(json);
+                    var json = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
+                    var schema = SchemaReader.Read(json);
 
-                    return _deserializerBuilder.BuildDelegate<T>(schema);
+                    return DeserializerBuilder.BuildDelegate<T>(schema);
                 })).ConfigureAwait(false);
 
                 return @delegate(stream);
+            }
+        }
+
+        /// <summary>
+        /// Disposes the deserializer, freeing up any resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the deserializer, freeing up any resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (_disposeRegistryClient)
+                {
+                    RegistryClient.Dispose();
+                }
             }
         }
     }

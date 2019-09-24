@@ -3,7 +3,6 @@ using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -15,20 +14,34 @@ namespace Chr.Avro.Confluent
     /// </summary>
     public class SchemaRegistrySerializerBuilder : IDisposable
     {
-        private readonly bool _disposeRegistryClient;
-
-        private readonly Abstract.ISchemaBuilder _schemaBuilder;
-
-        private readonly IJsonSchemaReader _schemaReader;
-
-        private readonly IJsonSchemaWriter _schemaWriter;
-
-        private readonly Serialization.IBinarySerializerBuilder _serializerBuilder;
-
         /// <summary>
         /// The client to use for Schema Registry operations.
         /// </summary>
-        protected readonly ISchemaRegistryClient RegistryClient;
+        public ISchemaRegistryClient RegistryClient { get; }
+
+        /// <summary>
+        /// The schema builder used to create a schema for a C# type when registering automatically.
+        /// </summary>
+        public Abstract.ISchemaBuilder SchemaBuilder { get; }
+
+        /// <summary>
+        /// The JSON schema reader used to convert schemas received from the registry into abstract
+        /// representations.
+        /// </summary>
+        public IJsonSchemaReader SchemaReader { get; }
+
+        /// <summary>
+        /// The JSON schema writer used to convert abstract schema representations when registering
+        /// automatically.
+        /// </summary>
+        public IJsonSchemaWriter SchemaWriter { get; }
+
+        /// <summary>
+        /// The deserializer builder to use to build serialization functions for C# types.
+        /// </summary>
+        public Serialization.IBinarySerializerBuilder SerializerBuilder { get; }
+
+        private readonly bool _disposeRegistryClient;
 
         /// <summary>
         /// Creates a serializer builder.
@@ -38,20 +51,20 @@ namespace Chr.Avro.Confluent
         /// highly recommended.
         /// </param>
         /// <param name="schemaBuilder">
-        /// A schema builder (used to build a schema for a C# type when registering automatically).
+        /// The schema builder to use to create a schema for a C# type when registering automatically.
         /// If none is provided, the default schema builder will be used.
         /// </param>
         /// <param name="schemaReader">
-        /// A JSON schema reader (used to convert schemas received from the registry into abstract
-        /// representations). If none is provided, the default schema reader will be used.
+        /// The JSON schema reader to use to convert schemas received from the registry into abstract
+        /// representations. If none is provided, the default schema reader will be used.
         /// </param>
         /// <param name="schemaWriter">
-        /// A JSON schema writer (used to convert abstract schema representations when registering
-        /// automatically). If none is provided, the default schema writer will be used.
+        /// The JSON schema writer to use to convert abstract schema representations when registering
+        /// automatically. If none is provided, the default schema writer will be used.
         /// </param>
         /// <param name="serializerBuilder">
-        /// A serializer builder (used to build serialization functions for C# types). If none is
-        /// provided, the default serializer builder will be used.
+        /// The deserializer builder to use to build serialization functions for C# types. If none
+        /// is provided, the default serializer builder will be used.
         /// </param>
         public SchemaRegistrySerializerBuilder(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
@@ -73,23 +86,23 @@ namespace Chr.Avro.Confluent
         /// Creates a serializer builder.
         /// </summary>
         /// <param name="registryClient">
-        /// A client to use for Schema Registry operations. (The client will not be disposed.)
+        /// The client to use for Schema Registry operations. (The client will not be disposed.)
         /// </param>
         /// <param name="schemaBuilder">
-        /// A schema builder (used to build a schema for a C# type when registering automatically).
+        /// The schema builder to use to create a schema for a C# type when registering automatically.
         /// If none is provided, the default schema builder will be used.
         /// </param>
         /// <param name="schemaReader">
-        /// A JSON schema reader (used to convert schemas received from the registry into abstract
-        /// representations). If none is provided, the default schema reader will be used.
+        /// The JSON schema reader to use to convert schemas received from the registry into abstract
+        /// representations. If none is provided, the default schema reader will be used.
         /// </param>
         /// <param name="schemaWriter">
-        /// A JSON schema writer (used to convert abstract schema representations when registering
-        /// automatically). If none is provided, the default schema writer will be used.
+        /// The JSON schema writer to use to convert abstract schema representations when registering
+        /// automatically. If none is provided, the default schema writer will be used.
         /// </param>
         /// <param name="serializerBuilder">
-        /// A serializer builder (used to build serialization functions for C# types). If none is
-        /// provided, the default serializer builder will be used.
+        /// The deserializer builder to use to build serialization functions for C# types. If none
+        /// is provided, the default serializer builder will be used.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the registry client is null.
@@ -101,13 +114,14 @@ namespace Chr.Avro.Confluent
             IJsonSchemaWriter schemaWriter = null,
             Serialization.IBinarySerializerBuilder serializerBuilder = null
         ) {
-            RegistryClient = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
 
             _disposeRegistryClient = false;
-            _schemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
-            _schemaReader = schemaReader ?? new JsonSchemaReader();
-            _schemaWriter = schemaWriter ?? new JsonSchemaWriter();
-            _serializerBuilder = serializerBuilder ?? new Serialization.BinarySerializerBuilder();
+
+            RegistryClient = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
+            SchemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
+            SchemaReader = schemaReader ?? new JsonSchemaReader();
+            SchemaWriter = schemaWriter ?? new JsonSchemaWriter();
+            SerializerBuilder = serializerBuilder ?? new Serialization.BinarySerializerBuilder();
         }
 
         /// <summary>
@@ -149,11 +163,14 @@ namespace Chr.Avro.Confluent
             }
             catch (Exception e) when (registerAutomatically && (
                 (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                (e is AggregateException a && a.InnerExceptions.All(e => e is UnsupportedTypeException))
+                (e is AggregateException a && a.InnerExceptions.All(i =>
+                    i is UnsupportedSchemaException ||
+                    i is UnsupportedTypeException
+                ))
             ))
             {
-                var schema = _schemaBuilder.BuildSchema<T>();
-                var json = _schemaWriter.Write(schema);
+                var schema = SchemaBuilder.BuildSchema<T>();
+                var json = SchemaWriter.Write(schema);
 
                 var id = await RegistryClient.RegisterSchemaAsync(subject, json);
 
@@ -222,7 +239,7 @@ namespace Chr.Avro.Confluent
                 Array.Reverse(bytes);
             }
 
-            var serialize = _serializerBuilder.BuildDelegate<T>(_schemaReader.Read(schema));
+            var serialize = SerializerBuilder.BuildDelegate<T>(SchemaReader.Read(schema));
 
             return new DelegateSerializer<T>((data, stream) =>
             {

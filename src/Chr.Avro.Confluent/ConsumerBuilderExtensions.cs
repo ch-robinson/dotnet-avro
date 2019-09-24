@@ -1,7 +1,6 @@
 using Confluent.Kafka;
 using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -20,7 +19,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use for Schema Registry operations. The client should only be disposed
+        /// The client to use for Schema Registry operations. The client should only be disposed
         /// after the consumer; the deserializer will use it to request schemas as messages are
         /// being consumed.
         /// </param>
@@ -55,7 +54,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="id">
         /// The ID of the schema that should be used to deserialize keys.
@@ -120,7 +119,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="subject">
         /// The subject of the schema that should be used to deserialize keys. The latest version
@@ -189,7 +188,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="subject">
         /// The subject of the schema that should be used to deserialize keys.
@@ -266,7 +265,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use for Schema Registry operations. The client should only be disposed
+        /// The client to use for Schema Registry operations. The client should only be disposed
         /// after the consumer; the deserializer will use it to request schemas as messages are
         /// being consumed.
         /// </param>
@@ -301,7 +300,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="id">
         /// The ID of the schema that should be used to deserialize values.
@@ -366,7 +365,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="subject">
         /// The subject of the schema that should be used to deserialize values. The latest version
@@ -434,7 +433,7 @@ namespace Chr.Avro.Confluent
         /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
         /// </param>
         /// <param name="registryClient">
-        /// A client to use to resolve the schema. (The client will not be disposed.)
+        /// The client to use to resolve the schema. (The client will not be disposed.)
         /// </param>
         /// <param name="subject">
         /// The subject of the schema that should be used to deserialize values.
