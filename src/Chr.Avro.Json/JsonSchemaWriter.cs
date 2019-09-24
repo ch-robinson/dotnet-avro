@@ -4,7 +4,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 
 namespace Chr.Avro.Representation
@@ -60,11 +59,6 @@ namespace Chr.Avro.Representation
     public interface IJsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        bool IsMatch(Schema schema);
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -93,44 +87,30 @@ namespace Chr.Avro.Representation
         /// A list of cases that the write methods will attempt to apply. If the first case does
         /// not match, the next case will be tested, and so on.
         /// </summary>
-        protected readonly IReadOnlyCollection<IJsonSchemaWriterCase> Cases;
+        public IEnumerable<IJsonSchemaWriterCase> Cases { get; }
 
         /// <summary>
         /// Creates a new JSON schema writer.
         /// </summary>
-        /// <param name="cases">
-        /// An optional collection of cases. If no case collection is provided, the default set
-        /// will be used.
+        public JsonSchemaWriter() : this(CreateCaseBuilders()) { }
+
+        /// <summary>
+        /// Creates a new JSON schema writer.
+        /// </summary>
+        /// <param name="caseBuilders">
+        /// A list of case builders.
         /// </param>
-        public JsonSchemaWriter(IReadOnlyCollection<IJsonSchemaWriterCase> cases = null)
+        public JsonSchemaWriter(IEnumerable<Func<IJsonSchemaWriter, IJsonSchemaWriterCase>> caseBuilders)
         {
-            Cases = cases ?? new List<IJsonSchemaWriterCase>()
+            var cases = new List<IJsonSchemaWriterCase>();
+
+            Cases = cases;
+
+            // initialize cases last so that the schema writer is fully ready:
+            foreach (var builder in caseBuilders ?? CreateCaseBuilders())
             {
-                // logical types:
-                new DateJsonSchemaWriterCase(),
-                new DecimalJsonSchemaWriterCase(),
-                new DurationJsonSchemaWriterCase(),
-                new MicrosecondTimeJsonSchemaWriterCase(),
-                new MicrosecondTimestampJsonSchemaWriterCase(),
-                new MillisecondTimeJsonSchemaWriterCase(),
-                new MillisecondTimestampJsonSchemaWriterCase(),
-                new UuidJsonSchemaWriterCase(),
-
-                // collections:
-                new ArrayJsonSchemaWriterCase(this),
-                new MapJsonSchemaWriterCase(this),
-
-                // unions:
-                new UnionJsonSchemaWriterCase(this),
-
-                // named:
-                new EnumJsonSchemaWriterCase(),
-                new FixedJsonSchemaWriterCase(),
-                new RecordJsonSchemaWriterCase(this),
-
-                // primitives:
-                new PrimitiveJsonSchemaWriterCase()
-            };
+                cases.Add(builder(this));
+            }
         }
 
         /// <summary>
@@ -238,14 +218,56 @@ namespace Chr.Avro.Representation
                 names = new ConcurrentDictionary<string, NamedSchema>();
             }
 
-            var match = Cases.FirstOrDefault(c => c.IsMatch(schema));
+            var exceptions = new List<Exception>();
 
-            if (match == null)
+            foreach (var @case in Cases)
             {
-                throw new UnsupportedSchemaException(schema, $"No schema representation case matched {schema.GetType().Name}.");
+                try
+                {
+                    @case.Write(schema, json, canonical, names);
+                    return;
+                }
+                catch (UnsupportedSchemaException exception)
+                {
+                    exceptions.Add(exception);
+                }
             }
 
-            match.Write(schema, json, canonical, names);
+            throw new AggregateException($"No schema writer case matched {schema.GetType().Name}.");
+        }
+
+        /// <summary>
+        /// Creates a default list of case builders.
+        /// </summary>
+        public static IEnumerable<Func<IJsonSchemaWriter, IJsonSchemaWriterCase>> CreateCaseBuilders()
+        {
+            return new Func<IJsonSchemaWriter, IJsonSchemaWriterCase>[]
+            {
+                // logical types:
+                writer => new DateJsonSchemaWriterCase(),
+                writer => new DecimalJsonSchemaWriterCase(),
+                writer => new DurationJsonSchemaWriterCase(),
+                writer => new MicrosecondTimeJsonSchemaWriterCase(),
+                writer => new MicrosecondTimestampJsonSchemaWriterCase(),
+                writer => new MillisecondTimeJsonSchemaWriterCase(),
+                writer => new MillisecondTimestampJsonSchemaWriterCase(),
+                writer => new UuidJsonSchemaWriterCase(),
+
+                // collections:
+                writer => new ArrayJsonSchemaWriterCase(writer),
+                writer => new MapJsonSchemaWriterCase(writer),
+
+                // unions:
+                writer => new UnionJsonSchemaWriterCase(writer),
+
+                // named:
+                writer => new EnumJsonSchemaWriterCase(),
+                writer => new FixedJsonSchemaWriterCase(),
+                writer => new RecordJsonSchemaWriterCase(writer),
+
+                // primitives:
+                writer => new PrimitiveJsonSchemaWriterCase()
+            };
         }
     }
 
@@ -254,11 +276,6 @@ namespace Chr.Avro.Representation
     /// </summary>
     public abstract class JsonSchemaWriterCase : IJsonSchemaWriterCase
     {
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public abstract bool IsMatch(Schema schema);
-
         /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
@@ -287,7 +304,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// A schema writer to use to write item schemas.
         /// </summary>
-        protected readonly IJsonSchemaWriter Writer;
+        public IJsonSchemaWriter Writer { get; }
 
         /// <summary>
         /// Creates a new array case.
@@ -298,14 +315,6 @@ namespace Chr.Avro.Representation
         public ArrayJsonSchemaWriterCase(IJsonSchemaWriter writer)
         {
             Writer = writer ?? throw new ArgumentNullException(nameof(writer), "Schema writer cannot be null.");
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is ArraySchema;
         }
 
         /// <summary>
@@ -329,7 +338,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema is ArraySchema arraySchema))
             {
-                throw new ArgumentException("The array case can only be applied to an array schema.");
+                throw new UnsupportedSchemaException(schema, "The array case can only be applied to an array schema.");
             }
 
             json.WriteStartObject();
@@ -345,14 +354,6 @@ namespace Chr.Avro.Representation
     /// </summary>
     public class DateJsonSchemaWriterCase : JsonSchemaWriterCase
     {
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is IntSchema && schema.LogicalType is DateLogicalType;
-        }
-
         /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
@@ -372,11 +373,10 @@ namespace Chr.Avro.Representation
         /// </param>
         public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!IsMatch(schema))
+            if (!(schema is IntSchema && schema.LogicalType is DateLogicalType))
             {
-                throw new ArgumentException("The date case can only be applied to an int schema with a date logical type.");
+                throw new UnsupportedSchemaException(schema, "The date case can only be applied to an int schema with a date logical type.");
             }
-
 
             if (canonical)
             {
@@ -399,15 +399,6 @@ namespace Chr.Avro.Representation
     public class DecimalJsonSchemaWriterCase : JsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return (schema is BytesSchema || schema is FixedSchema)
-                && schema.LogicalType is DecimalLogicalType;
-        }
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -428,7 +419,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema.LogicalType is DecimalLogicalType decimalLogicalType))
             {
-                throw new ArgumentException("The decimal case can only be applied to bytes or fixed schemas with a decimal logical type.");
+                throw new UnsupportedSchemaException(schema, "The decimal case can only be applied to bytes or fixed schemas with a decimal logical type.");
             }
 
             if (schema is FixedSchema fixedSchema)
@@ -499,7 +490,7 @@ namespace Chr.Avro.Representation
             }
             else
             {
-                throw new ArgumentException("The decimal case can only be applied to bytes or fixed schemas with a decimal logical type.");
+                throw new UnsupportedSchemaException(schema, "The decimal case can only be applied to bytes or fixed schemas with a decimal logical type.");
             }
         }
     }
@@ -509,14 +500,6 @@ namespace Chr.Avro.Representation
     /// </summary>
     public class DurationJsonSchemaWriterCase : JsonSchemaWriterCase
     {
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is FixedSchema && schema.LogicalType is DurationLogicalType;
-        }
-
         /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
@@ -538,7 +521,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema is FixedSchema fixedSchema && schema.LogicalType is DurationLogicalType))
             {
-                throw new ArgumentException("The duration case can only be applied to a fixed schema with a duration logical type.");
+                throw new UnsupportedSchemaException(schema, "The duration case can only be applied to a fixed schema with a duration logical type.");
             }
 
             if (names.TryGetValue(fixedSchema.FullName, out var existing))
@@ -594,14 +577,6 @@ namespace Chr.Avro.Representation
     public class EnumJsonSchemaWriterCase : JsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is EnumSchema;
-        }
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -622,7 +597,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema is EnumSchema enumSchema))
             {
-                throw new ArgumentException("The enum case can only be applied to an enum schema.");
+                throw new UnsupportedSchemaException(schema, "The enum case can only be applied to an enum schema.");
             }
 
             if (names.TryGetValue(enumSchema.FullName, out var existing))
@@ -685,14 +660,6 @@ namespace Chr.Avro.Representation
     public class FixedJsonSchemaWriterCase : JsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is FixedSchema;
-        }
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -713,7 +680,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema is FixedSchema fixedSchema))
             {
-                throw new ArgumentException("The fixed case can only be applied to a fixed schema.");
+                throw new UnsupportedSchemaException(schema, "The fixed case can only be applied to a fixed schema.");
             }
 
             if (names.TryGetValue(fixedSchema.FullName, out var existing))
@@ -765,7 +732,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// A schema writer to use to write value schemas.
         /// </summary>
-        protected readonly IJsonSchemaWriter Writer;
+        public IJsonSchemaWriter Writer { get; }
 
         /// <summary>
         /// Creates a new map case.
@@ -776,14 +743,6 @@ namespace Chr.Avro.Representation
         public MapJsonSchemaWriterCase(IJsonSchemaWriter writer)
         {
             Writer = writer ?? throw new ArgumentNullException(nameof(writer), "Schema writer cannot be null.");
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is MapSchema;
         }
 
         /// <summary>
@@ -807,7 +766,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema is MapSchema mapSchema))
             {
-                throw new ArgumentException("The map case can only be applied to a map schema.");
+                throw new UnsupportedSchemaException(schema, "The map case can only be applied to a map schema.");
             }
 
             json.WriteStartObject();
@@ -823,14 +782,6 @@ namespace Chr.Avro.Representation
     /// </summary>
     public class MicrosecondTimeJsonSchemaWriterCase : JsonSchemaWriterCase
     {
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is LongSchema && schema.LogicalType is MicrosecondTimeLogicalType;
-        }
-
         /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
@@ -850,11 +801,10 @@ namespace Chr.Avro.Representation
         /// </param>
         public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!IsMatch(schema))
+            if (!(schema is LongSchema && schema.LogicalType is MicrosecondTimeLogicalType))
             {
-                throw new ArgumentException("The microsecond time case can only be applied to a long schema with a microsecond time logical type.");
+                throw new UnsupportedSchemaException(schema, "The microsecond time case can only be applied to a long schema with a microsecond time logical type.");
             }
-
 
             if (canonical)
             {
@@ -876,14 +826,6 @@ namespace Chr.Avro.Representation
     public class MicrosecondTimestampJsonSchemaWriterCase : JsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is LongSchema && schema.LogicalType is MicrosecondTimestampLogicalType;
-        }
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -902,9 +844,9 @@ namespace Chr.Avro.Representation
         /// </param>
         public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!IsMatch(schema))
+            if (!(schema is LongSchema && schema.LogicalType is MicrosecondTimestampLogicalType))
             {
-                throw new ArgumentException("The microsecond timestamp case can only be applied to a long schema with a microsecond timestamp logical type.");
+                throw new UnsupportedSchemaException(schema, "The microsecond timestamp case can only be applied to a long schema with a microsecond timestamp logical type.");
             }
 
             if (canonical)
@@ -927,14 +869,6 @@ namespace Chr.Avro.Representation
     public class MillisecondTimeJsonSchemaWriterCase : JsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is IntSchema && schema.LogicalType is MillisecondTimeLogicalType;
-        }
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -953,9 +887,9 @@ namespace Chr.Avro.Representation
         /// </param>
         public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!IsMatch(schema))
+            if (!(schema is IntSchema && schema.LogicalType is MillisecondTimeLogicalType))
             {
-                throw new ArgumentException("The millisecond time case can only be applied to an int schema with a millisecond time logical type.");
+                throw new UnsupportedSchemaException(schema, "The millisecond time case can only be applied to an int schema with a millisecond time logical type.");
             }
 
             if (canonical)
@@ -978,14 +912,6 @@ namespace Chr.Avro.Representation
     public class MillisecondTimestampJsonSchemaWriterCase : JsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is LongSchema && schema.LogicalType is MillisecondTimestampLogicalType;
-        }
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -1004,9 +930,9 @@ namespace Chr.Avro.Representation
         /// </param>
         public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!IsMatch(schema))
+            if (!(schema is LongSchema && schema.LogicalType is MillisecondTimestampLogicalType))
             {
-                throw new ArgumentException("The millisecond timestamp case can only be applied to a long schema with a millisecond timestamp logical type.");
+                throw new UnsupportedSchemaException(schema, "The millisecond timestamp case can only be applied to a long schema with a millisecond timestamp logical type.");
             }
 
             if (canonical)
@@ -1029,14 +955,6 @@ namespace Chr.Avro.Representation
     public class PrimitiveJsonSchemaWriterCase : JsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is PrimitiveSchema;
-        }
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -1057,7 +975,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema is PrimitiveSchema primitiveSchema))
             {
-                throw new ArgumentException("The primitive case can only be applied to a primitive schema.");
+                throw new UnsupportedSchemaException(schema, "The primitive case can only be applied to a primitive schema.");
             }
 
             json.WriteStringValue(GetSchemaToken(primitiveSchema));
@@ -1108,7 +1026,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// A schema writer to use to write field schemas.
         /// </summary>
-        protected readonly IJsonSchemaWriter Writer;
+        public IJsonSchemaWriter Writer { get; }
 
         /// <summary>
         /// Creates a new record case.
@@ -1119,14 +1037,6 @@ namespace Chr.Avro.Representation
         public RecordJsonSchemaWriterCase(IJsonSchemaWriter writer)
         {
             Writer = writer ?? throw new ArgumentNullException(nameof(writer), "Schema writer cannot be null.");
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is RecordSchema;
         }
 
         /// <summary>
@@ -1150,7 +1060,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema is RecordSchema recordSchema))
             {
-                throw new ArgumentException("The record case can only be applied to a record schema.");
+                throw new UnsupportedSchemaException(schema, "The record case can only be applied to a record schema.");
             }
 
             if (names.TryGetValue(recordSchema.FullName, out var existing))
@@ -1225,7 +1135,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// A schema writer to use to write child schemas.
         /// </summary>
-        protected readonly IJsonSchemaWriter Writer;
+        public IJsonSchemaWriter Writer { get; }
 
         /// <summary>
         /// Creates a new union case.
@@ -1236,14 +1146,6 @@ namespace Chr.Avro.Representation
         public UnionJsonSchemaWriterCase(IJsonSchemaWriter writer)
         {
             Writer = writer ?? throw new ArgumentNullException(nameof(writer), "Schema writer cannot be null.");
-        }
-
-        /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is UnionSchema;
         }
 
         /// <summary>
@@ -1267,7 +1169,7 @@ namespace Chr.Avro.Representation
         {
             if (!(schema is UnionSchema unionSchema))
             {
-                throw new ArgumentException("The union case can only be applied to a union schema.");
+                throw new UnsupportedSchemaException(schema, "The union case can only be applied to a union schema.");
             }
 
             json.WriteStartArray();
@@ -1287,14 +1189,6 @@ namespace Chr.Avro.Representation
     public class UuidJsonSchemaWriterCase : JsonSchemaWriterCase
     {
         /// <summary>
-        /// Determines whether the case can be applied to a schema.
-        /// </summary>
-        public override bool IsMatch(Schema schema)
-        {
-            return schema is StringSchema && schema.LogicalType is UuidLogicalType;
-        }
-
-        /// <summary>
         /// Writes a schema to JSON.
         /// </summary>
         /// <param name="schema">
@@ -1313,9 +1207,9 @@ namespace Chr.Avro.Representation
         /// </param>
         public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!IsMatch(schema))
+            if (!(schema is StringSchema && schema.LogicalType is UuidLogicalType))
             {
-                throw new ArgumentException("The UUID case can only be applied to a string schema with a UUID logical type.");
+                throw new UnsupportedSchemaException(schema, "The UUID case can only be applied to a string schema with a UUID logical type.");
             }
 
             if (canonical)
