@@ -256,12 +256,15 @@ namespace Chr.Avro.Tests
             Assert.Empty(schema.Symbols);
         }
 
-        [Fact]
-        public void BuildsFlagEnums()
+        [Theory]
+        [InlineData(typeof(FlagEnum), typeof(IntSchema))]
+        [InlineData(typeof(LongFlagEnum), typeof(LongSchema))]
+        [InlineData(typeof(UIntFlagEnum), typeof(IntSchema))]
+        public void BuildsFlagEnums(Type enumType, Type schemaType)
         {
-            var schema = Builder.BuildSchema<FlagEnum>() as LongSchema;
+            var schema = Builder.BuildSchema(enumType);
 
-            Assert.NotNull(schema);
+            Assert.IsType(schemaType, schema);
             Assert.Null(schema.LogicalType);
         }
 
@@ -385,9 +388,11 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(EmptyEnum?), typeof(EnumSchema))]
         [InlineData(typeof(EmptyStruct?), typeof(RecordSchema))]
         [InlineData(typeof(ExplicitEnum?), typeof(EnumSchema))]
-        [InlineData(typeof(FlagEnum?), typeof(LongSchema))]
+        [InlineData(typeof(FlagEnum?), typeof(IntSchema))]
         [InlineData(typeof(ImplicitEnum?), typeof(EnumSchema))]
+        [InlineData(typeof(LongFlagEnum?), typeof(LongSchema))]
         [InlineData(typeof(TimeSpan?), typeof(StringSchema))]
+        [InlineData(typeof(UIntFlagEnum?), typeof(IntSchema))]
         public void BuildsNullables(Type type, Type inner)
         {
             var schema = Builder.BuildSchema(type) as UnionSchema;

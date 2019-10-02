@@ -206,7 +206,7 @@ namespace Chr.Avro.Abstract
                 builder => new DecimalSchemaBuilderCase(),
                 builder => new DoubleSchemaBuilderCase(),
                 builder => new DurationSchemaBuilderCase(),
-                builder => new EnumSchemaBuilderCase(),
+                builder => new EnumSchemaBuilderCase(builder),
                 builder => new FloatSchemaBuilderCase(),
                 builder => new IntSchemaBuilderCase(),
                 builder => new LongSchemaBuilderCase(),
@@ -460,6 +460,28 @@ namespace Chr.Avro.Abstract
     public class EnumSchemaBuilderCase : SchemaBuilderCase
     {
         /// <summary>
+        /// A schema builder instance that will be used to resolve underlying integral types.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the schema builder is set to null.
+        /// </exception>
+        public ISchemaBuilder SchemaBuilder { get; }
+
+        /// <summary>
+        /// Creates a new enum schema builder case.
+        /// </summary>
+        /// <param name="schemaBuilder">
+        /// A schema builder instance that will be used to resolve underlying integral types.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the schema builder is null.
+        /// </exception>
+        public EnumSchemaBuilderCase(ISchemaBuilder schemaBuilder)
+        {
+            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder is null.");
+        }
+
+        /// <summary>
         /// Builds an enum schema.
         /// </summary>
         /// <param name="resolution">
@@ -483,7 +505,7 @@ namespace Chr.Avro.Abstract
 
             if (@enum.IsFlagEnum)
             {
-                return cache.GetOrAdd(@enum.Type, new LongSchema());
+                return cache.GetOrAdd(@enum.Type, type => SchemaBuilder.BuildSchema(@enum.UnderlyingType, cache));
             }
             else
             {
