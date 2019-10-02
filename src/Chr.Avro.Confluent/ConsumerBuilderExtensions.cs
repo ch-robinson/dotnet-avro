@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// A collection of <see cref="ConsumerBuilder{TKey, TValue}" /> convenience methods that
+    /// A collection of convenience methods for <see cref="ConsumerBuilder{TKey, TValue}" /> that
     /// configure Avro deserializers.
     /// </summary>
     public static class ConsumerBuilderExtensions
