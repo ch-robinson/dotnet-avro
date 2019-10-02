@@ -678,10 +678,30 @@ namespace Chr.Avro.Resolution
     {
         private ICollection<SymbolResolution> symbols;
 
+        private Type underlyingType;
+
         /// <summary>
         /// Whether the enum is a bit flag enum.
         /// </summary>
         public virtual bool IsFlagEnum { get; set; }
+
+        /// <summary>
+        /// The enum’s underlying integral type.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the type is set to null.
+        /// </exception>
+        public virtual Type UnderlyingType
+        {
+            get
+            {
+                return underlyingType ?? throw new InvalidOperationException();
+            }
+            set
+            {
+                underlyingType = value ?? throw new ArgumentNullException(nameof(value), "Resolved underlying type cannot be null.");
+            }
+        }
 
         /// <summary>
         /// The enum symbols.
@@ -699,10 +719,13 @@ namespace Chr.Avro.Resolution
         }
 
         /// <summary>
-        /// Creates a new enum type resolution. 
+        /// Creates a new enum type resolution.
         /// </summary>
         /// <param name="type">
         /// The enum type.
+        /// </param>
+        /// <param name="underlyingType">
+        /// The enum’s underlying integral type.
         /// </param>
         /// <param name="name">
         /// The enum type name.
@@ -723,10 +746,11 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentNullException">
         /// Thrown when the enum type or the name is null.
         /// </exception>
-        public EnumResolution(Type type, IdentifierResolution name, IdentifierResolution @namespace = null, bool isFlagEnum = false, ICollection<SymbolResolution> symbols = null, bool isNullable = false) : base(type, name, @namespace, isNullable)
+        public EnumResolution(Type type, Type underlyingType, IdentifierResolution name, IdentifierResolution @namespace = null, bool isFlagEnum = false, ICollection<SymbolResolution> symbols = null, bool isNullable = false) : base(type, name, @namespace, isNullable)
         {
             IsFlagEnum = isFlagEnum;
             Symbols = symbols ?? new SymbolResolution[0];
+            UnderlyingType = underlyingType;
         }
     }
 
@@ -753,7 +777,7 @@ namespace Chr.Avro.Resolution
         }
 
         /// <summary>
-        /// Creates a new record type resolution. 
+        /// Creates a new record type resolution.
         /// </summary>
         /// <param name="type">
         /// The record type.

@@ -42,7 +42,13 @@ namespace Chr.Avro.Tests
 
     internal enum LongEnum : long { }
 
+    [Flags]
+    internal enum LongFlagEnum : long { }
+
     internal enum UIntEnum : uint { }
+
+    [Flags]
+    internal enum UIntFlagEnum : uint { }
 
     [DataContract(Name = "annotated", Namespace = "chr.tests")]
     internal enum DataContractAnnotatedEnum

@@ -51,7 +51,7 @@ namespace Chr.Avro.Tests
                 }
             );
         }
-        
+
         [Fact]
         public void ResolvesClassesWithNonSerializedMemberAttributes()
         {
@@ -104,8 +104,12 @@ namespace Chr.Avro.Tests
         [Theory]
         [InlineData(typeof(LongEnum), false, true, 64)]
         [InlineData(typeof(LongEnum?), true, true, 64)]
+        [InlineData(typeof(LongFlagEnum), false, true, 64)]
+        [InlineData(typeof(LongFlagEnum?), true, true, 64)]
         [InlineData(typeof(UIntEnum), false, false, 32)]
         [InlineData(typeof(UIntEnum?), true, false, 32)]
+        [InlineData(typeof(UIntFlagEnum), false, false, 32)]
+        [InlineData(typeof(UIntFlagEnum?), true, false, 32)]
         public void ResolvesEnumsAsUnderlyingIntegralTypes(Type type, bool isNullable, bool isSigned, int size)
         {
             var resolver = new DataContractResolver(resolveUnderlyingEnumTypes: true);

@@ -263,9 +263,9 @@ namespace Chr.Avro.Tests
         }
 
         [Theory]
-        [InlineData(typeof(FlagEnum), false)]
-        [InlineData(typeof(FlagEnum?), true)]
-        public void ResolvesFlagEnums(Type type, bool isNullable)
+        [InlineData(typeof(FlagEnum), typeof(int), false)]
+        [InlineData(typeof(FlagEnum?), typeof(int), true)]
+        public void ResolvesFlagEnumsWithDefaultUnderlyingType(Type type, Type underlyingType, bool isNullable)
         {
             var resolution = Resolver.ResolveType(type) as EnumResolution;
 
@@ -273,6 +273,7 @@ namespace Chr.Avro.Tests
             Assert.True(resolution.IsFlagEnum);
             Assert.Equal(isNullable, resolution.IsNullable);
             Assert.Equal(type, resolution.Type);
+            Assert.Equal(underlyingType, resolution.UnderlyingType);
 
             Assert.False(resolution.Name.IsSetExplicitly);
             Assert.Equal(typeof(FlagEnum).Name, resolution.Name.Value);
@@ -313,6 +314,28 @@ namespace Chr.Avro.Tests
                     Assert.Equal(FlagEnum.Fourth, s.Value);
                 }
             );
+        }
+
+        [Theory]
+        [InlineData(typeof(LongFlagEnum), typeof(long), false)]
+        [InlineData(typeof(LongFlagEnum?), typeof(long), true)]
+        public void ResolvesFlagEnumsWithOtherUnderlyingTypes(Type type, Type underlyingType, bool isNullable)
+        {
+            var resolution = Resolver.ResolveType(type) as EnumResolution;
+
+            Assert.NotNull(resolution);
+            Assert.True(resolution.IsFlagEnum);
+            Assert.Equal(isNullable, resolution.IsNullable);
+            Assert.Equal(type, resolution.Type);
+            Assert.Equal(underlyingType, resolution.UnderlyingType);
+
+            Assert.False(resolution.Name.IsSetExplicitly);
+            Assert.Equal(typeof(LongFlagEnum).Name, resolution.Name.Value);
+
+            Assert.False(resolution.Namespace.IsSetExplicitly);
+            Assert.Equal(typeof(LongFlagEnum).Namespace, resolution.Namespace.Value);
+
+            Assert.Empty(resolution.Symbols);
         }
 
         [Theory]

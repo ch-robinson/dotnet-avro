@@ -373,7 +373,7 @@ namespace Chr.Avro.Resolution
                 .Select(f => new SymbolResolution(f.MemberInfo, f.Name, f.Value))
                 .ToList();
 
-            return new EnumResolution(type, name, @namespace, isFlagEnum, symbols);
+            return new EnumResolution(type, type.GetEnumUnderlyingType(), name, @namespace, isFlagEnum, symbols);
         }
     }
 
