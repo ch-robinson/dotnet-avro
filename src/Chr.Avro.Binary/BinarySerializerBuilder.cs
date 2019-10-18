@@ -1610,19 +1610,26 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                if (source == typeof(DateTime) || source == typeof(DateTimeOffset))
+                if (source == typeof(DateTime))
                 {
-                    if (source == typeof(DateTimeOffset))
-                    {
-                        result = Expression.PropertyOrField(result, nameof(DateTimeOffset.UtcDateTime));
-                    }
-
-                    var convertDateTime = typeof(DateTime)
+                    var convertDateTimeOffset = typeof(DateTime)
                         .GetMethod(nameof(DateTime.ToString), new[] { typeof(string), typeof(IFormatProvider) });
 
                     result = Expression.Call(
                         result,
-                        convertDateTime,
+                        convertDateTimeOffset,
+                        Expression.Constant("O"),
+                        Expression.Constant(CultureInfo.InvariantCulture)
+                    );
+                }
+                else if (source == typeof(DateTimeOffset))
+                {
+                    var convertDateTimeOffset = typeof(DateTimeOffset)
+                        .GetMethod(nameof(DateTimeOffset.ToString), new[] { typeof(string), typeof(IFormatProvider) });
+
+                    result = Expression.Call(
+                        result,
+                        convertDateTimeOffset,
                         Expression.Constant("O"),
                         Expression.Constant(CultureInfo.InvariantCulture)
                     );

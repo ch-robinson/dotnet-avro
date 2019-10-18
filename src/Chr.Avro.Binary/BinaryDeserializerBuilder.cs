@@ -1661,7 +1661,7 @@ namespace Chr.Avro.Serialization
 
             if (source != target)
             {
-                if (target == typeof(DateTime) || target == typeof(DateTime?) || target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?))
+                if (target == typeof(DateTime) || target == typeof(DateTime?))
                 {
                     var parseDateTime = typeof(DateTime)
                         .GetMethod(nameof(DateTime.Parse), new[]
@@ -1675,6 +1675,27 @@ namespace Chr.Avro.Serialization
                         Expression.Call(
                             null,
                             parseDateTime,
+                            result,
+                            Expression.Constant(CultureInfo.InvariantCulture),
+                            Expression.Constant(DateTimeStyles.RoundtripKind)
+                        ),
+                        target
+                    );
+                }
+                else if (target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?))
+                {
+                    var parseDateTimeOffset = typeof(DateTimeOffset)
+                        .GetMethod(nameof(DateTimeOffset.Parse), new[]
+                        {
+                            typeof(string),
+                            typeof(IFormatProvider),
+                            typeof(DateTimeStyles)
+                        });
+
+                    result = Expression.ConvertChecked(
+                        Expression.Call(
+                            null,
+                            parseDateTimeOffset,
                             result,
                             Expression.Constant(CultureInfo.InvariantCulture),
                             Expression.Constant(DateTimeStyles.RoundtripKind)

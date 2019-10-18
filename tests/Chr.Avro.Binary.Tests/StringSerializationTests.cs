@@ -50,7 +50,11 @@ namespace Chr.Avro.Serialization.Tests
             var deserializer = DeserializerBuilder.BuildDeserializer<DateTimeOffset>(schema);
             var serializer = SerializerBuilder.BuildSerializer<DateTimeOffset>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var decoded = deserializer.Deserialize(serializer.Serialize(value));
+
+            // comparing two DateTimeOffsets doesn’t necessarily ensure that they’re identical:
+            Assert.Equal(value.DateTime, decoded.DateTime);
+            Assert.Equal(value.Offset, decoded.Offset);
         }
 
         [Theory]
@@ -62,7 +66,11 @@ namespace Chr.Avro.Serialization.Tests
             var deserializer = DeserializerBuilder.BuildDeserializer<DateTimeOffset?>(schema);
             var serializer = SerializerBuilder.BuildSerializer<DateTimeOffset>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var decoded = deserializer.Deserialize(serializer.Serialize(value));
+
+            // comparing two DateTimeOffsets doesn’t necessarily ensure that they’re identical:
+            Assert.Equal(value.DateTime, decoded.Value.DateTime);
+            Assert.Equal(value.Offset, decoded.Value.Offset);
         }
 
         [Theory]
