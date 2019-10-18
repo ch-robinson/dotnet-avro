@@ -1612,12 +1612,12 @@ namespace Chr.Avro.Serialization
             {
                 if (source == typeof(DateTime))
                 {
-                    var convertDateTimeOffset = typeof(DateTime)
+                    var convertDateTime = typeof(DateTime)
                         .GetMethod(nameof(DateTime.ToString), new[] { typeof(string), typeof(IFormatProvider) });
 
                     result = Expression.Call(
                         result,
-                        convertDateTimeOffset,
+                        convertDateTime,
                         Expression.Constant("O"),
                         Expression.Constant(CultureInfo.InvariantCulture)
                     );
