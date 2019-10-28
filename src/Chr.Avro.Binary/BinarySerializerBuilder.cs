@@ -1869,21 +1869,32 @@ namespace Chr.Avro.Serialization
 
             Expression result = null;
 
-            // if there are non-null schemas, select the first matching one:
+            // if there are non-null schemas, select the first matching one for each possible type:
             if (candidates.Count > 0)
             {
+                var cases = new Dictionary<Type, Expression>();
                 var exceptions = new List<Exception>();
-                var underlying = Nullable.GetUnderlyingType(source) ?? source;
 
                 foreach (var candidate in candidates)
                 {
+                    var selected = SelectType(resolution, candidate);
+
+                    if (cases.ContainsKey(selected.Type))
+                    {
+                        continue;
+                    }
+
+                    var underlying = Nullable.GetUnderlyingType(selected.Type) ?? selected.Type;
+
+                    Expression body;
+
                     try
                     {
                         var build = typeof(IBinarySerializerBuilder)
                             .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
                             .MakeGenericMethod(underlying);
 
-                        result = Expression.Block(
+                        body = Expression.Block(
                             writeIndex(candidate),
                             Expression.Invoke(
                                 Expression.Constant(
@@ -1901,25 +1912,47 @@ namespace Chr.Avro.Serialization
                         continue;
                     }
 
-                    if (@null != null && !(source.IsValueType && Nullable.GetUnderlyingType(source) == null))
+                    if (@null != null && !(selected.Type.IsValueType && Nullable.GetUnderlyingType(selected.Type) == null))
                     {
-                        result = Expression.IfThenElse(
-                            Expression.Equal(value, Expression.Constant(null, source)),
+                        body = Expression.IfThenElse(
+                            Expression.Equal(value, Expression.Constant(null, selected.Type)),
                             writeIndex(@null),
-                            result
+                            body
                         );
                     }
 
-                    break;
+                    cases.Add(selected.Type, body);
                 }
 
-                if (result == null)
+                if (cases.Count == 0)
                 {
                     throw new UnsupportedTypeException(
                         source,
                         $"{source.Name} does not match any non-null members of the union [{string.Join(", ", schemas.Select(s => s.GetType().Name))}].",
                         new AggregateException(exceptions)
                     );
+                }
+
+                if (cases.Count == 1 && cases.First() is var first && first.Key == resolution.Type)
+                {
+                    result = first.Value;
+                }
+                else
+                {
+                    var exceptionConstructor = typeof(InvalidOperationException)
+                        .GetConstructor(new[] { typeof(string) });
+
+                    result = Expression.Throw(Expression.New(
+                        exceptionConstructor,
+                        Expression.Constant($"Unexpected type encountered serializing to {source.Name}.")));
+
+                    foreach (var @case in cases)
+                    {
+                        result = Expression.IfThenElse(
+                            Expression.TypeIs(value, @case.Key),
+                            @case.Value,
+                            result);
+                    }
                 }
             }
 
@@ -1933,6 +1966,25 @@ namespace Chr.Avro.Serialization
             var compiled = lambda.Compile();
 
             return cache.GetOrAdd((source, schema), compiled);
+        }
+
+        /// <summary>
+        /// Customizes type resolutions for the children of a union schema. Can be overriden by
+        /// custom cases to support polymorphic mapping.
+        /// </summary>
+        /// <param name="resolution">
+        /// The resolution for the type being mapped to the union schema.
+        /// </param>
+        /// <param name="schema">
+        /// A child of the union schema.
+        /// </param>
+        /// <returns>
+        /// The resolution to build the child serializer with. The type in the original resolution
+        /// must be assignable from the type in the returned resolution.
+        /// </returns>
+        protected virtual TypeResolution SelectType(TypeResolution resolution, Schema schema)
+        {
+            return resolution;
         }
     }
 }
