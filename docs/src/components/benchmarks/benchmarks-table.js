@@ -59,7 +59,7 @@ export default ({ suites }) => {
         .sort((a, b) => a.component.localeCompare(b.component)),
       suite
     }
-  }).sort((a, b) => a.suite.name.localeCompare(b.suite.name)), [suites])
+  }).sort((a, b) => a.suite.name.localeCompare(b.suite.name)), [libraries, suites])
 
   return (
     <table>
