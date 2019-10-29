@@ -16,6 +16,10 @@ const clrTypeOptions = [{
   required: false,
   summary: 'Whether reference types should be nullable.'
 }, {
+  name: 'temporal-behavior',
+  required: false,
+  summary: 'Whether timestamps should be represented with "string" schemas (ISO 8601) or "long" schemas (timestamp logical types). Options are iso8601, epochmilliseconds, and epochmicroseconds.'
+}, {
   abbreviation: 't',
   name: 'type',
   required: true,

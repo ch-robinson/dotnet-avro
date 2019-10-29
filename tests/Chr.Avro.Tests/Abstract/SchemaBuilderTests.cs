@@ -407,12 +407,37 @@ namespace Chr.Avro.Tests
         [Theory]
         [InlineData(typeof(DateTime))]
         [InlineData(typeof(DateTimeOffset))]
-        public void BuildsTimestamps(Type type)
+        public void BuildsTimestampsAsIso8601Strings(Type type)
         {
-            var schema = Builder.BuildSchema(type) as StringSchema;
+            var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.Iso8601));
+            var schema = builder.BuildSchema(type) as StringSchema;
 
             Assert.NotNull(schema);
             Assert.Null(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(DateTime))]
+        [InlineData(typeof(DateTimeOffset))]
+        public void BuildsTimestampsAsMicrosecondsFromEpoch(Type type)
+        {
+            var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.EpochMicroseconds));
+            var schema = builder.BuildSchema(type) as LongSchema;
+
+            Assert.NotNull(schema);
+            Assert.IsType<MicrosecondTimestampLogicalType>(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(DateTime))]
+        [InlineData(typeof(DateTimeOffset))]
+        public void BuildsTimestampsAsMillisecondsFromEpoch(Type type)
+        {
+            var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.EpochMilliseconds));
+            var schema = builder.BuildSchema(type) as LongSchema;
+
+            Assert.NotNull(schema);
+            Assert.IsType<MillisecondTimestampLogicalType>(schema.LogicalType);
         }
 
         [Theory]

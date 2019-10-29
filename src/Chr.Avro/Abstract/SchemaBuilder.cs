@@ -84,11 +84,16 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// Creates a new schema builder.
         /// </summary>
+        /// <param name="temporalBehavior">
+        /// Whether the builder should build string schemas (ISO 8601) or long schemas (timestamp
+        /// logical types) for timestamp resolutions.
+        /// </param>
         /// <param name="typeResolver">
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public SchemaBuilder(ITypeResolver typeResolver = null) : this(CreateCaseBuilders(), typeResolver) { }
+        public SchemaBuilder(TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601, ITypeResolver typeResolver = null)
+            : this(CreateCaseBuilders(temporalBehavior), typeResolver) { }
 
         /// <summary>
         /// Creates a new schema builder.
@@ -108,7 +113,7 @@ namespace Chr.Avro.Abstract
             Resolver = typeResolver ?? new DataContractResolver();
 
             // initialize cases last so that the schema builder is fully ready:
-            foreach (var builder in caseBuilders ?? CreateCaseBuilders())
+            foreach (var builder in caseBuilders)
             {
                 cases.Add(builder(this));
             }
@@ -196,7 +201,7 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// Creates a default list of case builders.
         /// </summary>
-        public static IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> CreateCaseBuilders()
+        public static IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> CreateCaseBuilders(TemporalBehavior temporalBehavior)
         {
             return new Func<ISchemaBuilder, ISchemaBuilderCase>[]
             {
@@ -213,7 +218,7 @@ namespace Chr.Avro.Abstract
                 builder => new MapSchemaBuilderCase(builder),
                 builder => new RecordSchemaBuilderCase(builder),
                 builder => new StringSchemaBuilderCase(),
-                builder => new TimestampSchemaBuilderCase(),
+                builder => new TimestampSchemaBuilderCase(temporalBehavior),
                 builder => new UriSchemaBuilderCase(),
                 builder => new UuidSchemaBuilderCase()
             };
@@ -768,6 +773,24 @@ namespace Chr.Avro.Abstract
     public class TimestampSchemaBuilderCase : SchemaBuilderCase
     {
         /// <summary>
+        /// Whether the case should build string schemas (ISO 8601) or long schemas (timestamp
+        /// logical types).
+        /// </summary>
+        public TemporalBehavior TemporalBehavior { get; }
+
+        /// <summary>
+        /// Creates a new timestamp schema builder case.
+        /// </summary>
+        /// <param name="temporalBehavior">
+        /// Whether the case should build string schemas (ISO 8601) or long schemas (timestamp
+        /// logical types).
+        /// </param>
+        public TimestampSchemaBuilderCase(TemporalBehavior temporalBehavior)
+        {
+            TemporalBehavior = temporalBehavior;
+        }
+
+        /// <summary>
         /// Builds a timestamp schema.
         /// </summary>
         /// <param name="resolution">
@@ -789,7 +812,33 @@ namespace Chr.Avro.Abstract
                 throw new UnsupportedTypeException(resolution.Type);
             }
 
-            return cache.GetOrAdd(timestamp.Type, new StringSchema());
+            Schema schema = null;
+
+            switch (TemporalBehavior)
+            {
+                case TemporalBehavior.Iso8601:
+                    schema = new StringSchema();
+                    break;
+
+                case TemporalBehavior.EpochMilliseconds:
+                    schema = new LongSchema
+                    {
+                        LogicalType = new MillisecondTimestampLogicalType()
+                    };
+                    break;
+
+                case TemporalBehavior.EpochMicroseconds:
+                    schema = new LongSchema
+                    {
+                        LogicalType = new MicrosecondTimestampLogicalType()
+                    };
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(TemporalBehavior));
+            }
+
+            return cache.GetOrAdd(timestamp.Type, schema);
         }
     }
 
