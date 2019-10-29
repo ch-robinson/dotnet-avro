@@ -768,7 +768,7 @@ namespace Chr.Avro.Abstract
     /// </summary>
     public class TimestampSchemaBuilderCase : SchemaBuilderCase
     {
-        private readonly TemporalBehavior _temporalBehavior;
+        public TemporalBehavior TemporalBehavior { get; }
 
         /// <summary>
         /// Creates a new TimestampSchemaBuilderCase
@@ -779,7 +779,7 @@ namespace Chr.Avro.Abstract
         /// </param>
         public TimestampSchemaBuilderCase(TemporalBehavior temporalBehavior)
         {
-            _temporalBehavior = temporalBehavior;
+            TemporalBehavior = temporalBehavior;
         }
 
         /// <summary>
@@ -806,7 +806,7 @@ namespace Chr.Avro.Abstract
 
             Schema schema = null;
 
-            switch (_temporalBehavior)
+            switch (TemporalBehavior)
             {
                 case TemporalBehavior.Iso8601:
                     schema = new StringSchema();
