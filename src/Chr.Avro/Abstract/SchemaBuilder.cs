@@ -88,12 +88,8 @@ namespace Chr.Avro.Abstract
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        /// <param name="temporalBehavior">
-        /// The behavior of how temporal types like DateTime are being serialized.
-        /// Options include Iso8601 (string based), EpochMicroseconds and EpochMilliseconds (long based)
-        /// </param>
-        public SchemaBuilder(ITypeResolver typeResolver = null, TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601)
-            : this(CreateCaseBuilders(temporalBehavior), typeResolver, temporalBehavior) { }
+        public SchemaBuilder(ITypeResolver typeResolver = null)
+            : this(CreateCaseBuilders(TemporalBehavior.Iso8601), typeResolver) { }
 
         /// <summary>
         /// Creates a new schema builder.
@@ -105,12 +101,7 @@ namespace Chr.Avro.Abstract
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        /// <param name="temporalBehavior">
-        /// The behavior of how temporal types like DateTime are being serialized.
-        /// Options include Iso8601 (string based), EpochMicroseconds and EpochMilliseconds (long based)
-        /// </param>
-        public SchemaBuilder(IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> caseBuilders, ITypeResolver typeResolver = null,
-            TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601)
+        public SchemaBuilder(IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> caseBuilders, ITypeResolver typeResolver = null)
         {
             var cases = new List<ISchemaBuilderCase>();
 
@@ -118,7 +109,7 @@ namespace Chr.Avro.Abstract
             Resolver = typeResolver ?? new DataContractResolver();
 
             // initialize cases last so that the schema builder is fully ready:
-            foreach (var builder in caseBuilders ?? CreateCaseBuilders(temporalBehavior))
+            foreach (var builder in caseBuilders)
             {
                 cases.Add(builder(this));
             }
