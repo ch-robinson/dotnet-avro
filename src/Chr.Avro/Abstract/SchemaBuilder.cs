@@ -768,6 +768,10 @@ namespace Chr.Avro.Abstract
     /// </summary>
     public class TimestampSchemaBuilderCase : SchemaBuilderCase
     {
+        /// <summary>
+        /// The behavior of how temporal types like DateTime are being serialized.
+        /// Options include Iso8601 (string based), EpochMicroseconds and EpochMilliseconds (long based)
+        /// </summary>
         public TemporalBehavior TemporalBehavior { get; }
 
         /// <summary>
