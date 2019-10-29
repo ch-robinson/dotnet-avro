@@ -769,17 +769,17 @@ namespace Chr.Avro.Abstract
     public class TimestampSchemaBuilderCase : SchemaBuilderCase
     {
         /// <summary>
-        /// The behavior of how temporal types like DateTime are being serialized.
-        /// Options include Iso8601 (string based), EpochMicroseconds and EpochMilliseconds (long based)
+        /// Whether the case should build string schemas (ISO 8601) or long schemas (timestamp
+        /// logical types).
         /// </summary>
         public TemporalBehavior TemporalBehavior { get; }
 
         /// <summary>
-        /// Creates a new TimestampSchemaBuilderCase
+        /// Creates a new timestamp schema builder case.
         /// </summary>
         /// <param name="temporalBehavior">
-        /// The behavior of how temporal types like DateTime are being serialized.
-        /// Options include Iso8601 (string based), EpochMicroseconds and EpochMilliseconds (long based)
+        /// Whether the case should build string schemas (ISO 8601) or long schemas (timestamp
+        /// logical types).
         /// </param>
         public TimestampSchemaBuilderCase(TemporalBehavior temporalBehavior)
         {
@@ -831,7 +831,7 @@ namespace Chr.Avro.Abstract
                     break;
 
                 default:
-                    throw new ArgumentException($"Unsupported TemporalBehavior");
+                    throw new ArgumentOutOfRangeException(nameof(TemporalBehavior));
             }
 
             return cache.GetOrAdd(timestamp.Type, schema);

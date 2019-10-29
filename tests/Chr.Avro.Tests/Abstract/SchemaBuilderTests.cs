@@ -1,5 +1,4 @@
 using Chr.Avro.Abstract;
-using Chr.Avro.Resolution;
 using System;
 using System.Collections.Generic;
 using Xunit;
@@ -408,18 +407,7 @@ namespace Chr.Avro.Tests
         [Theory]
         [InlineData(typeof(DateTime))]
         [InlineData(typeof(DateTimeOffset))]
-        public void BuildsTimestamps(Type type)
-        {
-            var schema = Builder.BuildSchema(type) as StringSchema;
-
-            Assert.NotNull(schema);
-            Assert.Null(schema.LogicalType);
-        }
-
-        [Theory]
-        [InlineData(typeof(DateTime))]
-        [InlineData(typeof(DateTimeOffset))]
-        public void BuildsTimestampsIso8601(Type type)
+        public void BuildsTimestampsAsIso8601Strings(Type type)
         {
             var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.Iso8601));
             var schema = builder.BuildSchema(type) as StringSchema;
@@ -431,7 +419,7 @@ namespace Chr.Avro.Tests
         [Theory]
         [InlineData(typeof(DateTime))]
         [InlineData(typeof(DateTimeOffset))]
-        public void BuildsTimestampsEpocMicroseconds(Type type)
+        public void BuildsTimestampsAsMicrosecondsFromEpoch(Type type)
         {
             var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.EpochMicroseconds));
             var schema = builder.BuildSchema(type) as LongSchema;
@@ -443,7 +431,7 @@ namespace Chr.Avro.Tests
         [Theory]
         [InlineData(typeof(DateTime))]
         [InlineData(typeof(DateTimeOffset))]
-        public void BuildsTimestampsEpocMilliseconds(Type type)
+        public void BuildsTimestampsAsMillisecondsFromEpoch(Type type)
         {
             var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.EpochMilliseconds));
             var schema = builder.BuildSchema(type) as LongSchema;
