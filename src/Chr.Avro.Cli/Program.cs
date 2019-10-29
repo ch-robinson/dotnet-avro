@@ -7,6 +7,7 @@ namespace Chr.Avro.Cli
     {
         private static readonly Parser _parser = new Parser(settings =>
         {
+            settings.CaseInsensitiveEnumValues = true;
             settings.HelpWriter = Console.Error;
         });
 

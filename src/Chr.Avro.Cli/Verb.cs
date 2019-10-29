@@ -48,6 +48,9 @@ namespace Chr.Avro.Cli
         [Option("nullable-references", HelpText = "Whether reference types should be represented with nullable union schemas.")]
         public bool NullableReferences { get; set; }
 
+        [Option("temporal-behavior", HelpText = "Whether timestamps should be represented with \"string\" schemas (ISO 8601) or \"long\" schemas (timestamp logical types). Options are iso8601, epochmilliseconds, and epochmicroseconds.")]
+        public TemporalBehavior TemporalBehavior { get; set; }
+
         [Option('t', "type", Required = true, HelpText = "The type to build a schema for.")]
         public string TypeName { get; set; }
 
@@ -82,7 +85,7 @@ namespace Chr.Avro.Cli
                 resolveUnderlyingEnumTypes: EnumsAsIntegers
             );
 
-            var builder = new SchemaBuilder(typeResolver: resolver);
+            var builder = new SchemaBuilder(TemporalBehavior, resolver);
 
             try
             {

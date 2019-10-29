@@ -84,12 +84,16 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// Creates a new schema builder.
         /// </summary>
+        /// <param name="temporalBehavior">
+        /// Whether the builder should build string schemas (ISO 8601) or long schemas (timestamp
+        /// logical types) for timestamp resolutions.
+        /// </param>
         /// <param name="typeResolver">
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public SchemaBuilder(ITypeResolver typeResolver = null)
-            : this(CreateCaseBuilders(TemporalBehavior.Iso8601), typeResolver) { }
+        public SchemaBuilder(TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601, ITypeResolver typeResolver = null)
+            : this(CreateCaseBuilders(temporalBehavior), typeResolver) { }
 
         /// <summary>
         /// Creates a new schema builder.
