@@ -1,4 +1,5 @@
 using Chr.Avro.Abstract;
+using Chr.Avro.Resolution;
 using System;
 using System.Collections.Generic;
 using Xunit;
@@ -413,6 +414,42 @@ namespace Chr.Avro.Tests
 
             Assert.NotNull(schema);
             Assert.Null(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(DateTime))]
+        [InlineData(typeof(DateTimeOffset))]
+        public void BuildsTimestampsIso8601(Type type)
+        {
+            var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.Iso8601));
+            var schema = builder.BuildSchema(type) as StringSchema;
+
+            Assert.NotNull(schema);
+            Assert.Null(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(DateTime))]
+        [InlineData(typeof(DateTimeOffset))]
+        public void BuildsTimestampsEpocMicroseconds(Type type)
+        {
+            var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.EpochMicroseconds));
+            var schema = builder.BuildSchema(type) as LongSchema;
+
+            Assert.NotNull(schema);
+            Assert.IsType<MicrosecondTimestampLogicalType>(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(DateTime))]
+        [InlineData(typeof(DateTimeOffset))]
+        public void BuildsTimestampsEpocMilliseconds(Type type)
+        {
+            var builder = new SchemaBuilder(SchemaBuilder.CreateCaseBuilders(TemporalBehavior.EpochMilliseconds));
+            var schema = builder.BuildSchema(type) as LongSchema;
+
+            Assert.NotNull(schema);
+            Assert.IsType<MillisecondTimestampLogicalType>(schema.LogicalType);
         }
 
         [Theory]
