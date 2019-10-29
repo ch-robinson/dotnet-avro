@@ -22,6 +22,12 @@ const Navigation = ({ cliVerbs, dotnetNamespaces, ...others }) =>
       </li>
 
       <li>
+        <Link to='/guides/extending'>
+          Extending and overriding built-in features
+        </Link>
+      </li>
+
+      <li>
         <Link to='/guides/cli-generate'>
           Generating C# code from Avro schemas
         </Link>

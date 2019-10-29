@@ -1,6 +1,8 @@
 using Chr.Avro.Abstract;
+using Chr.Avro.Resolution;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
@@ -109,6 +111,60 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserializer.Deserialize(encoding));
         }
 
+        [Fact]
+        public void SelectedTypes()
+        {
+            var schema = new RecordSchema(nameof(EventContainer), new[]
+            {
+                new RecordField("event", new UnionSchema(new[]
+                {
+                    new RecordSchema(nameof(OrderCreatedEvent), new[]
+                    {
+                        new RecordField("timestamp", new StringSchema()),
+                        new RecordField("total", new BytesSchema()
+                        {
+                            LogicalType = new DecimalLogicalType(5, 2)
+                        })
+                    }),
+                    new RecordSchema(nameof(OrderCancelledEvent), new[]
+                    {
+                        new RecordField("timestamp", new StringSchema())
+                    })
+                }))
+            });
+
+            var codec = new BinaryCodec();
+            var resolver = new ReflectionResolver();
+
+            var deserializer = new BinaryDeserializerBuilder(BinaryDeserializerBuilder.CreateBinaryDeserializerCaseBuilders(codec)
+                .Prepend(builder => new OrderDeserializerBuilderCase(resolver, codec, builder)))
+                .BuildDeserializer<EventContainer>(schema);
+
+            var serializer = new BinarySerializerBuilder(BinarySerializerBuilder.CreateBinarySerializerCaseBuilders(codec)
+                .Prepend(builder => new OrderSerializerBuilderCase(resolver, codec, builder)))
+                .BuildSerializer<EventContainer>(schema);
+
+            var creation = new EventContainer
+            {
+                Event = new OrderCreatedEvent
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Total = 40M
+                }
+            };
+
+            var cancellation = new EventContainer
+            {
+                Event = new OrderCancelledEvent
+                {
+                    Timestamp = DateTime.UtcNow
+                }
+            };
+
+            Assert.IsType<OrderCreatedEvent>(deserializer.Deserialize(serializer.Serialize(creation)).Event);
+            Assert.IsType<OrderCancelledEvent>(deserializer.Deserialize(serializer.Serialize(cancellation)).Event);
+        }
+
         [Theory]
         [MemberData(nameof(StringUnionEncodings))]
         public void StringUnionToStringType(string value, byte[] encoding)
@@ -146,5 +202,87 @@ namespace Chr.Avro.Serialization.Tests
         {
             new object[] { "test", new byte[] { 0x00, 0x08, 0x74, 0x65, 0x73, 0x74 } },
         };
+
+        public class EventContainer
+        {
+            public IEvent Event { get; set; }
+        }
+
+        public interface IEvent
+        {
+            DateTime Timestamp { get; }
+        }
+
+        public abstract class OrderEvent : IEvent
+        {
+            public DateTime Timestamp { get; set; }
+        }
+
+        public class OrderCreatedEvent : OrderEvent
+        {
+            public decimal Total { get; set; }
+        }
+
+        public class OrderCancelledEvent : OrderEvent { }
+
+        public class OrderDeserializerBuilderCase : UnionDeserializerBuilderCase
+        {
+            public ITypeResolver Resolver { get; }
+
+            public OrderDeserializerBuilderCase(ITypeResolver resolver, IBinaryCodec codec, IBinaryDeserializerBuilder builder) : base(codec, builder)
+            {
+                Resolver = resolver;
+            }
+
+            protected override TypeResolution SelectType(TypeResolution resolution, Schema schema)
+            {
+                if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
+                {
+                    throw new UnsupportedTypeException(resolution.Type);
+                }
+
+                switch ((schema as RecordSchema)?.Name)
+                {
+                    case nameof(OrderCreatedEvent):
+                        return Resolver.ResolveType<OrderCreatedEvent>();
+
+                    case nameof(OrderCancelledEvent):
+                        return Resolver.ResolveType<OrderCancelledEvent>();
+
+                    default:
+                        throw new UnsupportedSchemaException(schema);
+                }
+            }
+        }
+
+        public class OrderSerializerBuilderCase : UnionSerializerBuilderCase
+        {
+            public ITypeResolver Resolver { get; }
+
+            public OrderSerializerBuilderCase(ITypeResolver resolver, IBinaryCodec codec, IBinarySerializerBuilder builder) : base(codec, builder)
+            {
+                Resolver = resolver;
+            }
+
+            protected override TypeResolution SelectType(TypeResolution resolution, Schema schema)
+            {
+                if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
+                {
+                    throw new UnsupportedTypeException(resolution.Type);
+                }
+
+                switch ((schema as RecordSchema)?.Name)
+                {
+                    case nameof(OrderCreatedEvent):
+                        return Resolver.ResolveType<OrderCreatedEvent>();
+
+                    case nameof(OrderCancelledEvent):
+                        return Resolver.ResolveType<OrderCancelledEvent>();
+
+                    default:
+                        throw new UnsupportedSchemaException(schema);
+                }
+            }
+        }
     }
 }

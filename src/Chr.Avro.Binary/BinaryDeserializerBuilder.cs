@@ -1913,14 +1913,15 @@ namespace Chr.Avro.Serialization
             // create a mapping for each schema in the union:
             var cases = unionSchema.Schemas.Select((child, index) =>
             {
-                var underlying = Nullable.GetUnderlyingType(target);
+                var selected = SelectType(resolution, child);
+                var underlying = Nullable.GetUnderlyingType(selected.Type);
 
-                if (child is NullSchema && target.IsValueType && underlying == null)
+                if (child is NullSchema && selected.Type.IsValueType && underlying == null)
                 {
-                    throw new UnsupportedTypeException(target, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {target.FullName}.");
+                    throw new UnsupportedTypeException(target, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {selected.Type.FullName}.");
                 }
 
-                underlying = target;
+                underlying = selected.Type;
 
                 Expression @case = null;
 
@@ -1958,6 +1959,25 @@ namespace Chr.Avro.Serialization
             var compiled = lambda.Compile();
 
             return cache.GetOrAdd((target, schema), compiled);
+        }
+
+        /// <summary>
+        /// Customizes type resolutions for the children of a union schema. Can be overriden by
+        /// custom cases to support polymorphic mapping.
+        /// </summary>
+        /// <param name="resolution">
+        /// The resolution for the type being mapped to the union schema.
+        /// </param>
+        /// <param name="schema">
+        /// A child of the union schema.
+        /// </param>
+        /// <returns>
+        /// The resolution to build the child deserializer with. The type in the original resolution
+        /// must be assignable from the type in the returned resolution.
+        /// </returns>
+        protected virtual TypeResolution SelectType(TypeResolution resolution, Schema schema)
+        {
+            return resolution;
         }
     }
 }
