@@ -7,15 +7,15 @@ namespace Chr.Avro.Abstract
     public enum TemporalBehavior
     {
         /// <summary>
-        /// Serialize using a string 
+        /// Serialize using a string (https://en.wikipedia.org/wiki/ISO_8601)
         /// </summary>
         Iso8601,
         /// <summary>
-        /// Serialize using a long (epoch)
+        /// Serialize using a long (microseconds since 1970-01-01 00:00:00 UTC)
         /// </summary>
         EpochMicroseconds,
         /// <summary>
-        /// Serialize using a long (epoch)
+        /// Serialize using a long (milliseconds since 1970-01-01 00:00:00 UTC)
         /// </summary>
         EpochMilliseconds
     }
