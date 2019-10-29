@@ -824,7 +824,10 @@ namespace Chr.Avro.Abstract
                     {
                         LogicalType = new MicrosecondTimestampLogicalType()
                     };
-                    break;                
+                    break;
+
+                default:
+                    throw new ArgumentException($"Unsupported TemporalBehavior");
             }
 
             return cache.GetOrAdd(timestamp.Type, schema);
