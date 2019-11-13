@@ -237,6 +237,7 @@ namespace Chr.Avro.Serialization
                 builder => new EnumDeserializerBuilderCase(codec),
 
                 // records:
+                builder => new RecordConstructorDeserializerBuilderCase(builder),
                 builder => new RecordDeserializerBuilderCase(builder),
 
                 // unions:
@@ -1416,7 +1417,155 @@ namespace Chr.Avro.Serialization
 
     /// <summary>
     /// A deserializer builder case that matches <see cref="RecordSchema" /> and attempts to map
-    /// it to classes or structs.
+    /// it to classes or structs using a constructor to set values.
+    /// </summary>
+    public class RecordConstructorDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    {
+
+        /// <summary>
+        /// The deserializer builder to use to build field deserializers.
+        /// </summary>
+        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
+
+        /// <summary>
+        /// Creates a new record deserializer builder case.
+        /// </summary>
+        /// <param name="deserializerBuilder">
+        /// The deserializer builder to use to build field deserializers.
+        /// </param>
+        public RecordConstructorDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+        {
+            DeserializerBuilder = deserializerBuilder;
+        }
+
+        /// <summary>
+        /// Builds a record deserializer for a type-schema pair.
+        /// </summary>
+        /// <param name="resolution">
+        /// The resolution to obtain type information from.
+        /// </param>
+        /// <param name="schema">
+        /// The schema to map to the type.
+        /// </param>
+        /// <param name="cache">
+        /// A delegate cache.
+        /// </param>
+        /// <returns>
+        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// </returns>
+        /// <exception cref="UnsupportedSchemaException">
+        /// Thrown when the schema is not a <see cref="RecordSchema" />.
+        /// </exception>
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when the resolution is not a <see cref="RecordResolution" />.
+        /// </exception>
+        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        {
+            if (!(resolution is RecordResolution recordResolution))
+            {
+                throw new UnsupportedTypeException(resolution.Type, "A record constructor deserializer can only be built for a record resolution.");
+            }
+
+            if (!(schema is RecordSchema recordSchema))
+            {
+                throw new UnsupportedSchemaException(schema, "A record constructor deserializer can only be built for a record schema.");
+            }
+
+            if (recordResolution.Constructors.Count == 0)
+            {
+                throw new UnsupportedTypeException(resolution.Type, "A record constructor deserializer can only be built for a type with a public, instance constructor and using the reflection resolver.");
+            }
+
+            // attempt to find a constructor with arguments fully inclusive of all schema fields by name
+            // allowing for extra optional arguments
+            ConstructorResolution constructorInfo = null;
+
+            foreach (var constructor in recordResolution.Constructors)
+            {
+                var schemaFields = recordSchema.Fields.ToArray();
+                if (constructor.Parameters.Count >= recordSchema.Fields.Count)
+                {
+                    var matchFound = true;
+                    var parameters = constructor.Parameters.ToArray();
+                    for (int i = 0; i < constructor.Parameters.Count; i++)
+                    {
+                        if (!((recordSchema.Fields.Count <= i && parameters[i].Parameter.IsOptional) ||
+                            (recordSchema.Fields.Count > i && parameters[i].Name.IsMatch(schemaFields[i].Name))))
+                        {
+                            matchFound = false;
+                            break;
+                        }
+                    }
+
+                    if (matchFound)
+                    {
+                        constructorInfo = constructor;
+                        break;
+                    }
+                }
+            }
+
+            if (constructorInfo == null)
+            {
+                throw new UnsupportedTypeException(recordResolution.Type, "A record constructor deserializer can only be built for a type that has a constructor with all non-optional arguments matching the schema fields name and type.");
+            }
+
+            var target = resolution.Type;
+
+            var stream = Expression.Parameter(typeof(Stream));
+            var value = Expression.Parameter(target);
+
+            // declare an action that reads the record fields in order:
+            List<Expression> extractParameters = null;
+
+            extractParameters = recordSchema.Fields.Select(field =>
+            {
+                // there will be a match or we wouldn't have made it this far.
+                var match = constructorInfo.Parameters.Single(f => f.Name.IsMatch(field.Name));
+
+                Expression action = null;
+                try
+                {
+                    var build = typeof(IBinaryDeserializerBuilder)
+                        .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
+                        .MakeGenericMethod(match.Type);
+
+                    action = Expression.Constant(
+                        build.Invoke(DeserializerBuilder, new object[] { field.Type, cache }),
+                        typeof(Func<,>).MakeGenericType(typeof(Stream), match.Type)
+                    );
+                }
+                catch (TargetInvocationException indirect)
+                {
+                    ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
+                }
+
+                action = Expression.Invoke(action, stream);
+                //action = Expression.Constant(action, match.Type);
+
+                return action;
+            }).ToList();
+
+            // deserialize the record:
+            var result = Expression.Block(
+                new[] { value },
+                Expression.Assign(value, Expression.New(constructorInfo.Constructor, extractParameters)),
+                value
+            );
+
+            var lambda = Expression.Lambda(result, $"{recordSchema.Name} deserializer", new[] { stream });
+            var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
+
+            // now that infinite cycle won't happen, build the assign function:
+
+
+            return compiled;
+        }
+    }
+
+    /// <summary>
+    /// A deserializer builder case that matches <see cref="RecordSchema" /> and attempts to map
+    /// it to classes or structs using property/fields to set values.
     /// </summary>
     public class RecordDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {

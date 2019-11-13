@@ -67,6 +67,19 @@ namespace Chr.Avro.Tests
         public CircularClassA A { get; set; }
     }
 
+    public class ConstructorClass
+    {
+        private int fieldA;
+
+        private string fieldB;
+
+        public ConstructorClass(int fieldA, string fieldB = null)
+        {
+            this.fieldA = fieldA;
+            this.fieldB = fieldB;
+        }
+    }
+
     [DataContract(Name = "annotated", Namespace = "chr.tests")]
     public class DataContractAnnotatedClass
     {

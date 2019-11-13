@@ -118,6 +118,18 @@ namespace Chr.Avro.Resolution
         }
 
         /// <summary>
+        /// Gets constructors on a type.
+        /// </summary>
+        /// <returns>
+        /// The constructors and their parameters.
+        /// </returns>
+        protected virtual IEnumerable<(ConstructorInfo ConstructorInfo, IEnumerable<ParameterInfo> Parameters)> GetConstructors(Type type, BindingFlags visibility)
+        {
+            return type.GetConstructors(visibility)
+                .Select(c => (c, (c.GetParameters().ToList() as IEnumerable<ParameterInfo>)));
+        }
+
+        /// <summary>
         /// Gets fields an properties on a type.
         /// </summary>
         protected virtual IEnumerable<(MemberInfo MemberInfo, Type Type)> GetMembers(Type type, BindingFlags visibility)
@@ -679,7 +691,13 @@ namespace Chr.Avro.Resolution
                 .Select(m => new FieldResolution(m.MemberInfo, m.Type, m.Name))
                 .ToList();
 
-            return new RecordResolution(type, name, @namespace, fields);
+            var constructors = GetConstructors(type, MemberVisibility)
+                .Select(c => new ConstructorResolution(
+                    c.ConstructorInfo,
+                    c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
+                )).ToList();
+
+            return new RecordResolution(type, name, @namespace, fields, constructors);
         }
     }
 

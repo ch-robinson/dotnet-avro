@@ -759,7 +759,24 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class RecordResolution : NamedTypeResolution
     {
+        private ICollection<ConstructorResolution> constructors;
+
         private ICollection<FieldResolution> fields;
+
+        /// <summary>
+        /// The record constructors.
+        /// </summary>
+        public virtual ICollection<ConstructorResolution> Constructors
+        {
+            get
+            {
+                return constructors ?? throw new InvalidOperationException();
+            }
+            set
+            {
+                constructors = value ?? throw new ArgumentNullException(nameof(value), "Record constructor collection cannot be null.");
+            }
+        }
 
         /// <summary>
         /// The record fields.
@@ -792,15 +809,19 @@ namespace Chr.Avro.Resolution
         /// The record fields. If no fields collection is supplied, <see cref="Fields" /> will be
         /// empty.
         /// </param>
+        /// <param name="constructors">
+        /// The constructors for the underlying type.
+        /// </param>
         /// <param name="isNullable">
         /// Whether the record type can have a null value.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the record type or the name is null.
         /// </exception>
-        public RecordResolution(Type type, IdentifierResolution name, IdentifierResolution @namespace = null, ICollection<FieldResolution> fields = null, bool isNullable = false) : base(type, name, @namespace, isNullable)
+        public RecordResolution(Type type, IdentifierResolution name, IdentifierResolution @namespace = null, ICollection<FieldResolution> fields = null, ICollection<ConstructorResolution> constructors = null, bool isNullable = false) : base(type, name, @namespace, isNullable)
         {
             Fields = fields ?? new FieldResolution[0];
+            Constructors = constructors ?? new ConstructorResolution[0];
         }
     }
 }
