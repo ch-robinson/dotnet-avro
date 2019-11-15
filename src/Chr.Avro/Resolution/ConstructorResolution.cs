@@ -63,17 +63,25 @@ namespace Chr.Avro.Resolution
                 return false;
             }
 
-            var parameters = Parameters.ToArray();
-            for (int i = 0; i < Parameters.Count; i++)
+            var matchedFields = 0;
+            foreach (var parameter in Parameters)
             {
-                if (!((recordFields.Count <= i && parameters[i].Parameter.IsOptional) ||
-                    (recordFields.Count > i && parameters[i].Name.IsMatch(recordFields[i].Name))))
+                var match = recordFields.SingleOrDefault(field => parameter.Name.IsMatch(field.Name));
+
+                if (match != null)
                 {
-                    return false;
+                    matchedFields++;
+                }
+                else
+                {
+                    if (!parameter.Parameter.IsOptional)
+                    {
+                        return false;
+                    }
                 }
             }
 
-            return true;
+            return recordFields.Count == matchedFields;
         }
     }
 }
