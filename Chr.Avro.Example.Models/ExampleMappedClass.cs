@@ -12,16 +12,21 @@ namespace Chr.Avro.Example.Models
 
         public List<ExampleItem> Items { get; set; }
 
+        public ExampleClass Class { get; set; }
+
+        public int? OptionalArgument { get; set; }
+
         public ExampleMappedClass()
         {
 
         }
 
-        public ExampleMappedClass(DateTime expectedDate, int id, List<ExampleItem> items)
+        public ExampleMappedClass(ExampleClass @class, DateTime expectedDate, int id, List<ExampleItem> items)
         {
             DeliverByDate = expectedDate;
             Id = id;
             Items = items;
+            Class = @class;
         }
     }
 }

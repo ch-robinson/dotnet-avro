@@ -1,5 +1,7 @@
+using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Chr.Avro.Resolution
@@ -47,6 +49,31 @@ namespace Chr.Avro.Resolution
         {
             Constructor = constructor;
             Parameters = parameters;
+        }
+
+        /// <summary>
+        /// Whether the resolved constructor matches a recordSchemas fields.
+        /// </summary>
+        /// <param name="recordFields"></param>
+        /// <returns></returns>
+        public bool IsMatch(IList<RecordField> recordFields)
+        {
+            if (Parameters.Count < recordFields.Count)
+            {
+                return false;
+            }
+
+            var parameters = Parameters.ToArray();
+            for (int i = 0; i < Parameters.Count; i++)
+            {
+                if (!((recordFields.Count <= i && parameters[i].Parameter.IsOptional) ||
+                    (recordFields.Count > i && parameters[i].Name.IsMatch(recordFields[i].Name))))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

@@ -10,6 +10,8 @@ namespace Chr.Avro.Example.Models
 
         public int Id { get; set; }
 
+        public ExampleClass Class { get; set; }
+
         public List<ExampleItem> Items { get; set; }
     }
 

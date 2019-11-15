@@ -1475,37 +1475,13 @@ namespace Chr.Avro.Serialization
             {
                 throw new UnsupportedTypeException(resolution.Type, "A record constructor deserializer can only be built for a type with a public, instance constructor and using the reflection resolver.");
             }
+            
+            var schemaFields = recordSchema.Fields.ToList();
 
-            // attempt to find a constructor with arguments fully inclusive of all schema fields by name
-            // allowing for extra optional arguments
-            ConstructorResolution constructorInfo = null;
+            // attempt to find a constructor with arguments fully inclusive of all schema fields by name allowing for extra optional arguments
+            ConstructorResolution constructorResolution = recordResolution.Constructors.FirstOrDefault(constructor => constructor.IsMatch(schemaFields));
 
-            foreach (var constructor in recordResolution.Constructors)
-            {
-                var schemaFields = recordSchema.Fields.ToArray();
-                if (constructor.Parameters.Count >= recordSchema.Fields.Count)
-                {
-                    var matchFound = true;
-                    var parameters = constructor.Parameters.ToArray();
-                    for (int i = 0; i < constructor.Parameters.Count; i++)
-                    {
-                        if (!((recordSchema.Fields.Count <= i && parameters[i].Parameter.IsOptional) ||
-                            (recordSchema.Fields.Count > i && parameters[i].Name.IsMatch(schemaFields[i].Name))))
-                        {
-                            matchFound = false;
-                            break;
-                        }
-                    }
-
-                    if (matchFound)
-                    {
-                        constructorInfo = constructor;
-                        break;
-                    }
-                }
-            }
-
-            if (constructorInfo == null)
+            if (constructorResolution == null)
             {
                 throw new UnsupportedTypeException(recordResolution.Type, "A record constructor deserializer can only be built for a type that has a constructor with all non-optional arguments matching the schema fields name and type.");
             }
@@ -1516,12 +1492,27 @@ namespace Chr.Avro.Serialization
             var value = Expression.Parameter(target);
 
             // declare an action that reads the record fields in order:
-            List<Expression> extractParameters = null;
+            Delegate construct = null;
 
-            extractParameters = recordSchema.Fields.Select(field =>
+            // bind to this scope:
+            Expression result = Expression.Invoke(Expression.Constant((Func<Delegate>)(() => construct)));
+
+            result = Expression.ConvertChecked(result, typeof(Func<,>).MakeGenericType(typeof(Stream), target));
+
+            result = Expression.Block(
+                new[] { value },
+                Expression.Assign(value, Expression.Invoke(result, stream)),
+                value
+            );
+
+            var lambda = Expression.Lambda(result, $"{recordSchema.Name} deserializer", new[] { stream });
+            var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
+
+            // now that an infinite loop won't happen, build the construct function
+            var extractParameters = recordSchema.Fields.Select(field =>
             {
                 // there will be a match or we wouldn't have made it this far.
-                var match = constructorInfo.Parameters.Single(f => f.Name.IsMatch(field.Name));
+                var match = constructorResolution.Parameters.Single(f => f.Name.IsMatch(field.Name));
 
                 Expression action = null;
                 try
@@ -1547,17 +1538,14 @@ namespace Chr.Avro.Serialization
             }).ToList();
 
             // deserialize the record:
-            var result = Expression.Block(
+            result = Expression.Block(
                 new[] { value },
-                Expression.Assign(value, Expression.New(constructorInfo.Constructor, extractParameters)),
+                Expression.Assign(value, Expression.New(constructorResolution.Constructor, extractParameters)),
                 value
             );
 
-            var lambda = Expression.Lambda(result, $"{recordSchema.Name} deserializer", new[] { stream });
-            var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
-
-            // now that infinite cycle won't happen, build the assign function:
-
+            lambda = Expression.Lambda(result, $"{recordSchema.Name} constructor", new[] { stream });
+            construct = lambda.Compile();
 
             return compiled;
         }

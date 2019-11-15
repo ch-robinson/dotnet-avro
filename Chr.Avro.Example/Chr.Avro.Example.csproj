@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Chr.Avro.Example.Models\Chr.Avro.Example.Models.csproj" />
     <ProjectReference Include="..\src\Chr.Avro.Binary\Chr.Avro.Binary.csproj" />
+    <ProjectReference Include="..\src\Chr.Avro.Json\Chr.Avro.Json.csproj" />
     <ProjectReference Include="..\src\Chr.Avro\Chr.Avro.csproj" />
   </ItemGroup>
 
