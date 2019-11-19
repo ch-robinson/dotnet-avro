@@ -1508,7 +1508,8 @@ namespace Chr.Avro.Serialization
             var lambda = Expression.Lambda(result, $"{recordSchema.Name} deserializer", new[] { stream });
             var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
 
-            // now that an infinite loop won't happen, build the construct function
+            List<(ParameterResolution, ParameterExpression)> constructorArguments = new List<(ParameterResolution, ParameterExpression)>();
+            // now that an infinite loop won't happen, build the construct function            
             var extractParameters = recordSchema.Fields.Select(field =>
             {
                 // there will be a match or we wouldn't have made it this far.
@@ -1532,17 +1533,32 @@ namespace Chr.Avro.Serialization
                 }
 
                 action = Expression.Invoke(action, stream);
-                //action = Expression.Constant(action, match.Type);
+                var variable = Expression.Parameter(match.Type);
+                action = Expression.Assign(variable, action);
+                constructorArguments.Add((match, variable));
 
                 return action;
             }).ToList();
 
-            // deserialize the record:
-            result = Expression.Block(
-                new[] { value },
-                Expression.Assign(value, Expression.New(constructorResolution.Constructor, extractParameters)),
-                value
-            );
+            var parameters = constructorResolution.Parameters.ToArray();
+            Expression[] arguments = new Expression[parameters.Length];
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                var match = constructorArguments.FirstOrDefault(argument => argument.Item1.Name.IsMatch(parameters[i].Name));
+                if (match != default)
+                {
+
+                    arguments[i] = (match.Item2);
+                }
+                else
+                {
+                    arguments[i] = Expression.Constant(parameters[i].Parameter.DefaultValue, parameters[i].Type);
+                }
+            }
+
+            extractParameters.Add(Expression.New(constructorResolution.Constructor, arguments));
+
+            result = Expression.Block(constructorArguments.Select(arg => arg.Item2).ToArray(), extractParameters);
 
             lambda = Expression.Lambda(result, $"{recordSchema.Name} constructor", new[] { stream });
             construct = lambda.Compile();
