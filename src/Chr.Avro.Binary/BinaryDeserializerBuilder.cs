@@ -1491,7 +1491,7 @@ namespace Chr.Avro.Serialization
             var stream = Expression.Parameter(typeof(Stream));
             var value = Expression.Parameter(target);
 
-            // declare an action that reads the record fields in order:
+            // declare a delegate to construct the object
             Delegate construct = null;
 
             // bind to this scope:
@@ -1509,7 +1509,7 @@ namespace Chr.Avro.Serialization
             var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
 
             List<(ParameterResolution, ParameterExpression)> constructorArguments = new List<(ParameterResolution, ParameterExpression)>();
-            // now that an infinite loop won't happen, build the construct function            
+            // now that an infinite loop won't happen, build the expressions to extract the parameters from the serialized data            
             var extractParameters = recordSchema.Fields.Select(field =>
             {
                 // there will be a match or we wouldn't have made it this far.
@@ -1532,14 +1532,19 @@ namespace Chr.Avro.Serialization
                     ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
                 }
 
+                // invoke the deserialization
                 action = Expression.Invoke(action, stream);
+                // create a variable to hold the deserialized data
                 var variable = Expression.Parameter(match.Type);
+                // assign the deserialized data to the variable
                 action = Expression.Assign(variable, action);
+                // create a separate list so they can be passed to the constructor in the correct order
                 constructorArguments.Add((match, variable));
 
                 return action;
             }).ToList();
 
+            // reorder the parameters to match the order in the constructor and add any default parameters
             var parameters = constructorResolution.Parameters.ToArray();
             Expression[] arguments = new Expression[parameters.Length];
             for (int i = 0; i < parameters.Length; i++)
@@ -1556,6 +1561,7 @@ namespace Chr.Avro.Serialization
                 }
             }
 
+            // add constructing the object to the list of expressions
             extractParameters.Add(Expression.New(constructorResolution.Constructor, arguments));
 
             result = Expression.Block(constructorArguments.Select(arg => arg.Item2).ToArray(), extractParameters);
