@@ -1470,16 +1470,11 @@ namespace Chr.Avro.Serialization
             {
                 throw new UnsupportedSchemaException(schema, "A record constructor deserializer can only be built for a record schema.");
             }
-
-            if (recordResolution.Constructors.Count == 0)
-            {
-                throw new UnsupportedTypeException(resolution.Type, "A record constructor deserializer can only be built for a type with a public, instance constructor and using the reflection resolver.");
-            }
             
             var schemaFields = recordSchema.Fields.ToList();
 
             // attempt to find a constructor with arguments fully inclusive of all schema fields by name allowing for extra optional arguments
-            ConstructorResolution constructorResolution = recordResolution.Constructors.FirstOrDefault(constructor => constructor.IsMatch(schemaFields));
+            ConstructorResolution constructorResolution = recordResolution.Constructors.FirstOrDefault(constructor => IsMatch(constructor, schemaFields));
 
             if (constructorResolution == null)
             {
@@ -1508,7 +1503,7 @@ namespace Chr.Avro.Serialization
             var lambda = Expression.Lambda(result, $"{recordSchema.Name} deserializer", new[] { stream });
             var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
 
-            List<(ParameterResolution, ParameterExpression)> constructorArguments = new List<(ParameterResolution, ParameterExpression)>();
+            var constructorArguments = new List<(ParameterResolution, ParameterExpression)>();
             // now that an infinite loop won't happen, build the expressions to extract the parameters from the serialized data            
             var extractParameters = recordSchema.Fields.Select(field =>
             {
@@ -1569,6 +1564,44 @@ namespace Chr.Avro.Serialization
             construct = lambda.Compile();
 
             return compiled;
+        }
+               
+        /// <summary>
+        /// Whether the resolved Constructor matches a RrecordSchemas fields.
+        /// </summary>
+        /// <param name="constructor">
+        /// The ConstructorResolution to check for match.
+        /// </param>
+        /// <param name="recordFields">
+        /// The RecordSchemas fields to match the against constructors parameters. 
+        /// </param>
+        /// <returns></returns>
+        public bool IsMatch(ConstructorResolution constructor, IList<RecordField> recordFields)
+        {
+            if (constructor.Parameters.Count < recordFields.Count)
+            {
+                return false;
+            }
+
+            var matchedFields = 0;
+            foreach (var parameter in constructor.Parameters)
+            {
+                var match = recordFields.SingleOrDefault(field => parameter.Name.IsMatch(field.Name));
+
+                if (match != null)
+                {
+                    matchedFields++;
+                }
+                else
+                {
+                    if (!parameter.Parameter.IsOptional)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return recordFields.Count == matchedFields;
         }
     }
 

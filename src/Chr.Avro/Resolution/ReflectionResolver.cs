@@ -126,7 +126,7 @@ namespace Chr.Avro.Resolution
         protected virtual IEnumerable<(ConstructorInfo ConstructorInfo, IEnumerable<ParameterInfo> Parameters)> GetConstructors(Type type, BindingFlags visibility)
         {
             return type.GetConstructors(visibility)
-                .Select(c => (c, (c.GetParameters().ToList() as IEnumerable<ParameterInfo>)));
+                .Select(c => (c, c.GetParameters() as IEnumerable<ParameterInfo>));
         }
 
         /// <summary>

@@ -4,7 +4,7 @@ using System.Reflection;
 namespace Chr.Avro.Resolution
 {
     /// <summary>
-    /// Contains resolved information about a parameter
+    /// Contains resolved information about a constructor or method parameter.
     /// </summary>
     public class ParameterResolution
     {
@@ -81,7 +81,7 @@ namespace Chr.Avro.Resolution
         /// The parameter name.
         /// </param>
         /// <exception cref="ArgumentNullException">
-        /// Thrown when reflection info, type or name is null.
+        /// Thrown when reflection info, type, or name is null.
         /// </exception>
         public ParameterResolution(ParameterInfo parameter, Type type, IdentifierResolution name)
         {

@@ -7,7 +7,7 @@ using System.Reflection;
 namespace Chr.Avro.Resolution
 {
     /// <summary>
-    /// Contains resolved information about a constructor
+    /// Contains resolved information about a constructor.
     /// </summary>
     public class ConstructorResolution
     {
@@ -49,39 +49,6 @@ namespace Chr.Avro.Resolution
         {
             Constructor = constructor;
             Parameters = parameters;
-        }
-
-        /// <summary>
-        /// Whether the resolved constructor matches a recordSchemas fields.
-        /// </summary>
-        /// <param name="recordFields"></param>
-        /// <returns></returns>
-        public bool IsMatch(IList<RecordField> recordFields)
-        {
-            if (Parameters.Count < recordFields.Count)
-            {
-                return false;
-            }
-
-            var matchedFields = 0;
-            foreach (var parameter in Parameters)
-            {
-                var match = recordFields.SingleOrDefault(field => parameter.Name.IsMatch(field.Name));
-
-                if (match != null)
-                {
-                    matchedFields++;
-                }
-                else
-                {
-                    if (!parameter.Parameter.IsOptional)
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            return recordFields.Count == matchedFields;
         }
     }
 }
