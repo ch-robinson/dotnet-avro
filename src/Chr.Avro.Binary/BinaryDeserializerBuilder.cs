@@ -1567,16 +1567,16 @@ namespace Chr.Avro.Serialization
         }
                
         /// <summary>
-        /// Whether the resolved Constructor matches a RrecordSchemas fields.
+        /// Whether the resolved constructor matches a record schema's fields.
         /// </summary>
         /// <param name="constructor">
-        /// The ConstructorResolution to check for match.
+        /// The constructor resolution to check for a match.
         /// </param>
         /// <param name="recordFields">
-        /// The RecordSchemas fields to match the against constructors parameters. 
+        /// The record schema fields to match against the constructor parameters. 
         /// </param>
         /// <returns></returns>
-        public bool IsMatch(ConstructorResolution constructor, IList<RecordField> recordFields)
+        protected bool IsMatch(ConstructorResolution constructor, ICollection<RecordField> recordFields)
         {
             if (constructor.Parameters.Count < recordFields.Count)
             {
