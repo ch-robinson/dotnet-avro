@@ -39,5 +39,32 @@ namespace Chr.Avro.Tests
             Assert.True(resolution.IsNullable);
             Assert.Equal(type, resolution.Type);
         }
+
+        [Fact]
+        public void ResolvesConstructors()
+        {
+            var resolver = new ReflectionResolver();
+            var resolution = resolver.ResolveType<ConstructorClass>() as RecordResolution;
+
+            Assert.NotEmpty(resolution.Constructors);
+            Assert.Collection(resolution.Constructors,
+                c =>
+                {
+                    Assert.NotEmpty(c.Parameters);
+                    Assert.Collection(c.Parameters,
+                        p =>
+                        {
+                            Assert.Equal("fieldA", p.Name.Value);
+                            Assert.False(p.Parameter.IsOptional);
+                            Assert.Equal(typeof(int), p.Type);
+                        },
+                        p =>
+                        {
+                            Assert.Equal("fieldB", p.Name.Value);
+                            Assert.True(p.Parameter.IsOptional);
+                            Assert.Equal(typeof(string), p.Type);
+                        });
+                });
+        }
     }
 }

@@ -69,14 +69,14 @@ namespace Chr.Avro.Tests
 
     public class ConstructorClass
     {
-        private int fieldA;
+        public int FieldA { get; set; }
 
-        private string fieldB;
+        public string FieldB { get; set; }
 
         public ConstructorClass(int fieldA, string fieldB = null)
         {
-            this.fieldA = fieldA;
-            this.fieldB = fieldB;
+            FieldA = fieldA;
+            FieldB = fieldB;
         }
     }
 
