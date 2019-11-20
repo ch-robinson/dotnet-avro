@@ -1552,7 +1552,6 @@ namespace Chr.Avro.Serialization
                 var match = constructorArguments.FirstOrDefault(argument => argument.Item1.Name.IsMatch(parameters[i].Name));
                 if (match != default)
                 {
-
                     arguments[i] = (match.Item2);
                 }
                 else
