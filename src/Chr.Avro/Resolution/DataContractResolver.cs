@@ -72,7 +72,7 @@ namespace Chr.Avro.Resolution
                 resolver => new DictionaryResolverCase(),
 
                 // enumerables:
-                resolver => new EnumerableResolverCase(),
+                resolver => new EnumerableResolverCase(memberVisibility),
 
                 // built-ins:
                 resolver => new DateTimeResolverCase(),

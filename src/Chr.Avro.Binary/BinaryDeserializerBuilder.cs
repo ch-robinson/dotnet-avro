@@ -372,25 +372,62 @@ namespace Chr.Avro.Serialization
                 ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
             }
 
-            var convert = typeof(Enumerable).GetMethods()
-                .Where(m => m.Name == (target.IsArray
-                    ? nameof(Enumerable.ToArray)
-                    : nameof(Enumerable.ToList)
-                ))
-                .Single()
-                .MakeGenericMethod(item);
+            var constructor = FindEnumerableConstructor(arrayResolution, item);
 
-            if (!target.IsAssignableFrom(convert.ReturnType))
+            if (constructor != null)
             {
-                throw new UnsupportedTypeException(target, $"An array deserializer cannot be built for type {target.FullName}.");
+                var value = Expression.Parameter(target);
+                result = Expression.Block(
+                    new[] { value },
+                    Expression.Assign(value, Expression.New(constructor.Constructor, new[] { result })),
+                    value
+                );
             }
+            else
+            {
+                var convert = typeof(Enumerable).GetMethods()
+                    .Where(m => m.Name == (target.IsArray
+                        ? nameof(Enumerable.ToArray)
+                        : nameof(Enumerable.ToList)
+                    ))
+                    .Single()
+                    .MakeGenericMethod(item);
 
-            result = Expression.ConvertChecked(Expression.Call(null, convert, result), target);
+                if (!target.IsAssignableFrom(convert.ReturnType))
+                {
+                    throw new UnsupportedTypeException(target, $"An array deserializer cannot be built for type {target.FullName}.");
+                }
+
+                result = Expression.ConvertChecked(Expression.Call(null, convert, result), target);
+            }
 
             var lambda = Expression.Lambda(result, "array deserializer", new[] { stream });
             var compiled = lambda.Compile();
 
             return cache.GetOrAdd((target, schema), compiled);
+        }
+
+        private ConstructorResolution FindEnumerableConstructor(ArrayResolution arrayResolution, Type type)
+        {
+            ConstructorResolution match = null;
+            foreach (var constructor in arrayResolution.Constructors)
+            {
+                if (constructor.Parameters.Count == 1)
+                {
+                    var parameterType = constructor.Parameters.First().Type;
+                    if (parameterType.IsGenericType && parameterType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                    {
+                        var arguments = parameterType.GetGenericArguments();
+                        if (arguments.Count() == 1 && arguments[0] == type)
+                        {
+                            match = constructor;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return match;
         }
     }
 

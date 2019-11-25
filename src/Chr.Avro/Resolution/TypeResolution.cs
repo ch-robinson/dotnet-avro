@@ -62,7 +62,24 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class ArrayResolution : TypeResolution
     {
+        private ICollection<ConstructorResolution> constructors;
+
         private Type itemType;
+
+        /// <summary>
+        /// The record constructors.
+        /// </summary>
+        public virtual ICollection<ConstructorResolution> Constructors
+        {
+            get
+            {
+                return constructors ?? throw new InvalidOperationException();
+            }
+            set
+            {
+                constructors = value ?? throw new ArgumentNullException(nameof(value), "Record constructor collection cannot be null.");
+            }
+        }
 
         /// <summary>
         /// The array item type.
@@ -97,8 +114,9 @@ namespace Chr.Avro.Resolution
         /// <exception cref="ArgumentNullException">
         /// Thrown when the array type or the item type is null.
         /// </exception>
-        public ArrayResolution(Type type, Type itemType, bool isNullable = false) : base(type, isNullable)
+        public ArrayResolution(Type type, Type itemType, ICollection<ConstructorResolution> constructors, bool isNullable = false) : base(type, isNullable)
         {
+            Constructors = constructors ?? new ConstructorResolution[0];
             ItemType = itemType;
         }
     }

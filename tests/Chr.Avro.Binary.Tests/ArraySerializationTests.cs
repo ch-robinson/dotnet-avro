@@ -85,6 +85,17 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value.ToList())));
         }
 
+        [Theory]
+        [MemberData(nameof(ISetData))]
+        public void HashSetValues(HashSet<string> value)
+        {
+            var schema = new ArraySchema(new StringSchema());
+            var deserializer = DeserializerBuilder.BuildDeserializer<HashSet<string>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<HashSet<string>>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
         public static IEnumerable<object[]> ArrayData => new List<object[]>
         {
             new object[] { new int[] { } },

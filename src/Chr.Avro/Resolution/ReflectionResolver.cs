@@ -72,7 +72,7 @@ namespace Chr.Avro.Resolution
                 resolver => new DictionaryResolverCase(),
 
                 // enumerables:
-                resolver => new EnumerableResolverCase(),
+                resolver => new EnumerableResolverCase(memberVisibility),
 
                 // built-ins:
                 resolver => new DateTimeResolverCase(),
@@ -348,6 +348,13 @@ namespace Chr.Avro.Resolution
     public class EnumResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// The binding flags that will be used to select fields and properties.
+        /// </summary>
+        public BindingFlags MemberVisibility { get; }
+
+
+
+        /// <summary>
         /// Resolves enum type information.
         /// </summary>
         /// <param name="type">
@@ -446,6 +453,22 @@ namespace Chr.Avro.Resolution
     public class EnumerableResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// The binding flags that will be used to select fields and properties.
+        /// </summary>
+        public BindingFlags MemberVisibility { get; }
+
+        /// <summary>
+        /// Creates a new object resolver case.
+        /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags that will be used to select fields and properties.
+        /// </param>
+        public EnumerableResolverCase(BindingFlags memberVisibility)
+        {
+            MemberVisibility = memberVisibility;
+        }
+
+        /// <summary>
         /// Resolves enumerable type information.
         /// </summary>
         /// <param name="type">
@@ -466,7 +489,18 @@ namespace Chr.Avro.Resolution
                 throw new UnsupportedTypeException(type);
             }
 
-            return new ArrayResolution(type, itemType);
+            ICollection<ConstructorResolution> constructors = null;
+
+            if (!type.IsArray)
+            {
+                constructors = GetConstructors(type, MemberVisibility)
+                    .Select(c => new ConstructorResolution(
+                        c.ConstructorInfo,
+                        c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
+                    )).ToList();
+            }
+
+            return new ArrayResolution(type, itemType, constructors);
         }
     }
 
