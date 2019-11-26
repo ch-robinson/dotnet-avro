@@ -72,7 +72,7 @@ namespace Chr.Avro.Resolution
                 resolver => new DictionaryResolverCase(),
 
                 // enumerables:
-                resolver => new EnumerableResolverCase(),
+                resolver => new EnumerableResolverCase(memberVisibility),
 
                 // built-ins:
                 resolver => new DateTimeResolverCase(),
@@ -278,7 +278,13 @@ namespace Chr.Avro.Resolution
                 .Select(m => new FieldResolution(m.MemberInfo, m.Type, m.Name))
                 .ToList();
 
-            return new RecordResolution(type, name, @namespace, fields);
+            var constructors = GetConstructors(type, MemberVisibility)
+                .Select(c => new ConstructorResolution(
+                    c.ConstructorInfo,
+                    c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
+                )).ToList();
+
+            return new RecordResolution(type, name, @namespace, fields, constructors);
         }
     }
 }

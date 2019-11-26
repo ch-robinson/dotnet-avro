@@ -10,17 +10,14 @@ namespace Chr.Avro.Binary.Tests
     {
         protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
 
-        protected readonly ITypeResolver TypeResolver;
-
         protected readonly ISchemaBuilder SchemaBuilder;
 
         protected readonly IBinarySerializerBuilder SerializerBuilder;
 
         public RecordConstructorDeserializationTests()
         {
-            TypeResolver = new ReflectionResolver(resolveReferenceTypesAsNullable: true);
-            DeserializerBuilder = new BinaryDeserializerBuilder(resolver: TypeResolver);
-            SchemaBuilder = new SchemaBuilder(typeResolver: TypeResolver);
+            DeserializerBuilder = new BinaryDeserializerBuilder();
+            SchemaBuilder = new SchemaBuilder();
             SerializerBuilder = new BinarySerializerBuilder();
         }
 
