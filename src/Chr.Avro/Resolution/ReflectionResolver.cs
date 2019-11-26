@@ -348,13 +348,6 @@ namespace Chr.Avro.Resolution
     public class EnumResolverCase : ReflectionResolverCase
     {
         /// <summary>
-        /// The binding flags that will be used to select fields and properties.
-        /// </summary>
-        public BindingFlags MemberVisibility { get; }
-
-
-
-        /// <summary>
         /// Resolves enum type information.
         /// </summary>
         /// <param name="type">
@@ -453,7 +446,7 @@ namespace Chr.Avro.Resolution
     public class EnumerableResolverCase : ReflectionResolverCase
     {
         /// <summary>
-        /// The binding flags that will be used to select fields and properties.
+        /// The binding flags that will be used to select constructors.
         /// </summary>
         public BindingFlags MemberVisibility { get; }
 
@@ -461,7 +454,7 @@ namespace Chr.Avro.Resolution
         /// Creates a new object resolver case.
         /// </summary>
         /// <param name="memberVisibility">
-        /// The binding flags that will be used to select fields and properties.
+        /// The binding flags that will be used to select constructors.
         /// </param>
         public EnumerableResolverCase(BindingFlags memberVisibility)
         {
