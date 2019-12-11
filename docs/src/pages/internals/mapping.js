@@ -93,6 +93,12 @@ export default () =>
           <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
           <td><DotnetReference id='T:System.Array' /> isn’t generic, so Chr.Avro can’t determine its item type.</td>
         </tr>
+        <tr valign='top'>
+          <td><DotnetReference id='T:System.Collections.Generic.HashSet{System.Int32}' /></td>
+          <td align='center'><span role='img' aria-label="serializable">✅</span></td>
+          <td align='center'><span role='img' aria-label="deserializable">✅</span></td>
+          <td><DotnetReference id='T:System.Collections.Generic.HashSet{System.Int32}' /> has a constructor with an <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Int32}' /> parameter.</td>
+        </tr>
       </tbody>
     </table>
 
@@ -393,7 +399,7 @@ deserializer.Deserialize(bytes); // throws OverflowException`}</Highlight>
     </ul>
 
     <h2 id='records'>Records</h2>
-    <p>Chr.Avro maps .NET classes and structs to Avro’s <Highlight inline language='avro'>"record"</Highlight> type by matching each record field to a field or property on the type. The rules:</p>
+    <p>Chr.Avro maps .NET classes and structs to Avro’s <Highlight inline language='avro'>"record"</Highlight> type by attempting to find a constructor that has parameter names matching all record fields (extra optional parameters allowed). If no matching constructors are found then it will attempt to use the parameterless constructor and match each record field to a field or property on the type. The rules:</p>
     <ul>
       <li>
         <p>Type member names don’t need to match the schema exactly—all non-alphanumeric characters are stripped and comparisons are case-insensitive. So, for example, a record field named <code>addressLine1</code> will match type members named <code>AddressLine1</code>, <code>AddressLine_1</code>, <code>ADDRESS_LINE_1</code>, etc.</p>
