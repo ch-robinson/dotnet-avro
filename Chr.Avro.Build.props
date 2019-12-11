@@ -7,7 +7,7 @@
     <Company>C.H. Robinson</Company>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <IncludeSymbols>true</IncludeSymbols>
-    <PackageIconUrl>https://engineering.chrobinson.com/dotnet-avro/nuget-icon.png</PackageIconUrl>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
     <SignAssembly>true</SignAssembly>
@@ -16,6 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)\docs\static\nuget-icon.png" Pack="true" PackagePath="icon.png" />
     <None Include="$(MSBuildThisFileDirectory)\LICENSE.md" Pack="true" PackagePath="LICENSE.md" />
   </ItemGroup>
 
