@@ -1,4 +1,4 @@
-#tool nuget:?package=mdoc&version=5.7.4.9
+#tool nuget:?package=mdoc&version=5.7.4.10
 
 var ROOT = ".";
 
@@ -13,7 +13,33 @@ var TESTS_PATH = $"{ROOT}/tests";
 var configuration = Argument<string>("configuration", "Release");
 var target = Argument("target", "Default");
 
-Task("Benchmarks")
+Task("Analyze")
+    .IsDependentOn("Build")
+    .Does(() =>
+    {
+        var mdoc = Context.Tools.Resolve("mdoc.exe");
+
+        // whitelist for now:
+        var names = new[]
+        {
+            "Chr.Avro",
+            "Chr.Avro.Binary",
+            "Chr.Avro.Confluent",
+            "Chr.Avro.Json"
+        };
+
+        var arguments = new List<string>()
+            .Concat(names.Select(n => $"-i \"{SRC_PATH}/{n}/bin/{configuration}/netstandard2.0/{n}.xml\""))
+            .Concat(names.Select(n => $"-L \"{SRC_PATH}/{n}/bin/{configuration}/netstandard2.0\""))
+            .Concat(names.Select(n => $"\"{SRC_PATH}/{n}/bin/{configuration}/netstandard2.0/{n}.dll\""));
+
+        StartProcess(mdoc, new ProcessSettings
+        {
+            Arguments = $"update --debug --delete -o \"{MDOC_PATH}\" {string.Join(" ", arguments)}"
+        });
+    });
+
+Task("Benchmark")
     .Does(() =>
     {
         Information("Running .NET benchmarks.");
@@ -58,32 +84,6 @@ Task("Clean")
 Task("Default")
     .IsDependentOn("Build")
     .IsDependentOn("Test");
-
-Task("Docs")
-    .IsDependentOn("Build")
-    .Does(() =>
-    {
-        var mdoc = Context.Tools.Resolve("mdoc.exe");
-
-        // whitelist for now:
-        var names = new[]
-        {
-            "Chr.Avro",
-            "Chr.Avro.Binary",
-            "Chr.Avro.Confluent",
-            "Chr.Avro.Json"
-        };
-
-        var arguments = new List<string>()
-            .Concat(names.Select(n => $"-i {SRC_PATH}/{n}/bin/{configuration}/netstandard2.0/{n}.xml"))
-            .Concat(names.Select(n => $"-L {SRC_PATH}/{n}/bin/{configuration}/netstandard2.0"))
-            .Concat(names.Select(n => $"{SRC_PATH}/{n}/bin/{configuration}/netstandard2.0/{n}.dll"));
-
-        StartProcess(mdoc, new ProcessSettings
-        {
-            Arguments = $"update --debug --delete -o '{MDOC_PATH}' {string.Join(" ", arguments)}"
-        });
-    });
 
 Task("Pack")
     .IsDependentOn("Clean")
