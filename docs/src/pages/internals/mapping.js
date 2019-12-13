@@ -19,13 +19,16 @@ export default () =>
     <p>The <DotnetReference id='T:Chr.Avro.Serialization.BinarySerializerBuilder'>serializer builder</DotnetReference> and <DotnetReference id='T:Chr.Avro.Serialization.BinaryDeserializerBuilder'>deserializer builder</DotnetReference> generally throw <DotnetReference id='T:System.AggregateException' /> when a type can’t be mapped to a schema. Other exceptions, usually <DotnetReference id='T:System.OverflowException' /> and <DotnetReference id='T:System.FormatException' />, are thrown when errors occur during serialization or deserialization.</p>
 
     <h2 id='arrays'>Arrays</h2>
-    <p>Avro specifies an <Highlight inline language='avro'>"array"</Highlight> type for variable-length lists of items. Chr.Avro can map a .NET type to <Highlight inline language='avro'>"array"</Highlight> if either of the following is true:</p>
+    <p>Avro specifies an <Highlight inline language='avro'>"array"</Highlight> type for variable-length lists of items. Chr.Avro can map a .NET type to <Highlight inline language='avro'>"array"</Highlight> if any of the following is true:</p>
     <ol>
       <li>
         <p>The type is a one-dimensional or jagged array. Multi-dimensional arrays are currently not supported because they can’t be deserialized reliably.</p>
       </li>
       <li>
         <p>The type is assignable from <DotnetReference id='T:System.Collections.Generic.List`1' />. Other <DotnetReference id='T:System.Collections.Generic.IEnumerable`1' />s can also be serialized to <Highlight inline language='avro'>"array"</Highlight>, but they can’t be deserialized.</p>
+      </li>
+      <li>
+        <p>The type has a constructor with an <DotnetReference id='T:System.Collections.Generic.IEnumerable`1' /> parameter.</p>
       </li>
     </ol>
     <p>Some examples:</p>
@@ -92,6 +95,12 @@ export default () =>
           <td align='center'><span role="img" aria-label="not serializable">🚫</span></td>
           <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
           <td><DotnetReference id='T:System.Array' /> isn’t generic, so Chr.Avro can’t determine its item type.</td>
+        </tr>
+        <tr valign='top'>
+          <td><DotnetReference id='T:System.Collections.Generic.HashSet{System.Int32}' /></td>
+          <td align='center'><span role='img' aria-label="serializable">✅</span></td>
+          <td align='center'><span role='img' aria-label="deserializable">✅</span></td>
+          <td><DotnetReference id='T:System.Collections.Generic.HashSet{System.Int32}' /> has a constructor with an <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Int32}' /> parameter.</td>
         </tr>
       </tbody>
     </table>
@@ -393,9 +402,21 @@ deserializer.Deserialize(bytes); // throws OverflowException`}</Highlight>
     </ul>
 
     <h2 id='records'>Records</h2>
-    <p>Chr.Avro maps .NET classes and structs to Avro’s <Highlight inline language='avro'>"record"</Highlight> type by matching each record field to a field or property on the type. The rules:</p>
+    <p>Chr.Avro maps .NET classes and structs to Avro’s <Highlight inline language='avro'>"record"</Highlight> type by attempting to find a matching constructor. The rules:</p>
     <ul>
       <li>
+        <p>Parameter names don't need to match the schema exactly—all non-alphanumeric characters are stripped and comparisons are case-insensitive. So, for example, a record field named <code>addressLine1</code> will match parameters named <code>AddressLine1</code>, <code>AddressLine_1</code>, <code>ADDRESS_LINE_1</code>, etc.</p>
+      </li>
+      <li>
+        <p>Parameters must have exactly 1 match for each record field.</p>
+      </li>
+      <li>
+        <p>There may be additional optional parameters.</p>
+      </li>
+    </ul>
+    <p>If no matching constructors are found then it will attempt to match each record field to a field or property on the type. The rules:</p>
+    <ul>
+    <li>
         <p>Type member names don’t need to match the schema exactly—all non-alphanumeric characters are stripped and comparisons are case-insensitive. So, for example, a record field named <code>addressLine1</code> will match type members named <code>AddressLine1</code>, <code>AddressLine_1</code>, <code>ADDRESS_LINE_1</code>, etc.</p>
       </li>
       <li>
