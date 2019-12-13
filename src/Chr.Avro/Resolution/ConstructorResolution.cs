@@ -1,7 +1,5 @@
-using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 
 namespace Chr.Avro.Resolution
@@ -11,14 +9,11 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class ConstructorResolution
     {
-        private ConstructorInfo constructor;
+        private ConstructorInfo constructor = null!;
 
         /// <summary>
         /// The resolved constructor reflection info.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the constructor info is set to null.
-        /// </exception>
         public virtual ConstructorInfo Constructor
         {
             get
@@ -45,10 +40,10 @@ namespace Chr.Avro.Resolution
         /// <param name="parameters">
         /// The constructors parameters.
         /// </param>
-        public ConstructorResolution(ConstructorInfo constructor, ICollection<ParameterResolution> parameters = null)
+        public ConstructorResolution(ConstructorInfo constructor, ICollection<ParameterResolution>? parameters = null)
         {
             Constructor = constructor;
-            Parameters = parameters;
+            Parameters = parameters ?? new List<ParameterResolution>();
         }
     }
 }

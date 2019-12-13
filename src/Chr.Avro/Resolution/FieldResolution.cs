@@ -8,18 +8,15 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class FieldResolution
     {
-        private MemberInfo member;
+        private MemberInfo member = null!;
 
-        private IdentifierResolution name;
+        private IdentifierResolution name = null!;
 
-        private Type type;
+        private Type type = null!;
 
         /// <summary>
         /// The resolved member reflection info.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the reflection info is set to null.
-        /// </exception>
         public virtual MemberInfo Member
         {
             get
@@ -35,9 +32,6 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The field or property name.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the name is set to null.
-        /// </exception>
         public virtual IdentifierResolution Name
         {
             get
@@ -49,13 +43,10 @@ namespace Chr.Avro.Resolution
                 name = value ?? throw new ArgumentNullException(nameof(value), "Field name cannot be null.");
             }
         }
-        
+
         /// <summary>
         /// The field or property type.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the type is set to null.
-        /// </exception>
         public virtual Type Type
         {
             get
@@ -80,9 +71,6 @@ namespace Chr.Avro.Resolution
         /// <param name="name">
         /// The field or property name.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when reflection info, type, or name is null.
-        /// </exception>
         public FieldResolution(MemberInfo member, Type type, IdentifierResolution name)
         {
             Member = member;

@@ -6,7 +6,7 @@ namespace Chr.Avro.Infrastructure
 {
     internal static class ReflectionExtensions
     {
-        public static Type GetEnumerableType(this Type type)
+        public static Type? GetEnumerableType(this Type type)
         {
             return new[] { type }
                 .Concat(type.GetInterfaces())
