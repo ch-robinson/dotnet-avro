@@ -80,7 +80,7 @@ namespace Chr.Avro.Codegen
 
                         if (!string.IsNullOrEmpty(field.Documentation))
                         {
-                            child = AddSummaryComment(child, field.Documentation);
+                            child = AddSummaryComment(child, field.Documentation!);
                         }
 
                         return child;
@@ -91,7 +91,7 @@ namespace Chr.Avro.Codegen
 
             if (!string.IsNullOrEmpty(schema.Documentation))
             {
-                declaration = AddSummaryComment(declaration, schema.Documentation);
+                declaration = AddSummaryComment(declaration, schema.Documentation!);
             }
 
             return declaration;
@@ -117,7 +117,7 @@ namespace Chr.Avro.Codegen
 
             if (!string.IsNullOrEmpty(schema.Documentation))
             {
-                declaration = AddSummaryComment(declaration, schema.Documentation);
+                declaration = AddSummaryComment(declaration, schema.Documentation!);
             }
 
             return declaration;
@@ -169,7 +169,7 @@ namespace Chr.Avro.Codegen
                                 return null;
                         }
                     })
-                    .Where(candidate => candidate != null)
+                    .OfType<MemberDeclarationSyntax>()
                     .ToArray();
 
                 if (!string.IsNullOrEmpty(group.Key))
@@ -314,7 +314,7 @@ namespace Chr.Avro.Codegen
                     break;
 
                 case NullSchema n:
-                    return null;
+                    break;
 
                 case RecordSchema r:
                     type = SyntaxFactory.ParseTypeName($"global::{r.FullName}");
@@ -367,7 +367,7 @@ namespace Chr.Avro.Codegen
             return node.WithLeadingTrivia(trivia);
         }
 
-        private static IEnumerable<NamedSchema> GetCandidateSchemas(Schema schema, ISet<Schema> seen = null)
+        private static IEnumerable<NamedSchema> GetCandidateSchemas(Schema schema, ISet<Schema>? seen = null)
         {
             seen = seen ?? new HashSet<Schema>();
 

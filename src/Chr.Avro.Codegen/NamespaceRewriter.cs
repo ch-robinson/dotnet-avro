@@ -11,9 +11,9 @@ namespace Chr.Avro.Codegen
     {
         private readonly Stack<string> _breadcrumb;
 
-        private ISet<string> externals;
+        private ISet<string>? externals;
 
-        private ISet<string> internals;
+        private ISet<string>? internals;
 
         private NamespaceRewriter()
         {
@@ -35,10 +35,9 @@ namespace Chr.Avro.Codegen
                 .Select(n => StripGlobalAlias(n.Left).ToString())
                 .Where(n => !internals.Contains(n)));
 
-            var result = base.VisitCompilationUnit(node) as CompilationUnitSyntax;
-
-            result = result.WithUsings(new SyntaxList<UsingDirectiveSyntax>(externals
-                .Select(n => SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(n)))));
+            var result = (base.VisitCompilationUnit(node) as CompilationUnitSyntax)!
+                .WithUsings(new SyntaxList<UsingDirectiveSyntax>(externals
+                    .Select(n => SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(n)))));
 
             externals = null;
             internals = null;
@@ -49,7 +48,7 @@ namespace Chr.Avro.Codegen
         public override SyntaxNode VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
         {
             _breadcrumb.Push(node.Name.ToString());
-            var result = base.VisitNamespaceDeclaration(node);
+            var result = base.VisitNamespaceDeclaration(node)!;
             _breadcrumb.Pop();
 
             return result;
@@ -57,7 +56,7 @@ namespace Chr.Avro.Codegen
 
         public override SyntaxNode VisitPropertyDeclaration(PropertyDeclarationSyntax node)
         {
-            var result = base.VisitPropertyDeclaration(node) as PropertyDeclarationSyntax;
+            var result = (base.VisitPropertyDeclaration(node) as PropertyDeclarationSyntax)!;
 
             if (result.Type is NameSyntax name)
             {
@@ -69,7 +68,7 @@ namespace Chr.Avro.Codegen
 
         public override SyntaxNode VisitTypeArgumentList(TypeArgumentListSyntax node)
         {
-            var result = base.VisitTypeArgumentList(node) as TypeArgumentListSyntax;
+            var result = (base.VisitTypeArgumentList(node) as TypeArgumentListSyntax)!;
 
             // VisitQualifiedName doesn’t hit these
             var children = node.ChildNodes().OfType<NameSyntax>();
@@ -123,7 +122,7 @@ namespace Chr.Avro.Codegen
 
         internal static CompilationUnitSyntax Rewrite(CompilationUnitSyntax unit)
         {
-            return new NamespaceRewriter().Visit(unit) as CompilationUnitSyntax;
+            return (new NamespaceRewriter().Visit(unit) as CompilationUnitSyntax)!;
         }
 
         private static NameSyntax StripGlobalAlias(NameSyntax name)
