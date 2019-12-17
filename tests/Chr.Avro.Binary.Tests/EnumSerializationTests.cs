@@ -34,10 +34,10 @@ namespace Chr.Avro.Serialization.Tests
         public void MissingValues()
         {
             var schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES", "EAGLES" });
-            Assert.Throws<AggregateException>(() => DeserializerBuilder.BuildDeserializer<Suit>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => DeserializerBuilder.BuildDeserializer<Suit>(schema));
 
             schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS" });
-            Assert.Throws<AggregateException>(() => SerializerBuilder.BuildSerializer<Suit>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => SerializerBuilder.BuildSerializer<Suit>(schema));
         }
 
         [Theory]

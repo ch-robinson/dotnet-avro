@@ -55,15 +55,6 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
         }
 
-        [Fact]
-        public void InvalidGuidLength()
-        {
-            var schema = new FixedSchema("test", 8);
-
-            Assert.Throws<AggregateException>(() => DeserializerBuilder.BuildDeserializer<Guid>(schema));
-            Assert.Throws<AggregateException>(() => SerializerBuilder.BuildSerializer<Guid>(schema));
-        }
-
         public static IEnumerable<object[]> GuidData => new List<object[]>
         {
             new object[] { Guid.Empty },
