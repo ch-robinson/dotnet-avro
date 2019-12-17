@@ -99,23 +99,26 @@ namespace Chr.Avro.Confluent
         public AsyncSchemaRegistrySerializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
-            Abstract.ISchemaBuilder schemaBuilder = null,
-            IJsonSchemaReader schemaReader = null,
-            IJsonSchemaWriter schemaWriter = null,
-            IBinarySerializerBuilder serializerBuilder = null,
-            Func<SerializationContext, string> subjectNameBuilder = null
-        ) : this(
-            registerAutomatically,
-            schemaBuilder,
-            schemaReader,
-            schemaWriter,
-            serializerBuilder,
-            subjectNameBuilder
+            Abstract.ISchemaBuilder? schemaBuilder = null,
+            IJsonSchemaReader? schemaReader = null,
+            IJsonSchemaWriter? schemaWriter = null,
+            IBinarySerializerBuilder? serializerBuilder = null,
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) {
             if (registryConfiguration == null)
             {
                 throw new ArgumentNullException(nameof(registryConfiguration));
             }
+
+            RegisterAutomatically = registerAutomatically;
+            SchemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
+            SchemaReader = schemaReader ?? new JsonSchemaReader();
+            SchemaWriter = schemaWriter ?? new JsonSchemaWriter();
+            SerializerBuilder = serializerBuilder ?? new BinarySerializerBuilder();
+            SubjectNameBuilder = subjectNameBuilder ??
+                (c => $"{c.Topic}-{(c.Component == MessageComponentType.Key ? "key" : "value")}");
+
+            _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
 
             _register = async (subject, json) =>
             {
@@ -170,37 +173,16 @@ namespace Chr.Avro.Confluent
         public AsyncSchemaRegistrySerializer(
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
-            Abstract.ISchemaBuilder schemaBuilder = null,
-            IJsonSchemaReader schemaReader = null,
-            IJsonSchemaWriter schemaWriter = null,
-            IBinarySerializerBuilder serializerBuilder = null,
-            Func<SerializationContext, string> subjectNameBuilder = null
-        ) : this(
-            registerAutomatically,
-            schemaBuilder,
-            schemaReader,
-            schemaWriter,
-            serializerBuilder,
-            subjectNameBuilder
+            Abstract.ISchemaBuilder? schemaBuilder = null,
+            IJsonSchemaReader? schemaReader = null,
+            IJsonSchemaWriter? schemaWriter = null,
+            IBinarySerializerBuilder? serializerBuilder = null,
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) {
             if (registryClient == null)
             {
                 throw new ArgumentNullException(nameof(registryClient));
             }
-
-            _register = (subject, json) => registryClient.RegisterSchemaAsync(subject, json);
-            _resolve = subject => registryClient.GetLatestSchemaAsync(subject);
-        }
-
-        private AsyncSchemaRegistrySerializer(
-            bool registerAutomatically = false,
-            Abstract.ISchemaBuilder schemaBuilder = null,
-            IJsonSchemaReader schemaReader = null,
-            IJsonSchemaWriter schemaWriter = null,
-            IBinarySerializerBuilder serializerBuilder = null,
-            Func<SerializationContext, string> subjectNameBuilder = null
-        ) {
-            _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
 
             RegisterAutomatically = registerAutomatically;
             SchemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
@@ -209,6 +191,10 @@ namespace Chr.Avro.Confluent
             SerializerBuilder = serializerBuilder ?? new BinarySerializerBuilder();
             SubjectNameBuilder = subjectNameBuilder ??
                 (c => $"{c.Topic}-{(c.Component == MessageComponentType.Key ? "key" : "value")}");
+
+            _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
+            _register = (subject, json) => registryClient.RegisterSchemaAsync(subject, json);
+            _resolve = subject => registryClient.GetLatestSchemaAsync(subject);
         }
 
         /// <summary>
@@ -231,10 +217,7 @@ namespace Chr.Avro.Confluent
                 }
                 catch (Exception e) when (RegisterAutomatically && (
                     (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                    (e is AggregateException a && a.InnerExceptions.All(i =>
-                        i is UnsupportedSchemaException ||
-                        i is UnsupportedTypeException
-                    ))
+                    (e is UnsupportedSchemaException || e is UnsupportedTypeException)
                 ))
                 {
                     var schema = SchemaBuilder.BuildSchema<T>();

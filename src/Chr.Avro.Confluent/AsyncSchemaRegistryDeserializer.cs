@@ -59,18 +59,19 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public AsyncSchemaRegistryDeserializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            IBinaryDeserializerBuilder deserializerBuilder = null,
-            IJsonSchemaReader schemaReader = null
-        ) : this(
-            deserializerBuilder,
-            schemaReader
+            IBinaryDeserializerBuilder? deserializerBuilder = null,
+            IJsonSchemaReader? schemaReader = null
         ) {
             if (registryConfiguration == null)
             {
                 throw new ArgumentNullException(nameof(registryConfiguration));
             }
 
+            DeserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
             RegistryClient = new CachedSchemaRegistryClient(registryConfiguration);
+            SchemaReader = schemaReader ?? new JsonSchemaReader();
+
+            _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
             _disposeRegistryClient = true;
         }
 
@@ -93,29 +94,20 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public AsyncSchemaRegistryDeserializer(
             ISchemaRegistryClient registryClient,
-            IBinaryDeserializerBuilder deserializerBuilder = null,
-            IJsonSchemaReader schemaReader = null
-        ) : this(
-            deserializerBuilder,
-            schemaReader
+            IBinaryDeserializerBuilder? deserializerBuilder = null,
+            IJsonSchemaReader? schemaReader = null
         ) {
             if (registryClient == null)
             {
                 throw new ArgumentNullException(nameof(registryClient));
             }
 
-            RegistryClient = registryClient;
-            _disposeRegistryClient = false;
-        }
-
-        private AsyncSchemaRegistryDeserializer(
-            IBinaryDeserializerBuilder deserializerBuilder = null,
-            IJsonSchemaReader schemaReader = null
-        ) {
-            _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
-
             DeserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
+            RegistryClient = registryClient;
             SchemaReader = schemaReader ?? new JsonSchemaReader();
+
+            _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
+            _disposeRegistryClient = false;
         }
 
         /// <summary>
