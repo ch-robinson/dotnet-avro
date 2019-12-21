@@ -59,7 +59,8 @@ namespace Chr.Avro.Benchmarks.Apache
             $"{RecordSuite.Name} (generic)",
             RecordSuite.Iterations,
             RecordSuite.Schema,
-            RecordSuite.Values.Select(value => {
+            RecordSuite.Values.Select(value =>
+            {
                 var person = (RecordSchema)Schema.Parse(RecordSuite.Schema);
                 var color = (EnumSchema)person["favoriteColor"].Schema;
 
