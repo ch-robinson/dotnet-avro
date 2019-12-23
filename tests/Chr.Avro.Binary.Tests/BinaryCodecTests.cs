@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq.Expressions;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
@@ -20,11 +21,13 @@ namespace Chr.Avro.Serialization.Tests
         [MemberData(nameof(BlockEncodingsWithNegativeSize))]
         public void ReadsBlocks(byte[] value, byte[] encoding)
         {
-            var stream = new MemoryStream(encoding);
+            var input = Expression.Parameter(typeof(Stream));
+            var advance = Expression.Call(input, typeof(Stream).GetMethod(nameof(Stream.ReadByte)));
+            var read = (Action<Stream>)Expression.Lambda(Codec.ReadBlocks(input, advance), new[] { input }).Compile();
 
-            using (stream)
+            using (var stream = new MemoryStream(encoding))
             {
-                Assert.Equal(value, Codec.ReadBlocks(stream, s => (byte)s.ReadByte()));
+                read(stream);
                 Assert.Equal(encoding.Length, stream.Position);
             }
         }
@@ -34,11 +37,12 @@ namespace Chr.Avro.Serialization.Tests
         [InlineData(true, new byte[] { 0x02 })]
         public void ReadsBooleans(bool value, byte[] encoding)
         {
-            var stream = new MemoryStream(encoding);
+            var input = Expression.Parameter(typeof(Stream));
+            var read = (Func<Stream, bool>)Expression.Lambda(Codec.ReadBoolean(input), new[] { input }).Compile();
 
-            using (stream)
+            using (var stream = new MemoryStream(encoding))
             {
-                Assert.Equal(value, Codec.ReadBoolean(stream));
+                Assert.Equal(value, read(stream));
                 Assert.Equal(encoding.Length, stream.Position);
             }
         }
@@ -47,11 +51,12 @@ namespace Chr.Avro.Serialization.Tests
         [MemberData(nameof(DoubleEncodings))]
         public void ReadsDoubles(double value, byte[] encoding)
         {
-            var stream = new MemoryStream(encoding);
+            var input = Expression.Parameter(typeof(Stream));
+            var read = (Func<Stream, double>)Expression.Lambda(Codec.ReadDouble(input), new[] { input }).Compile();
 
-            using (stream)
+            using (var stream = new MemoryStream(encoding))
             {
-                Assert.Equal(value, Codec.ReadDouble(stream));
+                Assert.Equal(value, read(stream));
                 Assert.Equal(encoding.Length, stream.Position);
             }
         }
@@ -61,11 +66,12 @@ namespace Chr.Avro.Serialization.Tests
         [InlineData(8, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 })]
         public void ReadsFixedLengthByteArrays(int length, byte[] encoding)
         {
-            var stream = new MemoryStream(encoding);
+            var input = Expression.Parameter(typeof(Stream));
+            var read = (Func<Stream, byte[]>)Expression.Lambda(Codec.Read(input, Expression.Constant(length)), new[] { input }).Compile();
 
-            using (stream)
+            using (var stream = new MemoryStream(encoding))
             {
-                Assert.Equal(length, Codec.Read(stream, length).Length);
+                Assert.Equal(length, read(stream).Length);
                 Assert.Equal(length, stream.Position);
             }
         }
@@ -74,11 +80,12 @@ namespace Chr.Avro.Serialization.Tests
         [MemberData(nameof(IntegerEncodings))]
         public void ReadsIntegers(long value, byte[] encoding)
         {
-            var stream = new MemoryStream(encoding);
+            var input = Expression.Parameter(typeof(Stream));
+            var read = (Func<Stream, long>)Expression.Lambda(Codec.ReadInteger(input), new[] { input }).Compile();
 
-            using (stream)
+            using (var stream = new MemoryStream(encoding))
             {
-                Assert.Equal(value, Codec.ReadInteger(stream));
+                Assert.Equal(value, read(stream));
                 Assert.Equal(encoding.Length, stream.Position);
             }
         }
@@ -87,11 +94,12 @@ namespace Chr.Avro.Serialization.Tests
         [MemberData(nameof(SingleEncodings))]
         public void ReadsSingles(float value, byte[] encoding)
         {
-            var stream = new MemoryStream(encoding);
+            var input = Expression.Parameter(typeof(Stream));
+            var read = (Func<Stream, float>)Expression.Lambda(Codec.ReadSingle(input), new[] { input }).Compile();
 
-            using (stream)
+            using (var stream = new MemoryStream(encoding))
             {
-                Assert.Equal(value, Codec.ReadSingle(stream));
+                Assert.Equal(value, read(stream));
                 Assert.Equal(encoding.Length, stream.Position);
             }
         }
@@ -100,11 +108,12 @@ namespace Chr.Avro.Serialization.Tests
         [InlineData(new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01 })]
         public void ThrowsOnIntegerOverflow(byte[] encoding)
         {
-            var stream = new MemoryStream(encoding);
+            var input = Expression.Parameter(typeof(Stream));
+            var read = (Func<Stream, long>)Expression.Lambda(Codec.ReadInteger(input), new[] { input }).Compile();
 
-            using (stream)
+            using (var stream = new MemoryStream(encoding))
             {
-                Assert.Throws<OverflowException>(() => Codec.ReadInteger(stream));
+                Assert.Throws<OverflowException>(() => read(stream));
             }
         }
 

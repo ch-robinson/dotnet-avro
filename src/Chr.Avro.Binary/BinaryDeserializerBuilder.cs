@@ -396,7 +396,6 @@ namespace Chr.Avro.Serialization
                     var target = arrayResolution.Type;
                     var item = arrayResolution.ItemType;
 
-                    var codec = Expression.Constant(Codec);
                     var stream = Expression.Parameter(typeof(Stream));
 
                     Expression expression = null!;
@@ -407,22 +406,12 @@ namespace Chr.Avro.Serialization
                             .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
                             .MakeGenericMethod(item);
 
-                        var readBlocks = typeof(IBinaryCodec)
-                            .GetMethods()
-                            .Single(m => m.Name == nameof(IBinaryCodec.ReadBlocks)
-                                && m.GetGenericArguments().Length == 1
-                            )
-                            .MakeGenericMethod(item);
-
-                        expression = Expression.Call(
-                            codec,
-                            readBlocks,
-                            stream,
-                            Expression.Constant(
-                                build.Invoke(DeserializerBuilder, new object[] { arraySchema.Item, cache }),
-                                typeof(Func<,>).MakeGenericType(typeof(Stream), item)
-                            )
-                        );
+                        expression = Codec.ReadList(stream,
+                            Expression.Invoke(
+                                Expression.Constant(
+                                    build.Invoke(DeserializerBuilder, new object[] { arraySchema.Item, cache }),
+                                    typeof(Func<,>).MakeGenericType(typeof(Stream), item)),
+                                stream));
                     }
                     catch (TargetInvocationException indirect)
                     {
@@ -544,13 +533,9 @@ namespace Chr.Avro.Serialization
             {
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
-                var readValue = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.ReadBoolean));
-
-                var expression = GenerateConversion(Expression.Call(codec, readValue, stream), target);
+                var expression = GenerateConversion(Codec.ReadBoolean(stream), target);
                 var lambda = Expression.Lambda(expression, "boolean deserializer", new[] { stream });
                 var compiled = lambda.Compile();
 
@@ -619,18 +604,9 @@ namespace Chr.Avro.Serialization
             {
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
-                var readLength = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-                Expression expression = Expression.ConvertChecked(Expression.Call(codec, readLength, stream), typeof(int));
-
-                var readValue = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.Read));
-
-                expression = GenerateConversion(Expression.Call(codec, readValue, stream, expression), target);
+                var expression = GenerateConversion(Codec.Read(stream, Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int))), target);
 
                 var lambda = Expression.Lambda(expression, "bytes deserializer", new[] { stream });
                 var compiled = lambda.Compile();
@@ -723,7 +699,6 @@ namespace Chr.Avro.Serialization
                 var scale = decimalLogicalType.Scale;
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
                 Expression expression;
@@ -731,10 +706,7 @@ namespace Chr.Avro.Serialization
                 // figure out the size:
                 if (schema is BytesSchema)
                 {
-                    var readLength = typeof(IBinaryCodec)
-                        .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-                    expression = Expression.ConvertChecked(Expression.Call(codec, readLength, stream), typeof(int));
+                    expression = Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int));
                 }
                 else if (schema is FixedSchema fixedSchema)
                 {
@@ -745,11 +717,8 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                var readValue = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.Read));
-
                 // read the bytes:
-                expression = Expression.Call(codec, readValue, stream, expression);
+                expression = Codec.Read(stream, expression);
 
                 // declare some variables for in-place transformation:
                 var bytes = Expression.Variable(typeof(byte[]));
@@ -847,13 +816,9 @@ namespace Chr.Avro.Serialization
             {
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
-                var readValue = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.ReadDouble));
-
-                var expression = GenerateConversion(Expression.Call(codec, readValue, stream), target);
+                var expression = GenerateConversion(Codec.ReadDouble(stream), target);
                 var lambda = Expression.Lambda(expression, "double deserializer", new[] { stream });
                 var compiled = lambda.Compile();
 
@@ -934,19 +899,19 @@ namespace Chr.Avro.Serialization
 
                     Func<Stream, long> read = input =>
                     {
-                        var bytes = Codec.Read(input, 4);
+                        var buffer = new byte[4];
+                        var bytes = input.Read(buffer, 0, buffer.Length);
 
                         if (!BitConverter.IsLittleEndian)
                         {
-                            Array.Reverse(bytes);
+                            Array.Reverse(buffer);
                         }
 
-                        return BitConverter.ToUInt32(bytes, 0);
+                        return BitConverter.ToUInt32(buffer, 0);
                     };
 
                     var target = resolution.Type;
 
-                    var codec = Expression.Constant(Codec);
                     var stream = Expression.Parameter(typeof(Stream));
 
                     var expression = GenerateConversion(Expression.Block(
@@ -1053,13 +1018,9 @@ namespace Chr.Avro.Serialization
                 {
                     var target = resolution.Type;
 
-                    var codec = Expression.Constant(Codec);
                     var stream = Expression.Parameter(typeof(Stream));
 
-                    var readIndex = typeof(IBinaryCodec)
-                        .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-                    Expression expression = Expression.ConvertChecked(Expression.Call(codec, readIndex, stream), typeof(int));
+                    Expression expression = Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int));
 
                     // find a match for each enum in the schema:
                     var cases = enumSchema.Symbols.Select((name, index) =>
@@ -1158,13 +1119,9 @@ namespace Chr.Avro.Serialization
             {
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
-                var readValue = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.Read));
-
-                var expression = GenerateConversion(Expression.Call(codec, readValue, stream, Expression.Constant(fixedSchema.Size)), target);
+                var expression = GenerateConversion(Codec.Read(stream, Expression.Constant(fixedSchema.Size)), target);
                 var lambda = Expression.Lambda(expression, $"{fixedSchema.Name} deserializer", new[] { stream });
                 var compiled = lambda.Compile();
 
@@ -1251,13 +1208,9 @@ namespace Chr.Avro.Serialization
             {
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
-                var readValue = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.ReadSingle));
-
-                var expression = GenerateConversion(Expression.Call(codec, readValue, stream), target);
+                var expression = GenerateConversion(Codec.ReadSingle(stream), target);
                 var lambda = Expression.Lambda(expression, "float deserializer", new[] { stream });
                 var compiled = lambda.Compile();
 
@@ -1326,13 +1279,9 @@ namespace Chr.Avro.Serialization
             {
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
-                var readValue = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-                var expression = GenerateConversion(Expression.Call(codec, readValue, stream), target);
+                var expression = GenerateConversion(Codec.ReadInteger(stream), target);
                 var lambda = Expression.Lambda(expression, "integer deserializer", new[] { stream });
                 var compiled = lambda.Compile();
 
@@ -1414,7 +1363,6 @@ namespace Chr.Avro.Serialization
                     var key = mapResolution.KeyType;
                     var item = mapResolution.ValueType;
 
-                    var codec = Expression.Constant(Codec);
                     var stream = Expression.Parameter(typeof(Stream));
 
                     Expression expression = null!;
@@ -1427,47 +1375,24 @@ namespace Chr.Avro.Serialization
                         var buildKey = build.MakeGenericMethod(key);
                         var buildItem = build.MakeGenericMethod(item);
 
-                        var readBlocks = typeof(IBinaryCodec)
-                            .GetMethods()
-                            .Single(m => m.Name == nameof(IBinaryCodec.ReadBlocks)
-                                && m.GetGenericArguments().Length == 2
-                            )
-                            .MakeGenericMethod(key, item);
-
-                        expression = Expression.Call(
-                            codec,
-                            readBlocks,
-                            stream,
-                            Expression.Constant(
-                                buildKey.Invoke(DeserializerBuilder, new object[] { new StringSchema(), cache }),
-                                typeof(Func<,>).MakeGenericType(typeof(Stream), key)
-                            ),
-                            Expression.Constant(
-                                buildItem.Invoke(DeserializerBuilder, new object[] { mapSchema.Value, cache }),
-                                typeof(Func<,>).MakeGenericType(typeof(Stream), item)
-                            )
-                        );
+                        expression = Codec.ReadDictionary(stream,
+                            Expression.Invoke(
+                                Expression.Constant(
+                                    buildKey.Invoke(DeserializerBuilder, new object[] { new StringSchema(), cache }),
+                                    typeof(Func<,>).MakeGenericType(typeof(Stream), key)),
+                                stream),
+                            Expression.Invoke(
+                                Expression.Constant(
+                                    buildItem.Invoke(DeserializerBuilder, new object[] { mapSchema.Value, cache }),
+                                    typeof(Func<,>).MakeGenericType(typeof(Stream), item)),
+                                stream));
                     }
                     catch (TargetInvocationException indirect)
                     {
                         ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
                     }
 
-                    var idictionary = typeof(IDictionary<,>)
-                        .MakeGenericType(key, item);
-
-                    var dictionary = typeof(Dictionary<,>)
-                        .MakeGenericType(key, item);
-
-                    var dictionaryConstructor = dictionary
-                        .GetConstructor(new[] { idictionary });
-
-                    if (!target.IsAssignableFrom(dictionary))
-                    {
-                        throw new UnsupportedTypeException(target);
-                    }
-
-                    expression = GenerateConversion(Expression.New(dictionaryConstructor, expression), target);
+                    expression = GenerateConversion(expression, target);
 
                     var lambda = Expression.Lambda(expression, "map deserializer", new[] { stream });
                     var compiled = lambda.Compile();
@@ -1969,18 +1894,9 @@ namespace Chr.Avro.Serialization
             {
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
-                var readLength = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-                Expression expression = Expression.ConvertChecked(Expression.Call(codec, readLength, stream), typeof(int));
-
-                var readValue = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.Read));
-
-                expression = Expression.Call(codec, readValue, stream, expression);
+                var expression = Codec.Read(stream, Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int)));
 
                 var decodeValue = typeof(Encoding)
                     .GetMethod(nameof(Encoding.GetString), new[] { typeof(byte[]) });
@@ -2143,7 +2059,6 @@ namespace Chr.Avro.Serialization
 
                     var target = resolution.Type;
 
-                    var codec = Expression.Constant(Codec);
                     var stream = Expression.Parameter(typeof(Stream));
 
                     Expression epoch = Expression.Constant(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc));
@@ -2162,10 +2077,7 @@ namespace Chr.Avro.Serialization
                         throw new UnsupportedSchemaException(schema);
                     }
 
-                    var readValue = typeof(IBinaryCodec)
-                        .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-                    Expression expression = Expression.Call(codec, readValue, stream);
+                    Expression expression = Codec.ReadInteger(stream);
 
                     var addTicks = typeof(DateTime)
                         .GetMethod(nameof(DateTime.AddTicks));
@@ -2266,13 +2178,9 @@ namespace Chr.Avro.Serialization
 
                 var target = resolution.Type;
 
-                var codec = Expression.Constant(Codec);
                 var stream = Expression.Parameter(typeof(Stream));
 
-                var readIndex = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-                Expression expression = Expression.ConvertChecked(Expression.Call(codec, readIndex, stream), typeof(int));
+                Expression expression = Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int));
 
                 // create a mapping for each schema in the union:
                 var cases = unionSchema.Schemas.Select((child, index) =>
