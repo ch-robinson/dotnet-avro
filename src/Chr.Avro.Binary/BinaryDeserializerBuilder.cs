@@ -406,7 +406,7 @@ namespace Chr.Avro.Serialization
                             .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
                             .MakeGenericMethod(item);
 
-                        expression = Codec.ReadList(stream,
+                        expression = Codec.ReadArray(stream,
                             Expression.Invoke(
                                 Expression.Constant(
                                     build.Invoke(DeserializerBuilder, new object[] { arraySchema.Item, cache }),
@@ -1375,7 +1375,7 @@ namespace Chr.Avro.Serialization
                         var buildKey = build.MakeGenericMethod(key);
                         var buildItem = build.MakeGenericMethod(item);
 
-                        expression = Codec.ReadDictionary(stream,
+                        expression = Codec.ReadMap(stream,
                             Expression.Invoke(
                                 Expression.Constant(
                                     buildKey.Invoke(DeserializerBuilder, new object[] { new StringSchema(), cache }),

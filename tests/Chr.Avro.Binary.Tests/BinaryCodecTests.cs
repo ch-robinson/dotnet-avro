@@ -119,13 +119,18 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(BlockEncodings))]
-        public void WritesBlocks(byte[] items, byte[] encoding)
+        public void WritesArrays(byte[] items, byte[] encoding)
         {
             var stream = new MemoryStream();
 
+            var output = Expression.Parameter(typeof(Stream));
+            var item = Expression.Variable(typeof(byte));
+            var writeItem = Expression.Call(output, typeof(Stream).GetMethod(nameof(Stream.WriteByte)), item);
+            var write = (Action<Stream>)Expression.Lambda(Codec.WriteArray(Expression.Constant(items), item, writeItem, output), new[] { output }).Compile();
+
             using (stream)
             {
-                Codec.WriteBlocks(items, (b, s) => s.WriteByte(b), stream);
+                write(stream);
             }
 
             Assert.Equal(encoding, stream.ToArray());
@@ -137,9 +142,12 @@ namespace Chr.Avro.Serialization.Tests
         {
             var stream = new MemoryStream();
 
+            var output = Expression.Parameter(typeof(Stream));
+            var write = (Action<Stream>)Expression.Lambda(Codec.WriteBoolean(Expression.Constant(value), output), new[] { output }).Compile();
+
             using (stream)
             {
-                Codec.WriteBoolean(value, stream);
+                write(stream);
             }
 
             Assert.Equal(encoding, stream.ToArray());
@@ -151,9 +159,12 @@ namespace Chr.Avro.Serialization.Tests
         {
             var stream = new MemoryStream();
 
+            var output = Expression.Parameter(typeof(Stream));
+            var write = (Action<Stream>)Expression.Lambda(Codec.WriteFloat(Expression.Constant(value), output), new[] { output }).Compile();
+
             using (stream)
             {
-                Codec.WriteDouble(value, stream);
+                write(stream);
             }
 
             Assert.Equal(encoding, stream.ToArray());
@@ -165,9 +176,12 @@ namespace Chr.Avro.Serialization.Tests
         {
             var stream = new MemoryStream();
 
+            var output = Expression.Parameter(typeof(Stream));
+            var write = (Action<Stream>)Expression.Lambda(Codec.WriteInteger(Expression.Constant(value), output), new[] { output }).Compile();
+
             using (stream)
             {
-                Codec.WriteInteger(value, stream);
+                write(stream);
             }
 
             Assert.Equal(encoding, stream.ToArray());
@@ -179,9 +193,12 @@ namespace Chr.Avro.Serialization.Tests
         {
             var stream = new MemoryStream();
 
+            var output = Expression.Parameter(typeof(Stream));
+            var write = (Action<Stream>)Expression.Lambda(Codec.WriteFloat(Expression.Constant(value), output), new[] { output }).Compile();
+
             using (stream)
             {
-                Codec.WriteSingle(value, stream);
+                write(stream);
             }
 
             Assert.Equal(encoding, stream.ToArray());
