@@ -1,6 +1,7 @@
 using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
@@ -48,6 +49,17 @@ namespace Chr.Avro.Serialization.Tests
             var deserializer = DeserializerBuilder.BuildDeserializer<IEnumerable<KeyValuePair<string, double>>>(schema);
             var serializer = SerializerBuilder.BuildSerializer<IEnumerable<KeyValuePair<string, double>>>(schema);
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
+        [MemberData(nameof(StringKeyData))]
+        public void ImmutableDictionaryValues(Dictionary<string, double> value)
+        {
+            var schema = new MapSchema(new DoubleSchema());
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<ImmutableDictionary<string, double>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<ImmutableDictionary<string, double>>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value.ToImmutableDictionary())));
         }
 
         public static IEnumerable<object[]> DateTimeKeyData => new List<object[]>

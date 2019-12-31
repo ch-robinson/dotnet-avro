@@ -3,6 +3,7 @@ using Chr.Avro.Resolution;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1396,12 +1397,24 @@ namespace Chr.Avro.Serialization
             var dictionaryConstructor = dictionary
                 .GetConstructor(new[] { idictionary });
 
-            if (!target.IsAssignableFrom(dictionary))
+            var immutableDictionary = typeof(ImmutableDictionary<,>)
+                .MakeGenericType(key, item);
+
+            if (target.Equals(immutableDictionary))
+            {
+                var emptyImmutableDictionary = Expression.Field(null, immutableDictionary.GetField("Empty"));
+                var dictionaryResult = Expression.New(dictionaryConstructor, result);
+                var addRange = immutableDictionary.GetMethod("AddRange");
+                result = Expression.Call(emptyImmutableDictionary, addRange, new[] { dictionaryResult });
+            }
+            else if (!target.IsAssignableFrom(dictionary))
             {
                 throw new UnsupportedTypeException(target, $"A map deserializer cannot be built for type {target.FullName}.");
             }
-
-            result = Expression.ConvertChecked(Expression.New(dictionaryConstructor, result), target);
+            else
+            {
+                result = Expression.ConvertChecked(Expression.New(dictionaryConstructor, result), target);
+            }
 
             var lambda = Expression.Lambda(result, "map deserializer", new[] { stream });
             var compiled = lambda.Compile();
