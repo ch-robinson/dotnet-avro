@@ -3,6 +3,7 @@ using Chr.Avro.Resolution;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1392,8 +1393,20 @@ namespace Chr.Avro.Serialization
                         ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
                     }
 
-                    expression = GenerateConversion(expression, target);
+                    var immutableDictionary = typeof(ImmutableDictionary<,>)
+                        .MakeGenericType(key, item);
 
+                    if (target.Equals(immutableDictionary))
+                    {
+                        var emptyImmutableDictionary = Expression.Field(null, immutableDictionary.GetField("Empty"));
+                        var addRange = immutableDictionary.GetMethod("AddRange");
+                        expression = Expression.Call(emptyImmutableDictionary, addRange, new[] { expression });
+                    }
+                    else
+                    {
+                        expression = GenerateConversion(expression, target);
+                    }
+                    
                     var lambda = Expression.Lambda(expression, "map deserializer", new[] { stream });
                     var compiled = lambda.Compile();
 
@@ -1413,7 +1426,6 @@ namespace Chr.Avro.Serialization
             {
                 result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
-
             return result;
         }
     }
