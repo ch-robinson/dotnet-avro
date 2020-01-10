@@ -1426,6 +1426,7 @@ namespace Chr.Avro.Serialization
             {
                 result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
+
             return result;
         }
     }
