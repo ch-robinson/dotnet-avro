@@ -8,18 +8,15 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class SymbolResolution
     {
-        private MemberInfo member;
+        private MemberInfo member = null!;
 
-        private IdentifierResolution name;
+        private IdentifierResolution name = null!;
 
-        private object value;
+        private object value = null!;
 
         /// <summary>
         /// The resolved static field reflection info.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the reflection info is set to null.
-        /// </exception>
         public virtual MemberInfo Member
         {
             get
@@ -35,9 +32,6 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The symbol name.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the name is set to null.
-        /// </exception>
         public virtual IdentifierResolution Name
         {
             get
@@ -53,9 +47,6 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The raw symbol value.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the value is set to null.
-        /// </exception>
         public virtual object Value
         {
             get

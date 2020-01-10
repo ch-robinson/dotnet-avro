@@ -38,7 +38,7 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        Func<Stream, T> BuildDelegate<T>(Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache = null);
+        Func<Stream, T> BuildDelegate<T>(Schema schema, ConcurrentDictionary<(Type, Schema), Delegate>? cache = null);
 
         /// <summary>
         /// Builds a binary deserializer.
@@ -54,8 +54,30 @@ namespace Chr.Avro.Serialization
     }
 
     /// <summary>
-    /// Builds Avro deserializers for specific type-schema combinations. Used by
-    /// <see cref="BinaryDeserializerBuilder" /> to break apart deserializer building logic.
+    /// Represents the outcome of a deserializer builder case.
+    /// </summary>
+    public interface IBinaryDeserializerBuildResult
+    {
+        /// <summary>
+        /// The result of applying the case. If null, the case was not applied successfully.
+        /// </summary>
+        /// <remarks>
+        /// The delegate should be a function that accepts a <see cref="Stream" /> and returns a
+        /// deserialized object. Since this is not a typed method, the general <see cref="Delegate" />
+        /// type is used.
+        /// </remarks>
+        Delegate? Delegate { get; }
+
+        /// <summary>
+        /// Any exceptions related to the applicability of the case. If <see cref="Delegate" /> is
+        /// not null, these exceptions should be interpreted as warnings.
+        /// </summary>
+        ICollection<Exception> Exceptions { get; }
+    }
+
+    /// <summary>
+    /// Builds Avro deserializers for specific type-schema combinations. See
+    /// <see cref="BinaryDeserializerBuilder" /> for implementation details.
     /// </summary>
     public interface IBinaryDeserializerBuilderCase
     {
@@ -69,14 +91,13 @@ namespace Chr.Avro.Serialization
         /// The schema to map to the type.
         /// </param>
         /// <param name="cache">
-        /// A delegate cache. If a delegate is cached for a specific type-schema pair, that delegate
-        /// will be returned for all subsequent occurrences of the pair.
+        /// A delegate cache. If a delegate is cached for a specific type-schema pair, that same
+        /// delegate will be returned for all occurrences of the pair.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object. Since
-        /// this is not a typed method, the general <see cref="Delegate" /> type is used.
+        /// A build result.
         /// </returns>
-        Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache);
+        IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache);
     }
 
     /// <summary>
@@ -91,7 +112,7 @@ namespace Chr.Avro.Serialization
         public IEnumerable<IBinaryDeserializerBuilderCase> Cases { get; }
 
         /// <summary>
-        /// A resolver to obtain type information from.
+        /// A resolver to retrieve type information from.
         /// </summary>
         public ITypeResolver Resolver { get; }
 
@@ -103,9 +124,10 @@ namespace Chr.Avro.Serialization
         /// no codec is provided, <see cref="BinaryCodec" /> will be used.
         /// </param>
         /// <param name="resolver">
-        /// A resolver to obtain type information from.
+        /// A resolver to retrieve type information from. If no resolver is provided, the deserializer
+        /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public BinaryDeserializerBuilder(IBinaryCodec codec = null, ITypeResolver resolver = null)
+        public BinaryDeserializerBuilder(IBinaryCodec? codec = null, ITypeResolver? resolver = null)
             : this(CreateBinaryDeserializerCaseBuilders(codec ?? new BinaryCodec()), resolver) { }
 
         /// <summary>
@@ -115,9 +137,10 @@ namespace Chr.Avro.Serialization
         /// A list of case builders.
         /// </param>
         /// <param name="resolver">
-        /// A resolver to obtain type information from.
+        /// A resolver to retrieve type information from. If no resolver is provided, the deserializer
+        /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public BinaryDeserializerBuilder(IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> caseBuilders, ITypeResolver resolver = null)
+        public BinaryDeserializerBuilder(IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> caseBuilders, ITypeResolver? resolver = null)
         {
             var cases = new List<IBinaryDeserializerBuilderCase>();
 
@@ -134,8 +157,7 @@ namespace Chr.Avro.Serialization
         /// Builds a delegate that reads a serialized object from a stream.
         /// </summary>
         /// <typeparam name="T">
-        /// The type of object to be deserialized. If the type is a class or a struct, it must have
-        /// a parameterless public constructor.
+        /// The type of object to be deserialized.
         /// </typeparam>
         /// <param name="schema">
         /// The schema to map to the type.
@@ -147,11 +169,10 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
         /// </returns>
-        /// <exception cref="AggregateException">
-        /// Thrown when no case matches the schema or type. <see cref="AggregateException.InnerExceptions" />
-        /// will be contain the exceptions thrown by each case.
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when no case can map the type to the schema.
         /// </exception>
-        public virtual Func<Stream, T> BuildDelegate<T>(Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache = null)
+        public virtual Func<Stream, T> BuildDelegate<T>(Schema schema, ConcurrentDictionary<(Type, Schema), Delegate>? cache = null)
         {
             if (cache == null)
             {
@@ -160,45 +181,43 @@ namespace Chr.Avro.Serialization
 
             var resolution = Resolver.ResolveType(typeof(T));
 
-            if (cache.TryGetValue((resolution.Type, schema), out var existing))
+            if (!cache.TryGetValue((resolution.Type, schema), out var @delegate))
             {
-                return existing as Func<Stream, T>;
+                var exceptions = new List<Exception>();
+
+                foreach (var @case in Cases)
+                {
+                    var result = @case.BuildDelegate(resolution, schema, cache);
+
+                    if (result.Delegate != null)
+                    {
+                        @delegate = result.Delegate;
+                        break;
+                    }
+
+                    exceptions.AddRange(result.Exceptions);
+                }
+
+                if (@delegate == null)
+                {
+                    throw new UnsupportedTypeException(resolution.Type, $"No deserializer builder case matched {resolution.GetType().Name}.", new AggregateException(exceptions));
+                }
             }
 
-            var exceptions = new List<Exception>();
-
-            foreach (var @case in Cases)
-            {
-                try
-                {
-                    return @case.BuildDelegate(resolution, schema, cache) as Func<Stream, T>;
-                }
-                catch (UnsupportedSchemaException exception)
-                {
-                    exceptions.Add(exception);
-                }
-                catch (UnsupportedTypeException exception)
-                {
-                    exceptions.Add(exception);
-                }
-            }
-
-            throw new AggregateException($"No deserializer builder case matched {resolution.GetType().Name}.", exceptions);
+            return (Func<Stream, T>)@delegate;
         }
 
         /// <summary>
         /// Builds a binary deserializer.
         /// </summary>
         /// <typeparam name="T">
-        /// The type of object to be deserialized. If the type is a class or a struct, it must have
-        /// a parameterless public constructor.
+        /// The type of object to be deserialized.
         /// </typeparam>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <exception cref="AggregateException">
-        /// Thrown when no case matches the schema or type. <see cref="AggregateException.InnerExceptions" />
-        /// will be contain the exceptions thrown by each case.
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when no case can map the type to the schema.
         /// </exception>
         public virtual IBinaryDeserializer<T> BuildDeserializer<T>(Schema schema)
         {
@@ -248,7 +267,29 @@ namespace Chr.Avro.Serialization
     }
 
     /// <summary>
-    /// A base deserializer builder case.
+    /// A base <see cref="IBinaryDeserializerBuildResult" /> implementation.
+    /// </summary>
+    public class BinaryDeserializerBuildResult : IBinaryDeserializerBuildResult
+    {
+        /// <summary>
+        /// The result of applying the case. If null, the case was not applied successfully.
+        /// </summary>
+        /// <remarks>
+        /// The delegate should be a function that accepts a <see cref="Stream" /> and returns a
+        /// deserialized object. Since this is not a typed method, the general <see cref="Delegate" />
+        /// type is used.
+        /// </remarks>
+        public Delegate? Delegate { get; set; }
+
+        /// <summary>
+        /// Any exceptions related to the applicability of the case. If <see cref="Delegate" /> is
+        /// not null, these exceptions should be interpreted as warnings.
+        /// </summary>
+        public ICollection<Exception> Exceptions { get; set; } = new List<Exception>();
+    }
+
+    /// <summary>
+    /// A base <see cref="IBinaryDeserializerBuilderCase" /> implementation.
     /// </summary>
     public abstract class BinaryDeserializerBuilderCase : IBinaryDeserializerBuilderCase
     {
@@ -262,14 +303,36 @@ namespace Chr.Avro.Serialization
         /// The schema to map to the type.
         /// </param>
         /// <param name="cache">
-        /// A delegate cache. If a delegate is cached for a specific type-schema pair, that delegate
-        /// will be returned for all subsequent occurrences of the pair.
+        /// A delegate cache. If a delegate is cached for a specific type-schema pair, that same
+        /// delegate will be returned for all occurrences of the pair.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object. Since
-        /// this is not a typed method, the general <see cref="Delegate" /> type is used.
+        /// A build result.
         /// </returns>
-        public abstract Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache);
+        public abstract IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache);
+
+        /// <summary>
+        /// Generates a conversion from the intermediate type to the target type.
+        /// </summary>
+        /// <remarks>
+        /// See the remarks for <see cref="Expression.ConvertChecked(Expression, Type)" />.
+        /// </remarks>
+        protected virtual Expression GenerateConversion(Expression input, Type target)
+        {
+            if (input.Type == target)
+            {
+                return input;
+            }
+
+            try
+            {
+                return Expression.ConvertChecked(input, target);
+            }
+            catch (InvalidOperationException inner)
+            {
+                throw new UnsupportedTypeException(target, inner: inner);
+            }
+        }
     }
 
     /// <summary>
@@ -299,8 +362,8 @@ namespace Chr.Avro.Serialization
         /// </param>
         public ArrayDeserializerBuilderCase(IBinaryCodec codec, IBinaryDeserializerBuilder deserializerBuilder)
         {
-            Codec = codec;
-            DeserializerBuilder = deserializerBuilder;
+            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -316,119 +379,109 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the resolution is an <see cref="ArrayResolution" /> and the
+        /// schema is an <see cref="ArraySchema" />; an unsuccessful result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not an <see cref="ArraySchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved type is neither an array type nor a type assignable from
-        /// <see cref="List{T}" />.
+        /// Thrown when the resolved type does not have an enumerable constructor and is not
+        /// assignable from <see cref="List{T}" />.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(resolution is ArrayResolution arrayResolution))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is ArraySchema arraySchema)
             {
-                throw new UnsupportedTypeException(resolution.Type, "An array deserializer can only be built for an array resolution.");
-            }
+                if (resolution is ArrayResolution arrayResolution)
+                {
+                    var target = arrayResolution.Type;
+                    var item = arrayResolution.ItemType;
 
-            if (!(schema is ArraySchema arraySchema))
-            {
-                throw new UnsupportedSchemaException(schema, "An array deserializer can only be built for an array schema.");
-            }
+                    var stream = Expression.Parameter(typeof(Stream));
 
-            var target = arrayResolution.Type;
-            var item = arrayResolution.ItemType;
+                    Expression expression = null!;
 
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
+                    try
+                    {
+                        var build = typeof(IBinaryDeserializerBuilder)
+                            .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
+                            .MakeGenericMethod(item);
 
-            Expression result = null;
+                        expression = Codec.ReadArray(stream,
+                            Expression.Invoke(
+                                Expression.Constant(
+                                    build.Invoke(DeserializerBuilder, new object[] { arraySchema.Item, cache }),
+                                    typeof(Func<,>).MakeGenericType(typeof(Stream), item)),
+                                stream));
+                    }
+                    catch (TargetInvocationException indirect)
+                    {
+                        ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
+                    }
 
-            try
-            {
-                var build = typeof(IBinaryDeserializerBuilder)
-                    .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
-                    .MakeGenericMethod(item);
+                    if (FindEnumerableConstructor(arrayResolution, item) is ConstructorResolution constructorResolution)
+                    {
+                        expression = Expression.New(constructorResolution.Constructor, new[] { expression });
+                    }
+                    else
+                    {
+                        expression = GenerateConversion(expression, target);
+                    }
 
-                var readBlocks = typeof(IBinaryCodec)
-                    .GetMethods()
-                    .Single(m => m.Name == nameof(IBinaryCodec.ReadBlocks)
-                        && m.GetGenericArguments().Length == 1
-                    )
-                    .MakeGenericMethod(item);
+                    var lambda = Expression.Lambda(expression, "array deserializer", new[] { stream });
+                    var compiled = lambda.Compile();
 
-                result = Expression.Call(
-                    codec,
-                    readBlocks,
-                    stream,
-                    Expression.Constant(
-                        build.Invoke(DeserializerBuilder, new object[] { arraySchema.Item, cache }),
-                        typeof(Func<,>).MakeGenericType(typeof(Stream), item)
-                    )
-                );
-            }
-            catch (TargetInvocationException indirect)
-            {
-                ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
-            }
+                    if (!cache.TryAdd((target, schema), compiled))
+                    {
+                        throw new InvalidOperationException();
+                    }
 
-            var constructor = FindEnumerableConstructor(arrayResolution, item);
-
-            if (constructor != null)
-            {
-                var value = Expression.Parameter(target);
-                result = Expression.Block(
-                    new[] { value },
-                    Expression.Assign(value, Expression.New(constructor.Constructor, new[] { result })),
-                    value
-                );
+                    result.Delegate = compiled;
+                }
+                else
+                {
+                    result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
+                }
             }
             else
             {
-                var convert = typeof(Enumerable).GetMethods()
-                    .Where(m => m.Name == (target.IsArray
-                        ? nameof(Enumerable.ToArray)
-                        : nameof(Enumerable.ToList)
-                    ))
-                    .Single()
-                    .MakeGenericMethod(item);
-
-                if (!target.IsAssignableFrom(convert.ReturnType))
-                {
-                    throw new UnsupportedTypeException(target, $"An array deserializer cannot be built for type {target.FullName}.");
-                }
-
-                result = Expression.ConvertChecked(Expression.Call(null, convert, result), target);
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var lambda = Expression.Lambda(result, "array deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
 
-        private ConstructorResolution FindEnumerableConstructor(ArrayResolution arrayResolution, Type type)
+        /// <summary>
+        /// Attempts to find a constructor that takes a single enumerable parameter.
+        /// </summary>
+        protected virtual ConstructorResolution? FindEnumerableConstructor(ArrayResolution resolution, Type itemType)
         {
-            ConstructorResolution match = null;
-            foreach (var constructor in arrayResolution.Constructors)
+            return resolution.Constructors
+                .Where(c => c.Parameters.Count == 1)
+                .FirstOrDefault(c => c.Parameters.First().Type.IsAssignableFrom(typeof(IEnumerable<>).MakeGenericType(itemType)));
+        }
+
+        /// <summary>
+        /// Generates a conversion from the intermediate type to the target type. This override
+        /// will convert the intermediate type to an array or list (depending on the target) prior
+        /// to applying the base implementation.
+        /// </summary>
+        protected override Expression GenerateConversion(Expression input, Type target)
+        {
+            var convert = target.IsArray
+                ? typeof(Enumerable)
+                    .GetMethod(nameof(Enumerable.ToArray))
+                    .MakeGenericMethod(target.GetElementType())
+                : typeof(Enumerable)
+                    .GetMethod(nameof(Enumerable.ToList))
+                    .MakeGenericMethod(target.GetGenericArguments().Single());
+
+            if (!target.IsAssignableFrom(convert.ReturnType))
             {
-                if (constructor.Parameters.Count == 1)
-                {
-                    var parameterType = constructor.Parameters.First().Type;
-                    if (parameterType.IsGenericType && parameterType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-                    {
-                        var arguments = parameterType.GetGenericArguments();
-                        if (arguments.Count() == 1 && arguments[0] == type)
-                        {
-                            match = constructor;
-                            break;
-                        }
-                    }
-                }
+                throw new UnsupportedTypeException(target);
             }
 
-            return match;
+            return base.GenerateConversion(Expression.Call(null, convert, input), target);
         }
     }
 
@@ -467,48 +520,39 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema is a <see cref="BooleanSchema" />; an unsuccessful
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="BooleanSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no conversion from <see cref="bool" /> exists.
+        /// Thrown when <see cref="bool" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is BooleanSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is BooleanSchema)
             {
-                throw new UnsupportedSchemaException(schema, "A boolean deserializer can only be built for a boolean schema.");
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                var expression = GenerateConversion(Codec.ReadBoolean(stream), target);
+                var lambda = Expression.Lambda(expression, "boolean deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var source = typeof(bool);
-            var target = resolution.Type;
-
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadBoolean));
-
-            Expression result = Expression.Call(codec, readValue, stream);
-
-            if (source != target)
-            {
-                try
-                {
-                    result = Expression.ConvertChecked(result, target);
-                }
-                catch (InvalidOperationException inner)
-                {
-                    throw new UnsupportedTypeException(target, $"A boolean deserializer cannot be built for type {target.FullName}.", inner);
-                }
-            }
-
-            var lambda = Expression.Lambda(result, "boolean deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -547,61 +591,58 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema is a <see cref="BytesSchema" />; an unsuccessful
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="BytesSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no conversion from <see cref="T:System.Byte[]" /> exists.
+        /// Thrown when <see cref="T:System.Byte[]" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is BytesSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is BytesSchema)
             {
-                throw new UnsupportedSchemaException(schema, "A bytes deserializer can only be built for a bytes schema.");
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                var expression = GenerateConversion(Codec.Read(stream, Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int))), target);
+
+                var lambda = Expression.Lambda(expression, "bytes deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var source = typeof(byte[]);
-            var target = resolution.Type;
+            return result;
+        }
 
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readLength = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-            Expression result = Expression.ConvertChecked(Expression.Call(codec, readLength, stream), typeof(int));
-
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.Read));
-
-            result = Expression.Call(codec, readValue, stream, result);
-
-            if (source != target)
+        /// <summary>
+        /// Generates a conversion from the source type to the intermediate type. This override
+        /// will convert a bytes value to <see cref="Guid" /> prior to applying the base
+        /// implementation.
+        /// </summary>
+        protected override Expression GenerateConversion(Expression input, Type target)
+        {
+            if (target == typeof(Guid) || target == typeof(Guid?))
             {
-                if (target == typeof(Guid) || target == typeof(Guid?))
-                {
-                    var guidConstructor = typeof(Guid)
-                        .GetConstructor(new[] { typeof(byte[]) });
+                var guidConstructor = typeof(Guid)
+                    .GetConstructor(new[] { input.Type });
 
-                    result = Expression.New(guidConstructor, result);
-                }
-
-                try
-                {
-                    result = Expression.ConvertChecked(result, target);
-                }
-                catch (InvalidOperationException inner)
-                {
-                    throw new UnsupportedTypeException(target, $"A bytes deserializer cannot be built for type {target.FullName}.", inner);
-                }
+                input = Expression.New(guidConstructor, input);
             }
 
-            var lambda = Expression.Lambda(result, "bytes deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return base.GenerateConversion(input, target);
         }
     }
 
@@ -640,97 +681,90 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema’s logical type is <see cref="DecimalLogicalType" />;
+        /// an unsuccessful result otherwise.
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="BytesSchema" /> or a <see cref="FixedSchema "/>
-        /// with logical type <see cref="DecimalLogicalType" />.
+        /// Thrown when the schema is not a <see cref="BytesSchema" /> or a <see cref="FixedSchema "/>.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no conversion from <see cref="decimal" /> exists.
+        /// Thrown when <see cref="decimal" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema.LogicalType is DecimalLogicalType decimalLogicalType))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema.LogicalType is DecimalLogicalType decimalLogicalType)
             {
-                throw new UnsupportedSchemaException(schema, "A decimal deserializer can only be built for schema with a decimal logical type.");
-            }
+                var precision = decimalLogicalType.Precision;
+                var scale = decimalLogicalType.Scale;
+                var target = resolution.Type;
 
-            var precision = decimalLogicalType.Precision;
-            var scale = decimalLogicalType.Scale;
-            var source = typeof(decimal);
-            var target = resolution.Type;
+                var stream = Expression.Parameter(typeof(Stream));
 
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
+                Expression expression;
 
-            Expression result;
+                // figure out the size:
+                if (schema is BytesSchema)
+                {
+                    expression = Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int));
+                }
+                else if (schema is FixedSchema fixedSchema)
+                {
+                    expression = Expression.Constant(fixedSchema.Size);
+                }
+                else
+                {
+                    throw new UnsupportedSchemaException(schema);
+                }
 
-            // figure out the size:
-            if (schema is BytesSchema)
-            {
-                var readLength = typeof(IBinaryCodec)
-                    .GetMethod(nameof(IBinaryCodec.ReadInteger));
+                // read the bytes:
+                expression = Codec.Read(stream, expression);
 
-                result = Expression.ConvertChecked(Expression.Call(codec, readLength, stream), typeof(int));
-            }
-            else if (schema is FixedSchema fixedSchema)
-            {
-                result = Expression.Constant(fixedSchema.Size);
+                // declare some variables for in-place transformation:
+                var bytes = Expression.Variable(typeof(byte[]));
+
+                var integerConstructor = typeof(BigInteger)
+                    .GetConstructor(new[] { typeof(byte[]) });
+
+                var reverse = typeof(Array)
+                    .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
+
+                expression = Expression.Block(
+                    new[] { bytes },
+
+                    // store the bytes in a variable:
+                    Expression.Assign(bytes, expression),
+
+                    // BigInteger is little-endian, so reverse before creating:
+                    Expression.Call(null, reverse, bytes),
+
+                    // return (decimal)new BigInteger(bytes) / (decimal)Math.Pow(10, scale);
+                    Expression.Divide(
+                        Expression.ConvertChecked(
+                            Expression.New(integerConstructor, bytes),
+                            typeof(decimal)),
+                        Expression.Constant((decimal)Math.Pow(10, scale)))
+                );
+
+                expression = GenerateConversion(expression, target);
+
+                var lambda = Expression.Lambda(expression, "decimal deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
             }
             else
             {
-                throw new UnsupportedSchemaException(schema, "A decimal deserializer can only be built for a bytes or a fixed schema.");
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.Read));
-
-            // read the bytes:
-            result = Expression.Call(codec, readValue, stream, result);
-
-            // declare some variables for in-place transformation:
-            var bytes = Expression.Variable(typeof(byte[]));
-
-            var integerConstructor = typeof(BigInteger)
-                .GetConstructor(new[] { typeof(byte[]) });
-
-            var reverse = typeof(Array)
-                .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
-
-            result = Expression.Block(
-                new[] { bytes },
-
-                // store the bytes in a variable:
-                Expression.Assign(bytes, result),
-
-                // BigInteger is little-endian, so reverse before creating:
-                Expression.Call(null, reverse, bytes),
-
-                // return (decimal)new BigInteger(bytes) / (decimal)Math.Pow(10, scale);
-                Expression.Divide(
-                    Expression.ConvertChecked(
-                        Expression.New(integerConstructor, bytes),
-                        typeof(decimal)),
-                    Expression.Constant((decimal)Math.Pow(10, scale)))
-            );
-
-            if (source != target)
-            {
-                try
-                {
-                    result = Expression.ConvertChecked(result, target);
-                }
-                catch (InvalidOperationException inner)
-                {
-                    throw new UnsupportedTypeException(target, $"A decimal deserializer cannot be built for type {target.FullName}.", inner);
-                }
-            }
-
-            var lambda = Expression.Lambda(result, "decimal deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -769,48 +803,39 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema is a <see cref="DoubleSchema" />; an unsuccessful
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="DoubleSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no conversion from <see cref="double" /> exists.
+        /// Thrown when <see cref="double" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is DoubleSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is DoubleSchema)
             {
-                throw new UnsupportedSchemaException(schema, "A double deserializer can only be built for a double schema.");
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                var expression = GenerateConversion(Codec.ReadDouble(stream), target);
+                var lambda = Expression.Lambda(expression, "double deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var source = typeof(double);
-            var target = resolution.Type;
-
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadDouble));
-
-            Expression result = Expression.Call(codec, readValue, stream);
-
-            if (source != target)
-            {
-                try
-                {
-                    result = Expression.ConvertChecked(result, target);
-                }
-                catch (InvalidOperationException inner)
-                {
-                    throw new UnsupportedTypeException(target, $"A double deserializer cannot be built for type {target.FullName}.", inner);
-                }
-            }
-
-            var lambda = Expression.Lambda(result, "double deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -849,84 +874,96 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the resolution is a <see cref="DurationResolution" /> and the
+        /// schema’s logical type is a <see cref="DurationLogicalType" />; an unsuccessful result
+        /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="FixedSchema" /> with size 12 and logical
         /// type <see cref="DurationLogicalType" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="TimeSpan" />.
+        /// Thrown when <see cref="TimeSpan" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema.LogicalType is DurationLogicalType))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema.LogicalType is DurationLogicalType)
             {
-                throw new UnsupportedSchemaException(schema, "A duration deserializer can only be built for a schema with a duration logical type.");
-            }
-
-            if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == 12))
-            {
-                throw new UnsupportedSchemaException(schema, "A duration deserializer can only be built for a fixed schema with size 12.");
-            }
-
-            var target = resolution.Type;
-
-            if (!(target == typeof(TimeSpan) || target == typeof(TimeSpan?)))
-            {
-                throw new UnsupportedTypeException(target, $"A duration deserializer cannot be built for {target.Name}.");
-            }
-
-            Func<Stream, long> read = input =>
-            {
-                var bytes = Codec.Read(input, 4);
-
-                if (!BitConverter.IsLittleEndian)
+                if (resolution is DurationResolution)
                 {
-                    Array.Reverse(bytes);
-                }
+                    if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == 12))
+                    {
+                        throw new UnsupportedSchemaException(schema);
+                    }
 
-                return BitConverter.ToUInt32(bytes, 0);
-            };
+                    Func<Stream, long> read = input =>
+                    {
+                        var buffer = new byte[4];
+                        var bytes = input.Read(buffer, 0, buffer.Length);
 
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
+                        if (!BitConverter.IsLittleEndian)
+                        {
+                            Array.Reverse(buffer);
+                        }
 
-            Expression result = Expression.Block(
-                Expression.IfThen(
-                    Expression.NotEqual(
-                        Expression.Invoke(Expression.Constant(read), stream),
-                        Expression.Constant(0L)
-                    ),
-                    Expression.Throw(
-                        Expression.New(
-                            typeof(OverflowException).GetConstructor(new[] { typeof(string )}),
-                            Expression.Constant("Durations containing months cannot be accurately deserialized to a TimeSpan.")
-                        )
-                    )
-                ),
-                Expression.ConvertChecked(
-                    Expression.New(
-                        typeof(TimeSpan).GetConstructor(new[] { typeof(long) }),
-                        Expression.AddChecked(
-                            Expression.MultiplyChecked(
+                        return BitConverter.ToUInt32(buffer, 0);
+                    };
+
+                    var target = resolution.Type;
+
+                    var stream = Expression.Parameter(typeof(Stream));
+
+                    var expression = GenerateConversion(Expression.Block(
+                        Expression.IfThen(
+                            Expression.NotEqual(
                                 Expression.Invoke(Expression.Constant(read), stream),
-                                Expression.Constant(TimeSpan.TicksPerDay)
+                                Expression.Constant(0L)
                             ),
-                            Expression.MultiplyChecked(
-                                Expression.Invoke(Expression.Constant(read), stream),
-                                Expression.Constant(TimeSpan.TicksPerMillisecond)
+                            Expression.Throw(
+                                Expression.New(
+                                    typeof(OverflowException).GetConstructor(new[] { typeof(string )}),
+                                    Expression.Constant("Durations containing months cannot be accurately deserialized to a TimeSpan.")
+                                )
+                            )
+                        ),
+                        Expression.New(
+                            typeof(TimeSpan).GetConstructor(new[] { typeof(long) }),
+                            Expression.AddChecked(
+                                Expression.MultiplyChecked(
+                                    Expression.Invoke(Expression.Constant(read), stream),
+                                    Expression.Constant(TimeSpan.TicksPerDay)
+                                ),
+                                Expression.MultiplyChecked(
+                                    Expression.Invoke(Expression.Constant(read), stream),
+                                    Expression.Constant(TimeSpan.TicksPerMillisecond)
+                                )
                             )
                         )
-                    ),
-                    target
-                )
-            );
+                    ), target);
 
-            var lambda = Expression.Lambda(result, $"duration deserializer", new[] { stream });
-            var compiled = lambda.Compile();
+                    var lambda = Expression.Lambda(expression, $"duration deserializer", new[] { stream });
+                    var compiled = lambda.Compile();
 
-            return cache.GetOrAdd((target, schema), compiled);
+                    if (!cache.TryAdd((target, schema), compiled))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    result.Delegate = compiled;
+                }
+                else
+                {
+                    result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
+                }
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+            }
+
+            return result;
         }
     }
 
@@ -965,65 +1002,72 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the resolution is an <see cref="EnumResolution" /> and the
+        /// schema is an <see cref="EnumSchema" />; an unsuccessful result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not an <see cref="EnumSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not an <see cref="EnumResolution" /> or the type does not
-        /// contain a matching symbol for each symbol in the schema.
+        /// Thrown when the the type does not contain a matching symbol for each symbol in the
+        /// schema.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(resolution is EnumResolution enumResolution))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is EnumSchema enumSchema)
             {
-                throw new UnsupportedTypeException(resolution.Type, "An enum deserializer can only be built for an enum resolution.");
-            }
-
-            if (!(schema is EnumSchema enumSchema))
-            {
-                throw new UnsupportedSchemaException(schema, "An enum deserializer can only be built for an enum schema.");
-            }
-
-            var target = resolution.Type;
-
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readIndex = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-            Expression result = Expression.ConvertChecked(Expression.Call(codec, readIndex, stream), typeof(int));
-
-            // find a match for each enum in the schema:
-            var cases = enumSchema.Symbols.Select((name, index) =>
-            {
-                var match = enumResolution.Symbols.SingleOrDefault(s => s.Name.IsMatch(name));
-
-                if (match == null)
+                if (resolution is EnumResolution enumResolution)
                 {
-                    throw new UnsupportedTypeException(target, $"{target.Name} has no value that matches {name}.");
+                    var target = resolution.Type;
+
+                    var stream = Expression.Parameter(typeof(Stream));
+
+                    Expression expression = Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int));
+
+                    // find a match for each enum in the schema:
+                    var cases = enumSchema.Symbols.Select((name, index) =>
+                    {
+                        var match = enumResolution.Symbols.SingleOrDefault(s => s.Name.IsMatch(name));
+
+                        if (match == null)
+                        {
+                            throw new UnsupportedTypeException(target, $"{target.Name} has no value that matches {name}.");
+                        }
+
+                        return Expression.SwitchCase(
+                            GenerateConversion(Expression.Constant(match.Value), target),
+                            Expression.Constant(index)
+                        );
+                    });
+
+                    var exceptionConstructor = typeof(OverflowException)
+                        .GetConstructor(new[] { typeof(string) });
+
+                    var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum index out of range."));
+
+                    // generate a switch on the index:
+                    expression = Expression.Switch(expression, Expression.Throw(exception, target), cases.ToArray());
+
+                    var lambda = Expression.Lambda(expression, $"{enumSchema.Name} deserializer", new[] { stream });
+                    var compiled = lambda.Compile();
+
+                    if (!cache.TryAdd((target, schema), compiled))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    result.Delegate = compiled;
                 }
+                else
+                {
+                    result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
+                }
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+            }
 
-                return Expression.SwitchCase(
-                    Expression.ConvertChecked(Expression.Constant(match.Value), target),
-                    Expression.Constant(index)
-                );
-            });
-
-            var exceptionConstructor = typeof(OverflowException)
-                .GetConstructor(new[] { typeof(string) });
-
-            var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum index out of range."));
-
-            // generate a switch on the index:
-            result = Expression.Switch(result, Expression.Throw(exception, target), cases.ToArray());
-
-            var lambda = Expression.Lambda(result, $"{enumSchema.Name} deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -1062,61 +1106,57 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema is a <see cref="FixedSchema" />; an unsuccessful
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="FixedSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no conversion from <see cref="T:System.Byte[]" /> exists.
+        /// Thrown when <see cref="T:System.Byte[]" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is FixedSchema fixedSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is FixedSchema fixedSchema)
             {
-                throw new UnsupportedSchemaException(schema, "A fixed deserializer can only be built for a fixed schema.");
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                var expression = GenerateConversion(Codec.Read(stream, Expression.Constant(fixedSchema.Size)), target);
+                var lambda = Expression.Lambda(expression, $"{fixedSchema.Name} deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var source = typeof(byte[]);
-            var target = resolution.Type;
+            return result;
+        }
 
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.Read));
-
-            Expression result = Expression.Call(codec, readValue, stream, Expression.Constant(fixedSchema.Size));
-
-            if (source != target)
+        /// <summary>
+        /// Generates a conversion from the source type to the intermediate type. This override
+        /// will convert a bytes value to <see cref="Guid" /> prior to applying the base
+        /// implementation.
+        /// </summary>
+        protected override Expression GenerateConversion(Expression input, Type target)
+        {
+            if (target == typeof(Guid) || target == typeof(Guid?))
             {
-                if (target == typeof(Guid) || target == typeof(Guid?))
-                {
-                    if (fixedSchema.Size != 16)
-                    {
-                        throw new UnsupportedSchemaException(schema, $"A fixed schema cannot be mapped to a Guid unless its size is 16.");
-                    }
+                var guidConstructor = typeof(Guid)
+                    .GetConstructor(new[] { input.Type });
 
-                    var guidConstructor = typeof(Guid)
-                        .GetConstructor(new[] { typeof(byte[]) });
-
-                    result = Expression.New(guidConstructor, result);
-                }
-
-                try
-                {
-                    result = Expression.ConvertChecked(result, target);
-                }
-                catch (InvalidOperationException inner)
-                {
-                    throw new UnsupportedTypeException(target, $"A fixed deserializer cannot be built for type {target.FullName}.", inner);
-                }
+                input = Expression.New(guidConstructor, input);
             }
 
-            var lambda = Expression.Lambda(result, $"{fixedSchema.Name} deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return base.GenerateConversion(input, target);
         }
     }
 
@@ -1155,48 +1195,39 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema is a <see cref="FloatSchema" />; an unsuccessful
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="FloatSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no conversion from <see cref="float" /> exists.
+        /// Thrown when <see cref="float" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is FloatSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is FloatSchema)
             {
-                throw new UnsupportedSchemaException(schema, "A float deserializer can only be built for a float schema.");
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                var expression = GenerateConversion(Codec.ReadSingle(stream), target);
+                var lambda = Expression.Lambda(expression, "float deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var source = typeof(float);
-            var target = resolution.Type;
-
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadSingle));
-
-            Expression result = Expression.Call(codec, readValue, stream);
-
-            if (source != target)
-            {
-                try
-                {
-                    result = Expression.ConvertChecked(result, target);
-                }
-                catch (InvalidOperationException inner)
-                {
-                    throw new UnsupportedTypeException(target, $"A float deserializer cannot be built for type {target.FullName}.", inner);
-                }
-            }
-
-            var lambda = Expression.Lambda(result, "float deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -1235,48 +1266,39 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema is an <see cref="IntSchema" /> or a <see cref="LongSchema" />;
+        /// an unsuccessful result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not an <see cref="IntSchema" /> or a <see cref="LongSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no conversion from <see cref="long" /> exists.
+        /// Thrown when <see cref="long" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is IntSchema || schema is LongSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is IntSchema || schema is LongSchema)
             {
-                throw new UnsupportedSchemaException(schema, "An integer deserializer can only be built for an int or long schema.");
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                var expression = GenerateConversion(Codec.ReadInteger(stream), target);
+                var lambda = Expression.Lambda(expression, "integer deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var source = typeof(long);
-            var target = resolution.Type;
-
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-            Expression result = Expression.Call(codec, readValue, stream);
-
-            if (source != target)
-            {
-                try
-                {
-                    result = Expression.ConvertChecked(result, target);
-                }
-                catch (InvalidOperationException inner)
-                {
-                    throw new UnsupportedTypeException(target, $"An integer deserializer cannot be built for type {target.FullName}.", inner);
-                }
-            }
-
-            var lambda = Expression.Lambda(result, "integer deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -1307,8 +1329,8 @@ namespace Chr.Avro.Serialization
         /// </param>
         public MapDeserializerBuilderCase(IBinaryCodec codec, IBinaryDeserializerBuilder deserializerBuilder)
         {
-            Codec = codec;
-            DeserializerBuilder = deserializerBuilder;
+            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -1324,102 +1346,88 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the resolution is a <see cref="MapResolution" /> and the schema
+        /// is a <see cref="MapSchema" />; an unsuccessful result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="MapSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="MapResolution" /> or the resolved type
-        /// is not assignable from <see cref="Dictionary{TKey, TValue}" />.
+        /// Thrown when the resolved type is not assignable from <see cref="Dictionary{TKey, TValue}" />.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(resolution is MapResolution mapResolution))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is MapSchema mapSchema)
             {
-                throw new UnsupportedTypeException(resolution.Type, "A map deserializer can only be built for a map resolution.");
-            }
+                if (resolution is MapResolution mapResolution)
+                {
+                    var target = mapResolution.Type;
+                    var key = mapResolution.KeyType;
+                    var item = mapResolution.ValueType;
 
-            if (!(schema is MapSchema mapSchema))
-            {
-                throw new UnsupportedSchemaException(schema, "A map deserializer can only be built for a map schema.");
-            }
+                    var stream = Expression.Parameter(typeof(Stream));
 
-            var target = mapResolution.Type;
-            var key = mapResolution.KeyType;
-            var item = mapResolution.ValueType;
+                    Expression expression = null!;
 
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
+                    try
+                    {
+                        var build = typeof(IBinaryDeserializerBuilder)
+                            .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate));
 
-            Expression result = null;
+                        var buildKey = build.MakeGenericMethod(key);
+                        var buildItem = build.MakeGenericMethod(item);
 
-            try
-            {
-                var build = typeof(IBinaryDeserializerBuilder)
-                    .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate));
+                        expression = Codec.ReadMap(stream,
+                            Expression.Invoke(
+                                Expression.Constant(
+                                    buildKey.Invoke(DeserializerBuilder, new object[] { new StringSchema(), cache }),
+                                    typeof(Func<,>).MakeGenericType(typeof(Stream), key)),
+                                stream),
+                            Expression.Invoke(
+                                Expression.Constant(
+                                    buildItem.Invoke(DeserializerBuilder, new object[] { mapSchema.Value, cache }),
+                                    typeof(Func<,>).MakeGenericType(typeof(Stream), item)),
+                                stream));
+                    }
+                    catch (TargetInvocationException indirect)
+                    {
+                        ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
+                    }
 
-                var buildKey = build.MakeGenericMethod(key);
-                var buildItem = build.MakeGenericMethod(item);
+                    var immutableDictionary = typeof(ImmutableDictionary<,>)
+                        .MakeGenericType(key, item);
 
-                var readBlocks = typeof(IBinaryCodec)
-                    .GetMethods()
-                    .Single(m => m.Name == nameof(IBinaryCodec.ReadBlocks)
-                        && m.GetGenericArguments().Length == 2
-                    )
-                    .MakeGenericMethod(key, item);
+                    if (target.Equals(immutableDictionary))
+                    {
+                        var emptyImmutableDictionary = Expression.Field(null, immutableDictionary.GetField("Empty"));
+                        var addRange = immutableDictionary.GetMethod("AddRange");
+                        expression = Expression.Call(emptyImmutableDictionary, addRange, new[] { expression });
+                    }
+                    else
+                    {
+                        expression = GenerateConversion(expression, target);
+                    }
 
-                result = Expression.Call(
-                    codec,
-                    readBlocks,
-                    stream,
-                    Expression.Constant(
-                        buildKey.Invoke(DeserializerBuilder, new object[] { new StringSchema(), cache }),
-                        typeof(Func<,>).MakeGenericType(typeof(Stream), key)
-                    ),
-                    Expression.Constant(
-                        buildItem.Invoke(DeserializerBuilder, new object[] { mapSchema.Value, cache }),
-                        typeof(Func<,>).MakeGenericType(typeof(Stream), item)
-                    )
-                );
-            }
-            catch (TargetInvocationException indirect)
-            {
-                ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
-            }
+                    var lambda = Expression.Lambda(expression, "map deserializer", new[] { stream });
+                    var compiled = lambda.Compile();
 
-            var idictionary = typeof(IDictionary<,>)
-                .MakeGenericType(key, item);
+                    if (!cache.TryAdd((target, schema), compiled))
+                    {
+                        throw new InvalidOperationException();
+                    }
 
-            var dictionary = typeof(Dictionary<,>)
-                .MakeGenericType(key, item);
-
-            var dictionaryConstructor = dictionary
-                .GetConstructor(new[] { idictionary });
-
-            var immutableDictionary = typeof(ImmutableDictionary<,>)
-                .MakeGenericType(key, item);
-
-            if (target.Equals(immutableDictionary))
-            {
-                var emptyImmutableDictionary = Expression.Field(null, immutableDictionary.GetField("Empty"));
-                var dictionaryResult = Expression.New(dictionaryConstructor, result);
-                var addRange = immutableDictionary.GetMethod("AddRange");
-                result = Expression.Call(emptyImmutableDictionary, addRange, new[] { dictionaryResult });
-            }
-            else if (!target.IsAssignableFrom(dictionary))
-            {
-                throw new UnsupportedTypeException(target, $"A map deserializer cannot be built for type {target.FullName}.");
+                    result.Delegate = compiled;
+                }
+                else
+                {
+                    result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
+                }
             }
             else
             {
-                result = Expression.ConvertChecked(Expression.New(dictionaryConstructor, result), target);
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var lambda = Expression.Lambda(result, "map deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -1441,27 +1449,36 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a null value.
+        /// A successful result if the schema is a <see cref="NullSchema" />; an unsuccessful
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="NullSchema" />.
-        /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is NullSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is NullSchema)
             {
-                throw new UnsupportedSchemaException(schema, "A null deserializer can only be built for a null schema.");
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                var expression = Expression.Default(target);
+                var lambda = Expression.Lambda(expression, "null deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var target = resolution.Type;
-
-            var result = Expression.Default(target);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var lambda = Expression.Lambda(result, "null deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -1471,7 +1488,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class RecordConstructorDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
-
         /// <summary>
         /// The deserializer builder to use to build field deserializers.
         /// </summary>
@@ -1485,7 +1501,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public RecordConstructorDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
         {
-            DeserializerBuilder = deserializerBuilder;
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -1501,121 +1517,129 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the resolution is a <see cref="RecordResolution" />, the
+        /// schema is a <see cref="RecordSchema" />, and the resolved type has a constructor with
+        /// a matching parameter for each field on the schema; an unsuccessful result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="RecordSchema" />.
-        /// </exception>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="RecordResolution" />.
-        /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(resolution is RecordResolution recordResolution))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is RecordSchema recordSchema)
             {
-                throw new UnsupportedTypeException(resolution.Type, "A record constructor deserializer can only be built for a record resolution.");
-            }
-
-            if (!(schema is RecordSchema recordSchema))
-            {
-                throw new UnsupportedSchemaException(schema, "A record constructor deserializer can only be built for a record schema.");
-            }
-            
-            var schemaFields = recordSchema.Fields.ToList();
-
-            // attempt to find a constructor with arguments fully inclusive of all schema fields by name allowing for extra optional arguments
-            ConstructorResolution constructorResolution = recordResolution.Constructors.FirstOrDefault(constructor => IsMatch(constructor, schemaFields));
-
-            if (constructorResolution == null)
-            {
-                throw new UnsupportedTypeException(recordResolution.Type, "A record constructor deserializer can only be built for a type that has a constructor with all non-optional arguments matching the schema fields name and type.");
-            }
-
-            var target = resolution.Type;
-
-            var stream = Expression.Parameter(typeof(Stream));
-            var value = Expression.Parameter(target);
-
-            // declare a delegate to construct the object
-            Delegate construct = null;
-
-            // bind to this scope:
-            Expression result = Expression.Invoke(Expression.Constant((Func<Delegate>)(() => construct)));
-
-            result = Expression.ConvertChecked(result, typeof(Func<,>).MakeGenericType(typeof(Stream), target));
-
-            result = Expression.Block(
-                new[] { value },
-                Expression.Assign(value, Expression.Invoke(result, stream)),
-                value
-            );
-
-            var lambda = Expression.Lambda(result, $"{recordSchema.Name} deserializer", new[] { stream });
-            var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
-
-            var constructorArguments = new List<(ParameterResolution, ParameterExpression)>();
-            // now that an infinite loop won't happen, build the expressions to extract the parameters from the serialized data            
-            var extractParameters = recordSchema.Fields.Select(field =>
-            {
-                // there will be a match or we wouldn't have made it this far.
-                var match = constructorResolution.Parameters.Single(f => f.Name.IsMatch(field.Name));
-
-                Expression action = null;
-                try
+                if (resolution is RecordResolution recordResolution)
                 {
-                    var build = typeof(IBinaryDeserializerBuilder)
-                        .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
-                        .MakeGenericMethod(match.Type);
+                    var schemaFields = recordSchema.Fields.ToList();
 
-                    action = Expression.Constant(
-                        build.Invoke(DeserializerBuilder, new object[] { field.Type, cache }),
-                        typeof(Func<,>).MakeGenericType(typeof(Stream), match.Type)
-                    );
-                }
-                catch (TargetInvocationException indirect)
-                {
-                    ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
-                }
+                    if (recordResolution.Constructors.FirstOrDefault(constructor => IsMatch(constructor, schemaFields)) is ConstructorResolution constructorResolution)
+                    {
+                        var target = resolution.Type;
 
-                // invoke the deserialization
-                action = Expression.Invoke(action, stream);
-                // create a variable to hold the deserialized data
-                var variable = Expression.Parameter(match.Type);
-                // assign the deserialized data to the variable
-                action = Expression.Assign(variable, action);
-                // create a separate list so they can be passed to the constructor in the correct order
-                constructorArguments.Add((match, variable));
+                        var stream = Expression.Parameter(typeof(Stream));
+                        var value = Expression.Parameter(target);
 
-                return action;
-            }).ToList();
+                        // declare a delegate to construct the object
+                        Delegate construct = null!;
 
-            // reorder the parameters to match the order in the constructor and add any default parameters
-            var parameters = constructorResolution.Parameters.ToArray();
-            Expression[] arguments = new Expression[parameters.Length];
-            for (int i = 0; i < parameters.Length; i++)
-            {
-                var match = constructorArguments.FirstOrDefault(argument => argument.Item1.Name.IsMatch(parameters[i].Name));
-                if (match != default)
-                {
-                    arguments[i] = (match.Item2);
+                        // bind to this scope:
+                        Expression expression = Expression.Invoke(Expression.Constant((Func<Delegate>)(() => construct)));
+
+                        expression = GenerateConversion(expression, typeof(Func<,>).MakeGenericType(typeof(Stream), target));
+
+                        expression = Expression.Block(
+                            new[] { value },
+                            Expression.Assign(value, Expression.Invoke(expression, stream)),
+                            value
+                        );
+
+                        var lambda = Expression.Lambda(expression, $"{recordSchema.Name} deserializer", new[] { stream });
+                        var compiled = lambda.Compile();
+
+                        if (!cache.TryAdd((target, schema), compiled))
+                        {
+                            throw new InvalidOperationException();
+                        }
+
+                        result.Delegate = compiled;
+
+                        // now that an infinite loop won't happen, build the expressions to extract the parameters from the serialized data
+                        var constructorArguments = new List<(ParameterResolution, ParameterExpression)>();
+                        var extractParameters = recordSchema.Fields.Select(field =>
+                        {
+                            // there will be a match or we wouldn't have made it this far.
+                            var match = constructorResolution.Parameters.Single(f => f.Name.IsMatch(field.Name));
+
+                            Expression action = null!;
+                            try
+                            {
+                                var build = typeof(IBinaryDeserializerBuilder)
+                                    .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
+                                    .MakeGenericMethod(match.Type);
+
+                                action = Expression.Constant(
+                                    build.Invoke(DeserializerBuilder, new object[] { field.Type, cache }),
+                                    typeof(Func<,>).MakeGenericType(typeof(Stream), match.Type)
+                                );
+                            }
+                            catch (TargetInvocationException indirect)
+                            {
+                                ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
+                            }
+
+                            // invoke the deserialization
+                            action = Expression.Invoke(action, stream);
+                            // create a variable to hold the deserialized data
+                            var variable = Expression.Parameter(match.Type);
+                            // assign the deserialized data to the variable
+                            action = Expression.Assign(variable, action);
+                            // create a separate list so they can be passed to the constructor in the correct order
+                            constructorArguments.Add((match, variable));
+
+                            return action;
+                        }).ToList();
+
+                        // reorder the parameters to match the order in the constructor and add any default parameters
+                        var parameters = constructorResolution.Parameters.ToArray();
+                        Expression[] arguments = new Expression[parameters.Length];
+                        for (int i = 0; i < parameters.Length; i++)
+                        {
+                            var match = constructorArguments.FirstOrDefault(argument => argument.Item1.Name.IsMatch(parameters[i].Name));
+                            if (match != default)
+                            {
+                                arguments[i] = (match.Item2);
+                            }
+                            else
+                            {
+                                arguments[i] = Expression.Constant(parameters[i].Parameter.DefaultValue, parameters[i].Type);
+                            }
+                        }
+
+                        // add constructing the object to the list of expressions
+                        extractParameters.Add(Expression.New(constructorResolution.Constructor, arguments));
+
+                        expression = Expression.Block(constructorArguments.Select(arg => arg.Item2).ToArray(), extractParameters);
+
+                        lambda = Expression.Lambda(expression, $"{recordSchema.Name} constructor", new[] { stream });
+                        construct = lambda.Compile();
+                    }
+                    else
+                    {
+                        result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
+                    }
                 }
                 else
                 {
-                    arguments[i] = Expression.Constant(parameters[i].Parameter.DefaultValue, parameters[i].Type);
+                    result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
                 }
             }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+            }
 
-            // add constructing the object to the list of expressions
-            extractParameters.Add(Expression.New(constructorResolution.Constructor, arguments));
-
-            result = Expression.Block(constructorArguments.Select(arg => arg.Item2).ToArray(), extractParameters);
-
-            lambda = Expression.Lambda(result, $"{recordSchema.Name} constructor", new[] { stream });
-            construct = lambda.Compile();
-
-            return compiled;
+            return result;
         }
-               
+
         /// <summary>
         /// Whether the resolved constructor matches a record schema's fields.
         /// </summary>
@@ -1623,9 +1647,8 @@ namespace Chr.Avro.Serialization
         /// The constructor resolution to check for a match.
         /// </param>
         /// <param name="recordFields">
-        /// The record schema fields to match against the constructor parameters. 
+        /// The record schema fields to match against the constructor parameters.
         /// </param>
-        /// <returns></returns>
         protected bool IsMatch(ConstructorResolution constructor, ICollection<RecordField> recordFields)
         {
             if (constructor.Parameters.Count < recordFields.Count)
@@ -1674,7 +1697,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public RecordDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
         {
-            DeserializerBuilder = deserializerBuilder;
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -1690,93 +1713,101 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the resolution is a <see cref="RecordResolution" /> and the
+        /// schema is a <see cref="RecordSchema" />; an unsuccessful result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="RecordSchema" />.
-        /// </exception>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="RecordResolution" />.
-        /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(resolution is RecordResolution recordResolution))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is RecordSchema recordSchema)
             {
-                throw new UnsupportedTypeException(resolution.Type, "A record deserializer can only be built for a record resolution.");
-            }
-
-            if (!(schema is RecordSchema recordSchema))
-            {
-                throw new UnsupportedSchemaException(schema, "A record deserializer can only be built for a record schema.");
-            }
-
-            var target = resolution.Type;
-
-            var stream = Expression.Parameter(typeof(Stream));
-            var value = Expression.Parameter(target);
-
-            // declare an action that reads/assigns the record fields in order:
-            Delegate assign = null;
-
-            // bind to this scope:
-            Expression result = Expression.Invoke(Expression.Constant((Func<Delegate>)(() => assign)));
-
-            // coerce Delegate to Action<Stream, TTarget>:
-            result = Expression.ConvertChecked(result, typeof(Action<,>).MakeGenericType(typeof(Stream), target));
-
-            // deserialize the record:
-            result = Expression.Block(
-                new[] { value },
-                Expression.Assign(value, Expression.New(target)), // create the thing
-                Expression.Invoke(result, stream, value),         // assign its fields
-                value                                             // return the thing
-            );
-
-            var lambda = Expression.Lambda(result, $"{recordSchema.Name} deserializer", new[] { stream });
-            var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
-
-            // now that an infinite cycle won’t happen, build the assign function:
-            var assignments = recordSchema.Fields.Select(field =>
-            {
-                var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-                var type = match?.Type ?? CreateSurrogateType(field.Type);
-
-                Expression action = null;
-
-                try
+                if (resolution is RecordResolution recordResolution)
                 {
-                    var build = typeof(IBinaryDeserializerBuilder)
-                        .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
-                        .MakeGenericMethod(type);
+                    var target = resolution.Type;
 
-                    // https://i.imgur.com/PBLYIc2.gifv
-                    action = Expression.Constant(
-                        build.Invoke(DeserializerBuilder, new object[] { field.Type, cache }),
-                        typeof(Func<,>).MakeGenericType(typeof(Stream), type)
+                    var stream = Expression.Parameter(typeof(Stream));
+                    var value = Expression.Parameter(target);
+
+                    // declare an action that reads/assigns the record fields in order:
+                    Delegate assign = null!;
+
+                    // bind to this scope:
+                    Expression expression = Expression.Invoke(Expression.Constant((Func<Delegate>)(() => assign)));
+
+                    // coerce Delegate to Action<Stream, TTarget>:
+                    expression = GenerateConversion(expression, typeof(Action<,>).MakeGenericType(typeof(Stream), target));
+
+                    // deserialize the record:
+                    expression = Expression.Block(
+                        new[] { value },
+                        Expression.Assign(value, Expression.New(target)), // create the thing
+                        Expression.Invoke(expression, stream, value),     // assign its fields
+                        value                                             // return the thing
                     );
+
+                    var lambda = Expression.Lambda(expression, $"{recordSchema.Name} deserializer", new[] { stream });
+                    var compiled = lambda.Compile();
+
+                    if (!cache.TryAdd((target, schema), compiled))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    result.Delegate = compiled;
+
+                    // now that an infinite cycle won’t happen, build the assign function:
+                    var assignments = recordSchema.Fields.Select(field =>
+                    {
+                        var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
+                        var type = match?.Type ?? CreateSurrogateType(field.Type);
+
+                        Expression action = null!;
+
+                        try
+                        {
+                            var build = typeof(IBinaryDeserializerBuilder)
+                                .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
+                                .MakeGenericMethod(type);
+
+                            // https://i.imgur.com/PBLYIc2.gifv
+                            action = Expression.Constant(
+                                build.Invoke(DeserializerBuilder, new object[] { field.Type, cache }),
+                                typeof(Func<,>).MakeGenericType(typeof(Stream), type)
+                            );
+                        }
+                        catch (TargetInvocationException indirect)
+                        {
+                            ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
+                        }
+
+                        // always read to advance the stream:
+                        action = Expression.Invoke(action, stream);
+
+                        if (match != null)
+                        {
+                            // and assign if a field matches:
+                            action = Expression.Assign(Expression.PropertyOrField(value, match.Member.Name), action);
+                        }
+
+                        return action;
+                    }).ToList();
+
+                    expression = assignments.Count > 0 ? Expression.Block(typeof(void), assignments) : Expression.Empty() as Expression;
+                    lambda = Expression.Lambda(expression, $"{recordSchema.Name} field assigner", new[] { stream, value });
+                    assign = lambda.Compile();
                 }
-                catch (TargetInvocationException indirect)
+                else
                 {
-                    ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
+                    result.Exceptions.Add(new UnsupportedTypeException(resolution.Type, "A record deserializer can only be built for a record resolution."));
                 }
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+            }
 
-                // always read to advance the stream:
-                action = Expression.Invoke(action, stream);
-
-                if (match != null)
-                {
-                    // and assign if a field matches:
-                    action = Expression.Assign(Expression.PropertyOrField(value, match.Member.Name), action);
-                }
-
-                return action;
-            }).ToList();
-
-            result = assignments.Count > 0 ? Expression.Block(typeof(void), assignments) : Expression.Empty() as Expression;
-            lambda = Expression.Lambda(result, $"{recordSchema.Name} field assigner", new[] { stream, value });
-            assign = lambda.Compile();
-
-            return compiled;
+            return result;
         }
 
         /// <summary>
@@ -1862,124 +1893,120 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema is a <see cref="StringSchema" />; an unsuccessful
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="StringSchema" />.
-        /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no known conversions (<see cref="DateTime" />/<see cref="DateTimeOffset" />,
-        /// <see cref="Guid" />, <see cref="TimeSpan"/>, <see cref="Uri" />) can be applied and no
-        /// conversion from <see cref="string" /> exists.
+        /// Thrown when <see cref="string" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is StringSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is StringSchema)
             {
-                throw new UnsupportedSchemaException(schema, "A string deserializer can only be built for a string schema.");
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                var expression = Codec.Read(stream, Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int)));
+
+                var decodeValue = typeof(Encoding)
+                    .GetMethod(nameof(Encoding.GetString), new[] { typeof(byte[]) });
+
+                expression = GenerateConversion(Expression.Call(Expression.Constant(Encoding.UTF8), decodeValue, expression), target);
+
+                var lambda = Expression.Lambda(expression, "string deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var source = typeof(string);
-            var target = resolution.Type;
+            return result;
+        }
 
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readLength = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-            Expression result = Expression.ConvertChecked(Expression.Call(codec, readLength, stream), typeof(int));
-
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.Read));
-
-            result = Expression.Call(codec, readValue, stream, result);
-
-            var decodeValue = typeof(Encoding)
-                .GetMethod(nameof(Encoding.GetString), new[] { typeof(byte[]) });
-
-            result = Expression.Call(Expression.Constant(Encoding.UTF8), decodeValue, result);
-
-            if (source != target)
+        /// <summary>
+        /// Generates a conversion from the source type to the intermediate type. This override
+        /// will convert a string value to <see cref="DateTime" />, <see cref="DateTimeOffset" />,
+        /// <see cref="Guid" />, <see cref="TimeSpan" />, or <see cref="Uri" /> prior to applying
+        /// the base implementation.
+        /// </summary>
+        protected override Expression GenerateConversion(Expression input, Type target)
+        {
+            if (target == typeof(DateTime) || target == typeof(DateTime?))
             {
-                if (target == typeof(DateTime) || target == typeof(DateTime?))
-                {
-                    var parseDateTime = typeof(DateTime)
-                        .GetMethod(nameof(DateTime.Parse), new[]
-                        {
-                            typeof(string),
-                            typeof(IFormatProvider),
-                            typeof(DateTimeStyles)
-                        });
+                var parseDateTime = typeof(DateTime)
+                    .GetMethod(nameof(DateTime.Parse), new[]
+                    {
+                        input.Type,
+                        typeof(IFormatProvider),
+                        typeof(DateTimeStyles)
+                    });
 
-                    result = Expression.ConvertChecked(
-                        Expression.Call(
-                            null,
-                            parseDateTime,
-                            result,
-                            Expression.Constant(CultureInfo.InvariantCulture),
-                            Expression.Constant(DateTimeStyles.RoundtripKind)
-                        ),
-                        target
-                    );
-                }
-                else if (target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?))
-                {
-                    var parseDateTimeOffset = typeof(DateTimeOffset)
-                        .GetMethod(nameof(DateTimeOffset.Parse), new[]
-                        {
-                            typeof(string),
-                            typeof(IFormatProvider),
-                            typeof(DateTimeStyles)
-                        });
+                input = Expression.ConvertChecked(
+                    Expression.Call(
+                        null,
+                        parseDateTime,
+                        input,
+                        Expression.Constant(CultureInfo.InvariantCulture),
+                        Expression.Constant(DateTimeStyles.RoundtripKind)
+                    ),
+                    target
+                );
+            }
+            else if (target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?))
+            {
+                var parseDateTimeOffset = typeof(DateTimeOffset)
+                    .GetMethod(nameof(DateTimeOffset.Parse), new[]
+                    {
+                        input.Type,
+                        typeof(IFormatProvider),
+                        typeof(DateTimeStyles)
+                    });
 
-                    result = Expression.ConvertChecked(
-                        Expression.Call(
-                            null,
-                            parseDateTimeOffset,
-                            result,
-                            Expression.Constant(CultureInfo.InvariantCulture),
-                            Expression.Constant(DateTimeStyles.RoundtripKind)
-                        ),
-                        target
-                    );
-                }
-                else if (target == typeof(Guid) || target == typeof(Guid?))
-                {
-                    var guidConstructor = typeof(Guid)
-                        .GetConstructor(new[] { typeof(string) });
+                input = Expression.ConvertChecked(
+                    Expression.Call(
+                        null,
+                        parseDateTimeOffset,
+                        input,
+                        Expression.Constant(CultureInfo.InvariantCulture),
+                        Expression.Constant(DateTimeStyles.RoundtripKind)
+                    ),
+                    target
+                );
+            }
+            else if (target == typeof(Guid) || target == typeof(Guid?))
+            {
+                var guidConstructor = typeof(Guid)
+                    .GetConstructor(new[] { input.Type });
 
-                    result = Expression.New(guidConstructor, result);
-                }
-                else if (target == typeof(TimeSpan) || target == typeof(TimeSpan?))
-                {
-                    var parseTimeSpan = typeof(XmlConvert)
-                        .GetMethod(nameof(XmlConvert.ToTimeSpan));
+                input = Expression.New(guidConstructor, input);
+            }
+            else if (target == typeof(TimeSpan) || target == typeof(TimeSpan?))
+            {
+                var parseTimeSpan = typeof(XmlConvert)
+                    .GetMethod(nameof(XmlConvert.ToTimeSpan));
 
-                    result = Expression.Call(null, parseTimeSpan, result);
-                }
-                else if (target == typeof(Uri))
-                {
-                    var uriConstructor = typeof(Uri)
-                        .GetConstructor(new[] { typeof(string) });
+                input = Expression.Call(null, parseTimeSpan, input);
+            }
+            else if (target == typeof(Uri))
+            {
+                var uriConstructor = typeof(Uri)
+                    .GetConstructor(new[] { input.Type });
 
-                    result = Expression.New(uriConstructor, result);
-                }
-
-                try
-                {
-                    result = Expression.ConvertChecked(result, target);
-                }
-                catch (InvalidOperationException inner)
-                {
-                    throw new UnsupportedTypeException(target, $"A string deserializer cannot be built for type {target.FullName}.", inner);
-                }
+                input = Expression.New(uriConstructor, input);
             }
 
-            var lambda = Expression.Lambda(result, "string deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return base.GenerateConversion(input, target);
         }
     }
 
@@ -2019,66 +2046,82 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the resolution is a <see cref="TimestampResolution" /> and the
+        /// schema’s logical type is a <see cref="TimestampLogicalType" />; an unsuccessful result
+        /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when the schema is not a <see cref="LongSchema" /> with logical type
         /// <see cref="MicrosecondTimestampLogicalType" /> or <see cref="MillisecondTimestampLogicalType" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
+        /// Thrown when <see cref="DateTime" /> cannot be converted to the resolved type.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is LongSchema))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema.LogicalType is TimestampLogicalType)
             {
-                throw new UnsupportedSchemaException(schema, "A timestamp deserializer can only be built for a long schema.");
-            }
+                if (resolution is TimestampResolution)
+                {
+                    if (!(schema is LongSchema))
+                    {
+                        throw new UnsupportedSchemaException(schema);
+                    }
 
-            var target = resolution.Type;
+                    var target = resolution.Type;
 
-            if (!(target == typeof(DateTime) || target == typeof(DateTime?) || target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?)))
-            {
-                throw new UnsupportedTypeException(target, $"A timestamp serializer cannot be built for {target.Name}.");
-            }
+                    var stream = Expression.Parameter(typeof(Stream));
 
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
+                    Expression epoch = Expression.Constant(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                    Expression factor;
 
-            Expression epoch = Expression.Constant(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-            Expression factor;
+                    if (schema.LogicalType is MicrosecondTimestampLogicalType)
+                    {
+                        factor = Expression.Constant(TimeSpan.TicksPerMillisecond / 1000);
+                    }
+                    else if (schema.LogicalType is MillisecondTimestampLogicalType)
+                    {
+                        factor = Expression.Constant(TimeSpan.TicksPerMillisecond);
+                    }
+                    else
+                    {
+                        throw new UnsupportedSchemaException(schema);
+                    }
 
-            if (schema.LogicalType is MicrosecondTimestampLogicalType)
-            {
-                factor = Expression.Constant(TimeSpan.TicksPerMillisecond / 1000);
-            }
-            else if (schema.LogicalType is MillisecondTimestampLogicalType)
-            {
-                factor = Expression.Constant(TimeSpan.TicksPerMillisecond);
+                    Expression expression = Codec.ReadInteger(stream);
+
+                    var addTicks = typeof(DateTime)
+                        .GetMethod(nameof(DateTime.AddTicks));
+
+                    // result = epoch.AddTicks(value * factor);
+                    expression = GenerateConversion(
+                        Expression.Call(epoch, addTicks, Expression.Multiply(expression, factor)),
+                        target
+                    );
+
+                    var lambda = Expression.Lambda(expression, "timestamp deserializer", new[] { stream });
+                    var compiled = lambda.Compile();
+
+                    if (!cache.TryAdd((target, schema), compiled))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    result.Delegate = compiled;
+                }
+                else
+                {
+                    result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
+                }
             }
             else
             {
-                throw new UnsupportedSchemaException(schema, "A timestamp deserializer can only be built for a schema with a timestamp logical type.");
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var readValue = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-            Expression result = Expression.Call(codec, readValue, stream);
-
-            var addTicks = typeof(DateTime)
-                .GetMethod(nameof(DateTime.AddTicks));
-
-            // result = epoch.AddTicks(value * factor);
-            result = Expression.ConvertChecked(
-                Expression.Call(epoch, addTicks, Expression.Multiply(result, factor)),
-                target
-            );
-
-            var lambda = Expression.Lambda(result, "timestamp deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
     }
 
@@ -2109,8 +2152,8 @@ namespace Chr.Avro.Serialization
         /// </param>
         public UnionDeserializerBuilderCase(IBinaryCodec codec, IBinaryDeserializerBuilder deserializerBuilder)
         {
-            Codec = codec;
-            DeserializerBuilder = deserializerBuilder;
+            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -2126,80 +2169,93 @@ namespace Chr.Avro.Serialization
         /// A delegate cache.
         /// </param>
         /// <returns>
-        /// A function that accepts a <see cref="Stream" /> and returns a deserialized object.
+        /// A successful result if the schema is a <see cref="UnionSchema" />; an unsuccessful
+        /// result otherwise.
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
-        /// Thrown when the schema is not a <see cref="UnionSchema" />.
+        /// Thrown when the union schema is empty.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type cannot be mapped to each schema in the union.
         /// </exception>
-        public override Delegate BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinaryDeserializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
         {
-            if (!(schema is UnionSchema unionSchema && unionSchema.Schemas.Count > 0))
+            var result = new BinaryDeserializerBuildResult();
+
+            if (schema is UnionSchema unionSchema)
             {
-                throw new UnsupportedSchemaException(schema, "A union deserializer can only be built for a union schema of one or more schemas.");
+                if (unionSchema.Schemas.Count < 1)
+                {
+                    throw new UnsupportedSchemaException(schema);
+                }
+
+                var target = resolution.Type;
+
+                var stream = Expression.Parameter(typeof(Stream));
+
+                Expression expression = Expression.ConvertChecked(Codec.ReadInteger(stream), typeof(int));
+
+                // create a mapping for each schema in the union:
+                var cases = unionSchema.Schemas.Select((child, index) =>
+                {
+                    var selected = SelectType(resolution, child);
+                    var underlying = Nullable.GetUnderlyingType(selected.Type);
+
+                    if (child is NullSchema && selected.Type.IsValueType && underlying == null)
+                    {
+                        throw new UnsupportedTypeException(target, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {selected.Type.FullName}.");
+                    }
+
+                    underlying = selected.Type;
+
+                    Expression @case = null!;
+
+                    try
+                    {
+                        var build = typeof(IBinaryDeserializerBuilder)
+                            .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
+                            .MakeGenericMethod(underlying);
+
+                        @case = Expression.Constant(
+                            build.Invoke(DeserializerBuilder, new object[] { child, cache }),
+                            typeof(Func<,>).MakeGenericType(typeof(Stream), underlying)
+                        );
+                    }
+                    catch (TargetInvocationException indirect)
+                    {
+                        ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
+                    }
+
+                    return Expression.SwitchCase(
+                        GenerateConversion(Expression.Invoke(@case, stream), target),
+                        Expression.Constant(index)
+                    );
+                });
+
+                var exceptionConstructor = typeof(OverflowException)
+                    .GetConstructor(new[] { typeof(string) });
+
+                var exception = Expression.New(exceptionConstructor, Expression.Constant("Union index out of range."));
+
+                // generate a switch on the index:
+                expression = Expression.Switch(expression, Expression.Throw(exception, target), cases.ToArray());
+
+                var lambda = Expression.Lambda(expression, "union deserializer", new[] { stream });
+                var compiled = lambda.Compile();
+
+                if (!cache.TryAdd((target, schema), compiled))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                result.Delegate = compiled;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema));
             }
 
-            var target = resolution.Type;
-
-            var codec = Expression.Constant(Codec);
-            var stream = Expression.Parameter(typeof(Stream));
-
-            var readIndex = typeof(IBinaryCodec)
-                .GetMethod(nameof(IBinaryCodec.ReadInteger));
-
-            Expression result = Expression.ConvertChecked(Expression.Call(codec, readIndex, stream), typeof(int));
-
-            // create a mapping for each schema in the union:
-            var cases = unionSchema.Schemas.Select((child, index) =>
-            {
-                var selected = SelectType(resolution, child);
-                var underlying = Nullable.GetUnderlyingType(selected.Type);
-
-                if (child is NullSchema && selected.Type.IsValueType && underlying == null)
-                {
-                    throw new UnsupportedTypeException(target, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {selected.Type.FullName}.");
-                }
-
-                underlying = selected.Type;
-
-                Expression @case = null;
-
-                try
-                {
-                    var build = typeof(IBinaryDeserializerBuilder)
-                        .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
-                        .MakeGenericMethod(underlying);
-
-                    @case = Expression.Constant(
-                        build.Invoke(DeserializerBuilder, new object[] { child, cache }),
-                        typeof(Func<,>).MakeGenericType(typeof(Stream), underlying)
-                    );
-                }
-                catch (TargetInvocationException indirect)
-                {
-                    ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
-                }
-
-                return Expression.SwitchCase(
-                    Expression.ConvertChecked(Expression.Invoke(@case, stream), target),
-                    Expression.Constant(index)
-                );
-            });
-
-            var exceptionConstructor = typeof(OverflowException)
-                .GetConstructor(new[] { typeof(string) });
-
-            var exception = Expression.New(exceptionConstructor, Expression.Constant("Union index out of range."));
-
-            // generate a switch on the index:
-            result = Expression.Switch(result, Expression.Throw(exception, target), cases.ToArray());
-
-            var lambda = Expression.Lambda(result, "union deserializer", new[] { stream });
-            var compiled = lambda.Compile();
-
-            return cache.GetOrAdd((target, schema), compiled);
+            return result;
         }
 
         /// <summary>

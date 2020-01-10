@@ -13,7 +13,7 @@ namespace Chr.Avro.Resolution
     /// </remarks>
     public abstract class TypeResolution
     {
-        private Type type;
+        private Type type = null!;
 
         /// <summary>
         /// Whether the resolved type can have a null value.
@@ -23,9 +23,6 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The resolved type.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the type is set to null.
-        /// </exception>
         public virtual Type Type
         {
             get
@@ -47,9 +44,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the resolved type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the type is null.
-        /// </exception>
         public TypeResolution(Type type, bool isNullable = false)
         {
             IsNullable = isNullable;
@@ -62,12 +56,12 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class ArrayResolution : TypeResolution
     {
-        private ICollection<ConstructorResolution> constructors;
+        private ICollection<ConstructorResolution> constructors = null!;
 
-        private Type itemType;
+        private Type itemType = null!;
 
         /// <summary>
-        /// The record constructors.
+        /// The array constructors.
         /// </summary>
         public virtual ICollection<ConstructorResolution> Constructors
         {
@@ -77,16 +71,13 @@ namespace Chr.Avro.Resolution
             }
             set
             {
-                constructors = value ?? throw new ArgumentNullException(nameof(value), "Record constructor collection cannot be null.");
+                constructors = value ?? throw new ArgumentNullException(nameof(value), "Resolved constructor collection cannot be null.");
             }
         }
 
         /// <summary>
         /// The array item type.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the item type is set to null.
-        /// </exception>
         public virtual Type ItemType
         {
             get
@@ -108,15 +99,15 @@ namespace Chr.Avro.Resolution
         /// <param name="itemType">
         /// The array item type.
         /// </param>
+        /// <param name="constructors">
+        /// The array constructors.
+        /// </param>
         /// <param name="isNullable">
         /// Whether the array type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the array type or the item type is null.
-        /// </exception>
-        public ArrayResolution(Type type, Type itemType, ICollection<ConstructorResolution> constructors, bool isNullable = false) : base(type, isNullable)
+        public ArrayResolution(Type type, Type itemType, ICollection<ConstructorResolution>? constructors = null, bool isNullable = false) : base(type, isNullable)
         {
-            Constructors = constructors ?? new ConstructorResolution[0];
+            Constructors = constructors ?? new List<ConstructorResolution>();
             ItemType = itemType;
         }
     }
@@ -135,9 +126,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the boolean type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the boolean type is null.
-        /// </exception>
         public BooleanResolution(Type type, bool isNullable = false) : base(type, isNullable) { }
     }
 
@@ -155,9 +143,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the byte array type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the byte array type is null.
-        /// </exception>
         public ByteArrayResolution(Type type, bool isNullable = false) : base(type, isNullable) { }
     }
 
@@ -241,9 +226,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the decimal type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the decimal type is null.
-        /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the precision is less than one or less than the scale or the scale is less
         /// than zero or greater than the precision.
@@ -299,9 +281,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the duration type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the duration type is null.
-        /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the precision is less than zero.
         /// </exception>
@@ -353,9 +332,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the floating-point type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the floating-point type is null.
-        /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the size is less than zero or not divisible by 8.
         /// </exception>
@@ -412,9 +388,6 @@ namespace Chr.Avro.Resolution
         /// <param name="size">
         /// The size of the integer type in bits.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the integer type is null.
-        /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the size is less than zero or not divisible by 8.
         /// </exception>
@@ -430,16 +403,13 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class MapResolution : TypeResolution
     {
-        private Type keyType;
+        private Type keyType = null!;
 
-        private Type valueType;
+        private Type valueType = null!;
 
         /// <summary>
         /// The map key type.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the key type is set to null.
-        /// </exception>
         public virtual Type KeyType
         {
             get
@@ -455,9 +425,6 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The map value type.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the value type is set to null.
-        /// </exception>
         public virtual Type ValueType
         {
             get
@@ -485,9 +452,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the map type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the map type, the key type, or the value type is null.
-        /// </exception>
         public MapResolution(Type type, Type keyType, Type valueType, bool isNullable = false) : base(type, isNullable)
         {
             KeyType = keyType;
@@ -509,9 +473,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the string type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the string type is null.
-        /// </exception>
         public StringResolution(Type type, bool isNullable = false) : base(type, isNullable) { }
     }
 
@@ -559,9 +520,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the timestamp type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the timestamp type is null.
-        /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the precision is less than zero.
         /// </exception>
@@ -585,9 +543,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the URI type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the URI type is null.
-        /// </exception>
         public UriResolution(Type type, bool isNullable = false) : base(type, isNullable) { }
     }
 
@@ -624,9 +579,6 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the UUID type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the UUID type is null.
-        /// </exception>
         public UuidResolution(Type type, int variant, int? version = null, bool isNullable = false) : base(type, isNullable)
         {
             Variant = variant;
@@ -639,14 +591,11 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public abstract class NamedTypeResolution : TypeResolution
     {
-        private IdentifierResolution name;
+        private IdentifierResolution name = null!;
 
         /// <summary>
         /// The type name.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the name is set to null.
-        /// </exception>
         public virtual IdentifierResolution Name
         {
             get
@@ -662,7 +611,7 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The type namespace.
         /// </summary>
-        public virtual IdentifierResolution Namespace { get; set; }
+        public virtual IdentifierResolution? Namespace { get; set; }
 
         /// <summary>
         /// Creates a new named type resolution.
@@ -679,10 +628,7 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the named type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the named type or the name is null.
-        /// </exception>
-        public NamedTypeResolution(Type type, IdentifierResolution name, IdentifierResolution @namespace = null, bool isNullable = false) : base(type, isNullable)
+        public NamedTypeResolution(Type type, IdentifierResolution name, IdentifierResolution? @namespace = null, bool isNullable = false) : base(type, isNullable)
         {
             Name = name;
             Namespace = @namespace;
@@ -694,9 +640,9 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class EnumResolution : NamedTypeResolution
     {
-        private ICollection<SymbolResolution> symbols;
+        private ICollection<SymbolResolution> symbols = null!;
 
-        private Type underlyingType;
+        private Type underlyingType = null!;
 
         /// <summary>
         /// Whether the enum is a bit flag enum.
@@ -706,9 +652,6 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The enum’s underlying integral type.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the type is set to null.
-        /// </exception>
         public virtual Type UnderlyingType
         {
             get
@@ -761,13 +704,10 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the enum type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the enum type or the name is null.
-        /// </exception>
-        public EnumResolution(Type type, Type underlyingType, IdentifierResolution name, IdentifierResolution @namespace = null, bool isFlagEnum = false, ICollection<SymbolResolution> symbols = null, bool isNullable = false) : base(type, name, @namespace, isNullable)
+        public EnumResolution(Type type, Type underlyingType, IdentifierResolution name, IdentifierResolution? @namespace = null, bool isFlagEnum = false, ICollection<SymbolResolution>? symbols = null, bool isNullable = false) : base(type, name, @namespace, isNullable)
         {
             IsFlagEnum = isFlagEnum;
-            Symbols = symbols ?? new SymbolResolution[0];
+            Symbols = symbols ?? new List<SymbolResolution>();
             UnderlyingType = underlyingType;
         }
     }
@@ -777,9 +717,9 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class RecordResolution : NamedTypeResolution
     {
-        private ICollection<ConstructorResolution> constructors;
+        private ICollection<ConstructorResolution> constructors = null!;
 
-        private ICollection<FieldResolution> fields;
+        private ICollection<FieldResolution> fields = null!;
 
         /// <summary>
         /// The record constructors.
@@ -833,13 +773,10 @@ namespace Chr.Avro.Resolution
         /// <param name="isNullable">
         /// Whether the record type can have a null value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the record type or the name is null.
-        /// </exception>
-        public RecordResolution(Type type, IdentifierResolution name, IdentifierResolution @namespace = null, ICollection<FieldResolution> fields = null, ICollection<ConstructorResolution> constructors = null, bool isNullable = false) : base(type, name, @namespace, isNullable)
+        public RecordResolution(Type type, IdentifierResolution name, IdentifierResolution? @namespace = null, ICollection<FieldResolution>? fields = null, ICollection<ConstructorResolution>? constructors = null, bool isNullable = false) : base(type, name, @namespace, isNullable)
         {
-            Fields = fields ?? new FieldResolution[0];
-            Constructors = constructors ?? new ConstructorResolution[0];
+            Fields = fields ?? new List<FieldResolution>();
+            Constructors = constructors ?? new List<ConstructorResolution>();
         }
     }
 }

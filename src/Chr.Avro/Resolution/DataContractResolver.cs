@@ -95,44 +95,44 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// Creates a name resolution for a <see cref="DataMemberAttribute" />-annotated type.
         /// </summary>
-        protected virtual IdentifierResolution CreateNameResolution(MemberInfo member, DataMemberAttribute attribute)
+        protected virtual IdentifierResolution CreateNameResolution(MemberInfo member, DataMemberAttribute? attribute = null)
         {
             return string.IsNullOrEmpty(attribute?.Name)
                 ? new IdentifierResolution(member.Name)
-                : new IdentifierResolution(attribute.Name, true);
+                : new IdentifierResolution(attribute!.Name, true);
         }
 
         /// <summary>
         /// Creates a name resolution for a <see cref="EnumMemberAttribute" />-annotated type.
         /// </summary>
-        protected virtual IdentifierResolution CreateNameResolution(MemberInfo member, EnumMemberAttribute attribute)
+        protected virtual IdentifierResolution CreateNameResolution(MemberInfo member, EnumMemberAttribute? attribute = null)
         {
             return string.IsNullOrEmpty(attribute?.Value)
                 ? new IdentifierResolution(member.Name)
-                : new IdentifierResolution(attribute.Value, true);
+                : new IdentifierResolution(attribute!.Value, true);
         }
 
         /// <summary>
         /// Creates a name resolution for a <see cref="DataContractAttribute" />-annotated type.
         /// </summary>
-        protected virtual IdentifierResolution CreateNameResolution(Type type, DataContractAttribute attribute)
+        protected virtual IdentifierResolution CreateNameResolution(Type type, DataContractAttribute? attribute = null)
         {
             return string.IsNullOrEmpty(attribute?.Name)
                 ? new IdentifierResolution(type.Name)
-                : new IdentifierResolution(attribute.Name, true);
+                : new IdentifierResolution(attribute!.Name, true);
         }
 
         /// <summary>
         /// Creates a namespace resolution for a <see cref="DataContractAttribute" />-annotated
         /// type.
         /// </summary>
-        protected virtual IdentifierResolution CreateNamespaceResolution(Type type, DataContractAttribute attribute)
+        protected virtual IdentifierResolution? CreateNamespaceResolution(Type type, DataContractAttribute? attribute = null)
         {
             return string.IsNullOrEmpty(attribute?.Namespace)
                 ? string.IsNullOrEmpty(type.Namespace)
                     ? null
                     : new IdentifierResolution(type.Namespace)
-                : new IdentifierResolution(attribute.Namespace, true);
+                : new IdentifierResolution(attribute!.Namespace, true);
         }
     }
 
@@ -149,54 +149,59 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="EnumResolution" /> with information about the type.
+        /// A successful <see cref="EnumResolution" /> result if <paramref name="type" /> is an
+        /// <see cref="Enum" /> type; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not an enum type.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (!type.IsEnum)
+            var result = new TypeResolutionResult();
+
+            if (type.IsEnum)
             {
-                throw new UnsupportedTypeException(type);
+                var contract = GetAttribute<DataContractAttribute>(type);
+
+                var name = CreateNameResolution(type, contract);
+                var @namespace = CreateNamespaceResolution(type, contract);
+
+                var isFlagEnum = GetAttribute<FlagsAttribute>(type) != null;
+
+                var symbols = (contract == null
+                    ? type.GetFields(BindingFlags.Public | BindingFlags.Static)
+                        .Select(f => (
+                            MemberInfo: f as MemberInfo,
+                            Attribute: GetAttribute<NonSerializedAttribute>(f)
+                        ))
+                        .Where(f => f.Attribute == null)
+                        .Select(f => (
+                            f.MemberInfo,
+                            Name: new IdentifierResolution(f.MemberInfo.Name),
+                            Value: Enum.Parse(type, f.MemberInfo.Name)
+                        ))
+                    : type.GetFields(BindingFlags.Public | BindingFlags.Static)
+                        .Select(f => (
+                            MemberInfo: f as MemberInfo,
+                            Attribute: GetAttribute<EnumMemberAttribute>(f)
+                        ))
+                        .Where(f => f.Attribute != null)
+                        .Select(f => (
+                            f.MemberInfo,
+                            Name: CreateNameResolution(f.MemberInfo, f.Attribute),
+                            Value: Enum.Parse(type, f.MemberInfo.Name)
+                        )))
+                    .OrderBy(f => f.Value)
+                    .ThenBy(f => f.Name.Value)
+                    .Select(f => new SymbolResolution(f.MemberInfo, f.Name, f.Value))
+                    .ToList();
+
+                result.TypeResolution = new EnumResolution(type, type.GetEnumUnderlyingType(), name, @namespace, isFlagEnum, symbols);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            var contract = GetAttribute<DataContractAttribute>(type);
-
-            var name = CreateNameResolution(type, contract);
-            var @namespace = CreateNamespaceResolution(type, contract);
-
-            var isFlagEnum = GetAttribute<FlagsAttribute>(type) != null;
-
-            var symbols = (contract == null
-                ? type.GetFields(BindingFlags.Public | BindingFlags.Static)
-                    .Select(f => (
-                        MemberInfo: f as MemberInfo,
-                        Attribute: GetAttribute<NonSerializedAttribute>(f)
-                    ))
-                    .Where(f => f.Attribute == null)
-                    .Select(f => (
-                        f.MemberInfo,
-                        Name: new IdentifierResolution(f.MemberInfo.Name),
-                        Value: Enum.Parse(type, f.MemberInfo.Name)
-                    ))
-                : type.GetFields(BindingFlags.Public | BindingFlags.Static)
-                    .Select(f => (
-                        MemberInfo: f as MemberInfo,
-                        Attribute: GetAttribute<EnumMemberAttribute>(f)
-                    ))
-                    .Where(f => f.Attribute != null)
-                    .Select(f => (
-                        f.MemberInfo,
-                        Name: CreateNameResolution(f.MemberInfo, f.Attribute),
-                        Value: Enum.Parse(type, f.MemberInfo.Name)
-                    )))
-                .OrderBy(f => f.Value)
-                .ThenBy(f => f.Name.Value)
-                .Select(f => new SymbolResolution(f.MemberInfo, f.Name, f.Value))
-                .ToList();
-
-            return new EnumResolution(type, type.GetEnumUnderlyingType(), name, @namespace, isFlagEnum, symbols);
+            return result;
         }
     }
 
@@ -229,62 +234,67 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="RecordResolution" /> with information about the type.
+        /// An unsuccessful <see cref="UnsupportedTypeException" /> result if <paramref name="type" />
+        /// is an array or a primitive type; a successful <see cref="RecordResolution" /> result
+        /// otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is an array type or a primitive type.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type.IsArray || type.IsPrimitive)
+            var result = new TypeResolutionResult();
+
+            if (!type.IsArray && !type.IsPrimitive)
             {
-                throw new UnsupportedTypeException(type);
+                var contract = GetAttribute<DataContractAttribute>(type);
+
+                var name = CreateNameResolution(type, contract);
+                var @namespace = CreateNamespaceResolution(type, contract);
+
+                var fields = (contract == null
+                    ? GetMembers(type, MemberVisibility)
+                        .Select(m => (
+                            m.MemberInfo,
+                            m.Type,
+                            Attribute: GetAttribute<NonSerializedAttribute>(m.MemberInfo)
+                        ))
+                        .Where(m => m.Attribute == null)
+                        .Select(m => (
+                            m.MemberInfo,
+                            m.Type,
+                            Name: new IdentifierResolution(m.MemberInfo.Name),
+                            Order: 0
+                        ))
+                    : GetMembers(type, MemberVisibility)
+                        .Select(m => (
+                            m.MemberInfo,
+                            m.Type,
+                            Attribute: GetAttribute<DataMemberAttribute>(m.MemberInfo)
+                        ))
+                        .Where(m => m.Attribute != null)
+                        .Select(m => (
+                            m.MemberInfo,
+                            m.Type,
+                            Name: CreateNameResolution(m.MemberInfo, m.Attribute),
+                            m.Attribute.Order
+                        )))
+                    .OrderBy(m => m.Order)
+                    .ThenBy(m => m.Name.Value)
+                    .Select(m => new FieldResolution(m.MemberInfo, m.Type, m.Name))
+                    .ToList();
+
+                var constructors = GetConstructors(type, MemberVisibility)
+                    .Select(c => new ConstructorResolution(
+                        c.ConstructorInfo,
+                        c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
+                    )).ToList();
+
+                result.TypeResolution = new RecordResolution(type, name, @namespace, fields, constructors);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            var contract = GetAttribute<DataContractAttribute>(type);
-
-            var name = CreateNameResolution(type, contract);
-            var @namespace = CreateNamespaceResolution(type, contract);
-
-            var fields = (contract == null
-                ? GetMembers(type, MemberVisibility)
-                    .Select(m => (
-                        m.MemberInfo,
-                        m.Type,
-                        Attribute: GetAttribute<NonSerializedAttribute>(m.MemberInfo)
-                    ))
-                    .Where(m => m.Attribute == null)
-                    .Select(m => (
-                        m.MemberInfo,
-                        m.Type,
-                        Name: new IdentifierResolution(m.MemberInfo.Name),
-                        Order: 0
-                    ))
-                : GetMembers(type, MemberVisibility)
-                    .Select(m => (
-                        m.MemberInfo,
-                        m.Type,
-                        Attribute: GetAttribute<DataMemberAttribute>(m.MemberInfo)
-                    ))
-                    .Where(m => m.Attribute != null)
-                    .Select(m => (
-                        m.MemberInfo,
-                        m.Type,
-                        Name: CreateNameResolution(m.MemberInfo, m.Attribute),
-                        m.Attribute.Order
-                    )))
-                .OrderBy(m => m.Order)
-                .ThenBy(m => m.Name.Value)
-                .Select(m => new FieldResolution(m.MemberInfo, m.Type, m.Name))
-                .ToList();
-
-            var constructors = GetConstructors(type, MemberVisibility)
-                .Select(c => new ConstructorResolution(
-                    c.ConstructorInfo,
-                    c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
-                )).ToList();
-
-            return new RecordResolution(type, name, @namespace, fields, constructors);
+            return result;
         }
     }
 }

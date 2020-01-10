@@ -38,6 +38,24 @@ namespace Chr.Avro.Benchmarks
                 csv.WriteRecords(Run<Apache.StringRunner>());
                 csv.WriteRecords(Run<Chr.StringRunner>());
 
+                // fixeds:
+                csv.WriteRecords(Run<Apache.GenericSmallFixedRunner>());
+                csv.WriteRecords(Run<Apache.SpecificSmallFixedRunner>());
+                csv.WriteRecords(Run<Chr.SmallFixedRunner>());
+                csv.WriteRecords(Run<Apache.GenericLargeFixedRunner>());
+                csv.WriteRecords(Run<Apache.SpecificLargeFixedRunner>());
+                csv.WriteRecords(Run<Chr.LargeFixedRunner>());
+
+                // arrays:
+                csv.WriteRecords(Run<Apache.GenericDoubleArrayRunner>());
+                csv.WriteRecords(Run<Apache.SpecificDoubleArrayRunner>());
+                csv.WriteRecords(Run<Chr.DoubleArrayRunner>());
+
+                // maps:
+                csv.WriteRecords(Run<Apache.GenericDoubleMapRunner>());
+                csv.WriteRecords(Run<Apache.SpecificDoubleMapRunner>());
+                csv.WriteRecords(Run<Chr.DoubleMapRunner>());
+
                 // records:
                 csv.WriteRecords(Run<Apache.GenericRecordRunner>());
                 csv.WriteRecords(Run<Apache.SpecificRecordRunner>());

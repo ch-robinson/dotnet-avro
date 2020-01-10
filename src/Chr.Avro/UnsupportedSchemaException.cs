@@ -4,7 +4,7 @@ using System;
 namespace Chr.Avro
 {
     /// <summary>
-    /// The exception that is thrown when an operation does not support a schema.
+    /// An exception thrown when an operation does not support a schema.
     /// </summary>
     [Serializable]
     public class UnsupportedSchemaException : Exception
@@ -26,10 +26,7 @@ namespace Chr.Avro
         /// <param name="inner">
         /// An underlying error that may provide additional context.
         /// </param>
-        public UnsupportedSchemaException(Schema schema, string message = null, Exception inner = null) : base(
-            string.IsNullOrEmpty(message) ? $"{schema.GetType()} is not supported." : message,
-            inner
-        )
+        public UnsupportedSchemaException(Schema schema, string? message = null, Exception? inner = null) : base(message ?? $"{schema.GetType()} is not supported.", inner)
         {
             UnsupportedSchema = schema;
         }

@@ -34,7 +34,7 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// The schema’s logical type.
         /// </summary>
-        public LogicalType LogicalType { get; set; }
+        public LogicalType? LogicalType { get; set; }
     }
 
     /// <summary>
@@ -56,14 +56,11 @@ namespace Chr.Avro.Abstract
     /// </remarks>
     public class ArraySchema : ComplexSchema
     {
-        private Schema item;
+        private Schema item = null!;
 
         /// <summary>
         /// The schema of the items in the array.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema is set to null.
-        /// </exception>
         public Schema Item
         {
             get
@@ -82,15 +79,12 @@ namespace Chr.Avro.Abstract
         /// <param name="item">
         /// The schema of the items in the array.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the item schema is null.
-        /// </exception>
         public ArraySchema(Schema item)
         {
             Item = item;
         }
     }
-    
+
     /// <summary>
     /// An Avro schema representing a map of string keys to values.
     /// </summary>
@@ -100,14 +94,11 @@ namespace Chr.Avro.Abstract
     /// </remarks>
     public class MapSchema : ComplexSchema
     {
-        private Schema value;
+        private Schema value = null!;
 
         /// <summary>
         /// The schema of the values in the map.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema is set to null.
-        /// </exception>
         public Schema Value
         {
             get
@@ -126,9 +117,6 @@ namespace Chr.Avro.Abstract
         /// <param name="value">
         /// The schema of the values in the map.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the value schema is null.
-        /// </exception>
         public MapSchema(Schema value)
         {
             Value = value;
@@ -144,7 +132,7 @@ namespace Chr.Avro.Abstract
     /// </remarks>
     public class UnionSchema : ComplexSchema
     {
-        private ConstrainedSet<Schema> schemas;
+        private ConstrainedSet<Schema> schemas = null!;
 
         /// <summary>
         /// The union members.
@@ -154,9 +142,6 @@ namespace Chr.Avro.Abstract
         /// contain other union schemas or multiple schemas of the same type. Duplicate name
         /// constraints, however, are not enforced.
         /// </remarks>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when a member is null.
-        /// </exception>
         /// <exception cref="InvalidSchemaException">
         /// Thrown when a schema of the same type already exists as a member of the union.
         /// </exception>
@@ -196,15 +181,12 @@ namespace Chr.Avro.Abstract
         /// <param name="schemas">
         /// The union members.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when a member of the union is null.
-        /// </exception>
         /// <exception cref="InvalidSchemaException">
         /// Thrown when a schema of the same type already exists as a member of the union.
         /// </exception>
-        public UnionSchema(ICollection<Schema> schemas = null)
+        public UnionSchema(ICollection<Schema>? schemas = null)
         {
-            Schemas = schemas ?? new Schema[0];
+            Schemas = schemas ?? new List<Schema>();
         }
     }
 
@@ -214,9 +196,9 @@ namespace Chr.Avro.Abstract
     /// </summary>
     public abstract class NamedSchema : ComplexSchema
     {
-        private ConstrainedSet<string> aliases;
+        private ConstrainedSet<string> aliases = null!;
 
-        private string name;
+        private string name = null!;
 
         /// <summary>
         /// The alternate names by which the schema can be identified.
@@ -225,9 +207,6 @@ namespace Chr.Avro.Abstract
         /// Aliases are fully-qualified; they do not inherit the schema’s namespace. Duplicate
         /// aliases will be filtered from the collection.
         /// </remarks>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when an alias is set to null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when an alias does not conform to the Avro specification.
         /// </exception>
@@ -259,9 +238,6 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// The qualified schema name.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the name is set to null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when the name is set to a value that does not conform to the Avro naming rules.
         /// </exception>
@@ -294,9 +270,6 @@ namespace Chr.Avro.Abstract
         /// Setting this property to a qualified name will update the full name. Setting this
         /// property to an unqualified name will retain the existing namespace.
         /// </remarks>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the name is set to null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when the name is set to a value that does not conform to the Avro naming rules.
         /// </exception>
@@ -310,7 +283,7 @@ namespace Chr.Avro.Abstract
             {
                 FullName = Namespace != null && value?.IndexOf('.') < 0
                     ? $"{Namespace}.{value}"
-                    : value;
+                    : value!;
             }
         }
 
@@ -321,14 +294,11 @@ namespace Chr.Avro.Abstract
         /// This property will return null if no namespace is set. Setting this property to null
         /// or the empty string will clear the namespace.
         /// </remarks>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the namespace is set to null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when the namespace is set to a value that does not conform to the Avro naming
         /// rules.
         /// </exception>
-        public string Namespace
+        public string? Namespace
         {
             get
             {
@@ -354,15 +324,12 @@ namespace Chr.Avro.Abstract
         /// <param name="name">
         /// The qualified schema name.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema name is null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when the schema name does not conform to the Avro naming rules.
         /// </exception>
         public NamedSchema(string name)
         {
-            Aliases = new string[0];
+            Aliases = new List<string>();
             FullName = name;
         }
     }
@@ -377,19 +344,16 @@ namespace Chr.Avro.Abstract
     /// </remarks>
     public class EnumSchema : NamedSchema
     {
-        private ConstrainedSet<string> symbols;
+        private ConstrainedSet<string> symbols = null!;
 
         /// <summary>
         /// A human-readable description of the enum.
         /// </summary>
-        public string Documentation { get; set; }
+        public string? Documentation { get; set; }
 
         /// <summary>
         /// The enum symbols.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when a symbol is set to null.
-        /// </exception>
         /// <exception cref="InvalidSymbolException">
         /// Thrown when a symbol does not conform to the Avro specification.
         /// </exception>
@@ -427,18 +391,15 @@ namespace Chr.Avro.Abstract
         /// <param name="symbols">
         /// The enum symbols.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema name or one of the symbols is null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when the schema name does not conform to the Avro naming rules.
         /// </exception>
         /// <exception cref="InvalidSymbolException">
         /// Thrown when a symbol does not conform to the Avro naming rules.
         /// </exception>
-        public EnumSchema(string name, ICollection<string> symbols = null) : base(name)
+        public EnumSchema(string name, ICollection<string>? symbols = null) : base(name)
         {
-            Symbols = symbols ?? new string[0];
+            Symbols = symbols ?? new List<string>();
         }
     }
 
@@ -485,9 +446,6 @@ namespace Chr.Avro.Abstract
         /// <param name="size">
         /// The number of bytes per value.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema name is null.
-        /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the size is negative.
         /// </exception>
@@ -509,12 +467,12 @@ namespace Chr.Avro.Abstract
     /// </remarks>
     public class RecordSchema : NamedSchema
     {
-        private ConstrainedSet<RecordField> fields;
+        private ConstrainedSet<RecordField> fields = null!;
 
         /// <summary>
         /// A human-readable description of the record.
         /// </summary>
-        public string Documentation { get; set; }
+        public string? Documentation { get; set; }
 
         /// <summary>
         /// The record fields.
@@ -523,9 +481,6 @@ namespace Chr.Avro.Abstract
         /// Avro doesn’t allow duplicate field names, but that constraint isn’t enforced here—the
         /// onus is on the user to ensure that the record schema is valid.
         /// </remarks>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when a field is set to null.
-        /// </exception>
         public ICollection<RecordField> Fields
         {
             get
@@ -555,15 +510,12 @@ namespace Chr.Avro.Abstract
         /// <param name="fields">
         /// The record fields.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema name or one of the fields is null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when the schema name does not conform to the Avro specification.
         /// </exception>
-        public RecordSchema(string name, ICollection<RecordField> fields = null) : base(name)
+        public RecordSchema(string name, ICollection<RecordField>? fields = null) : base(name)
         {
-            Fields = fields ?? new RecordField[0];
+            Fields = fields ?? new List<RecordField>();
         }
     }
 
@@ -572,21 +524,18 @@ namespace Chr.Avro.Abstract
     /// </summary>
     public sealed class RecordField : Declaration
     {
-        private string name;
+        private string name = null!;
 
-        private Schema type;
+        private Schema type = null!;
 
         /// <summary>
         /// A human-readable description of the field.
         /// </summary>
-        public string Documentation { get; set; }
+        public string? Documentation { get; set; }
 
         /// <summary>
         /// The name of the field.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the name is set to null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when the name is set to a value that does not conform to the Avro naming rules.
         /// </exception>
@@ -615,9 +564,6 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// The type of the field.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the type is set to null.
-        /// </exception>
         public Schema Type
         {
             get
@@ -639,9 +585,6 @@ namespace Chr.Avro.Abstract
         /// <param name="type">
         /// The field type.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the field name type is null.
-        /// </exception>
         /// <exception cref="InvalidNameException">
         /// Thrown when the field name does not conform to the Avro naming rules.
         /// </exception>

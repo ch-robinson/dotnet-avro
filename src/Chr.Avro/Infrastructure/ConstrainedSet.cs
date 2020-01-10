@@ -22,7 +22,7 @@ namespace Chr.Avro.Infrastructure
 
         public bool IsReadOnly => _dictionary.IsReadOnly;
 
-        public ConstrainedSet(IEnumerable<T> existing = null, Func<T, ConstrainedSet<T>, bool> predicate = null)
+        public ConstrainedSet(IEnumerable<T>? existing = null, Func<T, ConstrainedSet<T>, bool>? predicate = null)
         {
             _dictionary = new Dictionary<T, LinkedListNode<T>>();
             _list = new LinkedList<T>();
@@ -91,7 +91,7 @@ namespace Chr.Avro.Infrastructure
 
     internal static class ConstrainedSetExtensions
     {
-        internal static ConstrainedSet<T> ToConstrainedSet<T>(this IEnumerable<T> enumerable, Func<T, ConstrainedSet<T>, bool> predicate = null)
+        internal static ConstrainedSet<T> ToConstrainedSet<T>(this IEnumerable<T> enumerable, Func<T, ConstrainedSet<T>, bool>? predicate = null)
         {
             return new ConstrainedSet<T>(enumerable, predicate);
         }

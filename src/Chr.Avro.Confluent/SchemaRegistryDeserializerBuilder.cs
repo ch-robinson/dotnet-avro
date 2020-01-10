@@ -49,8 +49,8 @@ namespace Chr.Avro.Confluent
         /// </param>
         public SchemaRegistryDeserializerBuilder(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            Serialization.IBinaryDeserializerBuilder deserializerBuilder = null,
-            IJsonSchemaReader schemaReader = null
+            Serialization.IBinaryDeserializerBuilder? deserializerBuilder = null,
+            IJsonSchemaReader? schemaReader = null
         ) : this(
             new CachedSchemaRegistryClient(registryConfiguration),
             deserializerBuilder,
@@ -78,8 +78,8 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public SchemaRegistryDeserializerBuilder(
             ISchemaRegistryClient registryClient,
-            Serialization.IBinaryDeserializerBuilder deserializerBuilder = null,
-            IJsonSchemaReader schemaReader = null
+            Serialization.IBinaryDeserializerBuilder? deserializerBuilder = null,
+            IJsonSchemaReader? schemaReader = null
         ) {
             _disposeRegistryClient = false;
 

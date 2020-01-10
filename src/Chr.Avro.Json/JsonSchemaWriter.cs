@@ -30,7 +30,7 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a JSON-encoded schema.
         /// </returns>
-        string Write(Schema schema, bool canonical = false, ConcurrentDictionary<string, NamedSchema> names = null);
+        string Write(Schema schema, bool canonical = false, ConcurrentDictionary<string, NamedSchema>? names = null);
 
         /// <summary>
         /// Writes a serialized Avro schema.
@@ -49,7 +49,18 @@ namespace Chr.Avro.Representation
         /// An optional schema cache. The cache is populated as the schema is written and can be
         /// used to determine which named schemas have already been processed.
         /// </param>
-        void Write(Schema schema, Utf8JsonWriter json, bool canonical = false, ConcurrentDictionary<string, NamedSchema> names = null);
+        void Write(Schema schema, Utf8JsonWriter json, bool canonical = false, ConcurrentDictionary<string, NamedSchema>? names = null);
+    }
+
+    /// <summary>
+    /// Represents the outcome of a JSON schema reader case.
+    /// </summary>
+    public interface IJsonSchemaWriteResult
+    {
+        /// <summary>
+        /// Any exceptions related to the applicability of the case.
+        /// </summary>
+        ICollection<Exception> Exceptions { get; }
     }
 
     /// <summary>
@@ -75,7 +86,7 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names);
+        IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names);
     }
 
     /// <summary>
@@ -100,7 +111,7 @@ namespace Chr.Avro.Representation
         /// <param name="caseBuilders">
         /// A list of case builders.
         /// </param>
-        public JsonSchemaWriter(IEnumerable<Func<IJsonSchemaWriter, IJsonSchemaWriterCase>> caseBuilders)
+        public JsonSchemaWriter(IEnumerable<Func<IJsonSchemaWriter, IJsonSchemaWriterCase>>? caseBuilders)
         {
             var cases = new List<IJsonSchemaWriterCase>();
 
@@ -137,7 +148,7 @@ namespace Chr.Avro.Representation
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when no matching case is found for the schema.
         /// </exception>
-        public virtual string Write(Schema schema, bool canonical = false, ConcurrentDictionary<string, NamedSchema> names = null)
+        public virtual string Write(Schema schema, bool canonical = false, ConcurrentDictionary<string, NamedSchema>? names = null)
         {
             using (var stream = new MemoryStream())
             using (var reader = new StreamReader(stream))
@@ -176,7 +187,7 @@ namespace Chr.Avro.Representation
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when no matching case is found for the schema.
         /// </exception>
-        public virtual void Write(Schema schema, Stream stream, bool canonical = false, ConcurrentDictionary<string, NamedSchema> names = null)
+        public virtual void Write(Schema schema, Stream stream, bool canonical = false, ConcurrentDictionary<string, NamedSchema>? names = null)
         {
             using (var json = new Utf8JsonWriter(stream))
             {
@@ -211,7 +222,7 @@ namespace Chr.Avro.Representation
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when no matching case is found for the schema.
         /// </exception>
-        public virtual void Write(Schema schema, Utf8JsonWriter json, bool canonical = false, ConcurrentDictionary<string, NamedSchema> names = null)
+        public virtual void Write(Schema schema, Utf8JsonWriter json, bool canonical = false, ConcurrentDictionary<string, NamedSchema>? names = null)
         {
             if (names == null)
             {
@@ -222,18 +233,19 @@ namespace Chr.Avro.Representation
 
             foreach (var @case in Cases)
             {
-                try
+                var result = @case.Write(schema, json, canonical, names);
+
+                if (result.Exceptions.Count > 0)
                 {
-                    @case.Write(schema, json, canonical, names);
-                    return;
+                    exceptions.AddRange(result.Exceptions);
                 }
-                catch (UnsupportedSchemaException exception)
+                else
                 {
-                    exceptions.Add(exception);
+                    return;
                 }
             }
 
-            throw new AggregateException($"No schema writer case matched {schema.GetType().Name}.");
+            throw new UnsupportedSchemaException(schema, $"No schema writer case matched {schema.GetType().Name}.", new AggregateException(exceptions));
         }
 
         /// <summary>
@@ -272,7 +284,18 @@ namespace Chr.Avro.Representation
     }
 
     /// <summary>
-    /// A base JSON schema writer case.
+    /// A base <see cref="IJsonSchemaWriteResult" /> implementation.
+    /// </summary>
+    public class JsonSchemaWriteResult : IJsonSchemaWriteResult
+    {
+        /// <summary>
+        /// Any exceptions related to the applicability of the case.
+        /// </summary>
+        public ICollection<Exception> Exceptions { get; set; } = new List<Exception>();
+    }
+
+    /// <summary>
+    /// A base <see cref="IJsonSchemaWriterCase" /> implementation.
     /// </summary>
     public abstract class JsonSchemaWriterCase : IJsonSchemaWriterCase
     {
@@ -293,7 +316,7 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public abstract void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names);
+        public abstract IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names);
     }
 
     /// <summary>
@@ -334,18 +357,24 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is ArraySchema arraySchema))
+            var result = new JsonSchemaWriteResult();
+
+            if (schema is ArraySchema arraySchema)
             {
-                throw new UnsupportedSchemaException(schema, "The array case can only be applied to an array schema.");
+                json.WriteStartObject();
+                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Array);
+                json.WritePropertyName(JsonAttributeToken.Items);
+                Writer.Write(arraySchema.Item, json, canonical, names);
+                json.WriteEndObject();
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The array case can only be applied to an array schema."));
             }
 
-            json.WriteStartObject();
-            json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Array);
-            json.WritePropertyName(JsonAttributeToken.Items);
-            Writer.Write(arraySchema.Item, json, canonical, names);
-            json.WriteEndObject();
+            return result;
         }
     }
 
@@ -371,25 +400,30 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is IntSchema && schema.LogicalType is DateLogicalType))
-            {
-                throw new UnsupportedSchemaException(schema, "The date case can only be applied to an int schema with a date logical type.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (canonical)
+            if (schema is IntSchema && schema.LogicalType is DateLogicalType)
             {
-                json.WriteStringValue(JsonSchemaToken.Int);
+                if (canonical)
+                {
+                    json.WriteStringValue(JsonSchemaToken.Int);
+                }
+                else
+                {
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Int);
+                    json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Date);
+                    json.WriteEndObject();
+                }
             }
             else
             {
-                json.WriteStartObject();
-                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Int);
-                json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Date);
-                json.WriteEndObject();
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The date case can only be applied to an int schema with a date logical type."));
             }
 
+            return result;
         }
     }
 
@@ -415,83 +449,89 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema.LogicalType is DecimalLogicalType decimalLogicalType))
+            var result = new JsonSchemaWriteResult();
+
+            if (schema.LogicalType is DecimalLogicalType decimalLogicalType)
             {
-                throw new UnsupportedSchemaException(schema, "The decimal case can only be applied to bytes or fixed schemas with a decimal logical type.");
-            }
-
-            if (schema is FixedSchema fixedSchema)
-            {
-                if (names.TryGetValue(fixedSchema.FullName, out var existing))
+                if (schema is FixedSchema fixedSchema)
                 {
-                    if (!schema.Equals(existing))
+                    if (names.TryGetValue(fixedSchema.FullName, out var existing))
                     {
-                        throw new InvalidSchemaException($"A conflicting schema with the name {fixedSchema.FullName} has already been written.");
-                    }
-
-                    json.WriteStringValue(fixedSchema.FullName);
-                    return;
-                }
-
-                if (!names.TryAdd(fixedSchema.FullName, fixedSchema))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                json.WriteStartObject();
-                json.WriteString(JsonAttributeToken.Name, fixedSchema.FullName);
-
-                if (!canonical)
-                {
-                    if (fixedSchema.Aliases.Count > 0)
-                    {
-                        json.WritePropertyName(JsonAttributeToken.Aliases);
-                        json.WriteStartArray();
-
-                        foreach (var alias in fixedSchema.Aliases)
+                        if (!schema.Equals(existing))
                         {
-                            json.WriteStringValue(alias);
+                            throw new InvalidSchemaException($"A conflicting schema with the name {fixedSchema.FullName} has already been written.");
                         }
 
-                        json.WriteEndArray();
+                        json.WriteStringValue(fixedSchema.FullName);
+                    }
+                    else
+                    {
+                        if (!names.TryAdd(fixedSchema.FullName, fixedSchema))
+                        {
+                            throw new InvalidOperationException();
+                        }
+
+                        json.WriteStartObject();
+                        json.WriteString(JsonAttributeToken.Name, fixedSchema.FullName);
+
+                        if (!canonical)
+                        {
+                            if (fixedSchema.Aliases.Count > 0)
+                            {
+                                json.WritePropertyName(JsonAttributeToken.Aliases);
+                                json.WriteStartArray();
+
+                                foreach (var alias in fixedSchema.Aliases)
+                                {
+                                    json.WriteStringValue(alias);
+                                }
+
+                                json.WriteEndArray();
+                            }
+                        }
+
+                        json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Fixed);
+
+                        if (!canonical)
+                        {
+                            json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Decimal);
+                            json.WriteNumber(JsonAttributeToken.Precision, decimalLogicalType.Precision);
+                            json.WriteNumber(JsonAttributeToken.Scale, decimalLogicalType.Scale);
+                        }
+
+                        json.WriteNumber(JsonAttributeToken.Size, fixedSchema.Size);
+                        json.WriteEndObject();
                     }
                 }
-
-                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Fixed);
-
-                if (!canonical)
+                else if (schema is BytesSchema)
                 {
-                    json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Decimal);
-                    json.WriteNumber(JsonAttributeToken.Precision, decimalLogicalType.Precision);
-                    json.WriteNumber(JsonAttributeToken.Scale, decimalLogicalType.Scale);
-                }
-
-                json.WriteNumber(JsonAttributeToken.Size, fixedSchema.Size);
-                json.WriteEndObject();
-            }
-            else if (schema is BytesSchema)
-            {
-
-                if (canonical)
-                {
-                    json.WriteStringValue(JsonSchemaToken.Bytes);
+                    if (canonical)
+                    {
+                        json.WriteStringValue(JsonSchemaToken.Bytes);
+                    }
+                    else
+                    {
+                        json.WriteStartObject();
+                        json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Bytes);
+                        json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Decimal);
+                        json.WriteNumber(JsonAttributeToken.Precision, decimalLogicalType.Precision);
+                        json.WriteNumber(JsonAttributeToken.Scale, decimalLogicalType.Scale);
+                        json.WriteEndObject();
+                    }
                 }
                 else
                 {
-                    json.WriteStartObject();
-                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Bytes);
-                    json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Decimal);
-                    json.WriteNumber(JsonAttributeToken.Precision, decimalLogicalType.Precision);
-                    json.WriteNumber(JsonAttributeToken.Scale, decimalLogicalType.Scale);
-                    json.WriteEndObject();
+                    throw new UnsupportedSchemaException(schema, "The decimal case can only be applied to bytes or fixed schemas with a decimal logical type.");
                 }
             }
             else
             {
-                throw new UnsupportedSchemaException(schema, "The decimal case can only be applied to bytes or fixed schemas with a decimal logical type.");
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The decimal case can only be applied to bytes or fixed schemas with a decimal logical type."));
             }
+
+            return result;
         }
     }
 
@@ -517,57 +557,64 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is FixedSchema fixedSchema && schema.LogicalType is DurationLogicalType))
-            {
-                throw new UnsupportedSchemaException(schema, "The duration case can only be applied to a fixed schema with a duration logical type.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (names.TryGetValue(fixedSchema.FullName, out var existing))
+            if (schema is FixedSchema fixedSchema && schema.LogicalType is DurationLogicalType)
             {
-                if (!schema.Equals(existing))
+                if (names.TryGetValue(fixedSchema.FullName, out var existing))
                 {
-                    throw new InvalidSchemaException($"A conflicting schema with the name {fixedSchema.FullName} has already been written.");
-                }
-
-                json.WriteStringValue(fixedSchema.FullName);
-                return;
-            }
-
-            if (!names.TryAdd(fixedSchema.FullName, fixedSchema))
-            {
-                throw new InvalidOperationException();
-            }
-
-            json.WriteStartObject();
-            json.WriteString(JsonAttributeToken.Name, fixedSchema.FullName);
-
-            if (!canonical)
-            {
-                if (fixedSchema.Aliases.Count > 0)
-                {
-                    json.WritePropertyName(JsonAttributeToken.Aliases);
-                    json.WriteStartArray();
-
-                    foreach (var alias in fixedSchema.Aliases)
+                    if (!schema.Equals(existing))
                     {
-                        json.WriteStringValue(alias);
+                        throw new InvalidSchemaException($"A conflicting schema with the name {fixedSchema.FullName} has already been written.");
                     }
 
-                    json.WriteEndArray();
+                    json.WriteStringValue(fixedSchema.FullName);
+                }
+                else
+                {
+                    if (!names.TryAdd(fixedSchema.FullName, fixedSchema))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Name, fixedSchema.FullName);
+
+                    if (!canonical)
+                    {
+                        if (fixedSchema.Aliases.Count > 0)
+                        {
+                            json.WritePropertyName(JsonAttributeToken.Aliases);
+                            json.WriteStartArray();
+
+                            foreach (var alias in fixedSchema.Aliases)
+                            {
+                                json.WriteStringValue(alias);
+                            }
+
+                            json.WriteEndArray();
+                        }
+                    }
+
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Fixed);
+
+                    if (!canonical)
+                    {
+                        json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Duration);
+                    }
+
+                    json.WriteNumber(JsonAttributeToken.Size, fixedSchema.Size);
+                    json.WriteEndObject();
                 }
             }
-
-            json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Fixed);
-
-            if (!canonical)
+            else
             {
-                json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Duration);
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The duration case can only be applied to a fixed schema with a duration logical type."));
             }
 
-            json.WriteNumber(JsonAttributeToken.Size, fixedSchema.Size);
-            json.WriteEndObject();
+            return result;
         }
     }
 
@@ -593,64 +640,71 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is EnumSchema enumSchema))
-            {
-                throw new UnsupportedSchemaException(schema, "The enum case can only be applied to an enum schema.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (names.TryGetValue(enumSchema.FullName, out var existing))
+            if (schema is EnumSchema enumSchema)
             {
-                if (!schema.Equals(existing))
+                if (names.TryGetValue(enumSchema.FullName, out var existing))
                 {
-                    throw new InvalidSchemaException($"A conflicting schema with the name {enumSchema.FullName} has already been written.");
+                    if (!schema.Equals(existing))
+                    {
+                        throw new InvalidSchemaException($"A conflicting schema with the name {enumSchema.FullName} has already been written.");
+                    }
+
+                    json.WriteStringValue(enumSchema.FullName);
                 }
-
-                json.WriteStringValue(enumSchema.FullName);
-                return;
-            }
-
-            if (!names.TryAdd(enumSchema.FullName, enumSchema))
-            {
-                throw new InvalidOperationException();
-            }
-
-            json.WriteStartObject();
-            json.WriteString(JsonAttributeToken.Name, enumSchema.FullName);
-
-            if (!canonical)
-            {
-                if (enumSchema.Aliases.Count > 0)
+                else
                 {
-                    json.WritePropertyName(JsonAttributeToken.Aliases);
+                    if (!names.TryAdd(enumSchema.FullName, enumSchema))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Name, enumSchema.FullName);
+
+                    if (!canonical)
+                    {
+                        if (enumSchema.Aliases.Count > 0)
+                        {
+                            json.WritePropertyName(JsonAttributeToken.Aliases);
+                            json.WriteStartArray();
+
+                            foreach (var alias in enumSchema.Aliases)
+                            {
+                                json.WriteStringValue(alias);
+                            }
+
+                            json.WriteEndArray();
+                        }
+
+                        if (!string.IsNullOrEmpty(enumSchema.Documentation))
+                        {
+                            json.WriteString(JsonAttributeToken.Doc, enumSchema.Documentation);
+                        }
+                    }
+
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Enum);
+                    json.WritePropertyName(JsonAttributeToken.Symbols);
                     json.WriteStartArray();
 
-                    foreach (var alias in enumSchema.Aliases)
+                    foreach (var symbol in enumSchema.Symbols)
                     {
-                        json.WriteStringValue(alias);
+                        json.WriteStringValue(symbol);
                     }
 
                     json.WriteEndArray();
-                }
-
-                if (!string.IsNullOrEmpty(enumSchema.Documentation))
-                {
-                    json.WriteString(JsonAttributeToken.Doc, enumSchema.Documentation);
+                    json.WriteEndObject();
                 }
             }
-
-            json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Enum);
-            json.WritePropertyName(JsonAttributeToken.Symbols);
-            json.WriteStartArray();
-
-            foreach (var symbol in enumSchema.Symbols)
+            else
             {
-                json.WriteStringValue(symbol);
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The enum case can only be applied to an enum schema."));
             }
 
-            json.WriteEndArray();
-            json.WriteEndObject();
+            return result;
         }
     }
 
@@ -676,51 +730,58 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is FixedSchema fixedSchema))
-            {
-                throw new UnsupportedSchemaException(schema, "The fixed case can only be applied to a fixed schema.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (names.TryGetValue(fixedSchema.FullName, out var existing))
+            if (schema is FixedSchema fixedSchema)
             {
-                if (!schema.Equals(existing))
+                if (names.TryGetValue(fixedSchema.FullName, out var existing))
                 {
-                    throw new InvalidSchemaException($"A conflicting schema with the name {fixedSchema.FullName} has already been written.");
-                }
-
-                json.WriteStringValue(fixedSchema.FullName);
-                return;
-            }
-
-            if (!names.TryAdd(fixedSchema.FullName, fixedSchema))
-            {
-                throw new InvalidOperationException();
-            }
-
-            json.WriteStartObject();
-            json.WriteString(JsonAttributeToken.Name, fixedSchema.FullName);
-
-            if (!canonical)
-            {
-                if (fixedSchema.Aliases.Count > 0)
-                {
-                    json.WritePropertyName(JsonAttributeToken.Aliases);
-                    json.WriteStartArray();
-
-                    foreach (var alias in fixedSchema.Aliases)
+                    if (!schema.Equals(existing))
                     {
-                        json.WriteStringValue(alias);
+                        throw new InvalidSchemaException($"A conflicting schema with the name {fixedSchema.FullName} has already been written.");
                     }
 
-                    json.WriteEndArray();
+                    json.WriteStringValue(fixedSchema.FullName);
+                }
+                else
+                {
+                    if (!names.TryAdd(fixedSchema.FullName, fixedSchema))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Name, fixedSchema.FullName);
+
+                    if (!canonical)
+                    {
+                        if (fixedSchema.Aliases.Count > 0)
+                        {
+                            json.WritePropertyName(JsonAttributeToken.Aliases);
+                            json.WriteStartArray();
+
+                            foreach (var alias in fixedSchema.Aliases)
+                            {
+                                json.WriteStringValue(alias);
+                            }
+
+                            json.WriteEndArray();
+                        }
+                    }
+
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Fixed);
+                    json.WriteNumber(JsonAttributeToken.Size, fixedSchema.Size);
+                    json.WriteEndObject();
                 }
             }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The fixed case can only be applied to a fixed schema."));
+            }
 
-            json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Fixed);
-            json.WriteNumber(JsonAttributeToken.Size, fixedSchema.Size);
-            json.WriteEndObject();
+            return result;
         }
     }
 
@@ -762,18 +823,24 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is MapSchema mapSchema))
+            var result = new JsonSchemaWriteResult();
+
+            if (schema is MapSchema mapSchema)
             {
-                throw new UnsupportedSchemaException(schema, "The map case can only be applied to a map schema.");
+                json.WriteStartObject();
+                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Map);
+                json.WritePropertyName(JsonAttributeToken.Values);
+                Writer.Write(mapSchema.Value, json, canonical, names);
+                json.WriteEndObject();
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The map case can only be applied to a map schema."));
             }
 
-            json.WriteStartObject();
-            json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Map);
-            json.WritePropertyName(JsonAttributeToken.Values);
-            Writer.Write(mapSchema.Value, json, canonical, names);
-            json.WriteEndObject();
+            return result;
         }
     }
 
@@ -799,24 +866,30 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is LongSchema && schema.LogicalType is MicrosecondTimeLogicalType))
-            {
-                throw new UnsupportedSchemaException(schema, "The microsecond time case can only be applied to a long schema with a microsecond time logical type.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (canonical)
+            if (schema is LongSchema && schema.LogicalType is MicrosecondTimeLogicalType)
             {
-                json.WriteStringValue(JsonSchemaToken.Long);
+                if (canonical)
+                {
+                    json.WriteStringValue(JsonSchemaToken.Long);
+                }
+                else
+                {
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Long);
+                    json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.TimeMicroseconds);
+                    json.WriteEndObject();
+                }
             }
             else
             {
-                json.WriteStartObject();
-                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Long);
-                json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.TimeMicroseconds);
-                json.WriteEndObject();
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The microsecond time case can only be applied to a long schema with a microsecond time logical type."));
             }
+
+            return result;
         }
     }
 
@@ -842,24 +915,30 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is LongSchema && schema.LogicalType is MicrosecondTimestampLogicalType))
-            {
-                throw new UnsupportedSchemaException(schema, "The microsecond timestamp case can only be applied to a long schema with a microsecond timestamp logical type.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (canonical)
+            if (schema is LongSchema && schema.LogicalType is MicrosecondTimestampLogicalType)
             {
-                json.WriteStringValue(JsonSchemaToken.Long);
+                if (canonical)
+                {
+                    json.WriteStringValue(JsonSchemaToken.Long);
+                }
+                else
+                {
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Long);
+                    json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.TimestampMicroseconds);
+                    json.WriteEndObject();
+                }
             }
             else
             {
-                json.WriteStartObject();
-                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Long);
-                json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.TimestampMicroseconds);
-                json.WriteEndObject();
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The microsecond timestamp case can only be applied to a long schema with a microsecond timestamp logical type."));
             }
+
+            return result;
         }
     }
 
@@ -885,24 +964,30 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is IntSchema && schema.LogicalType is MillisecondTimeLogicalType))
-            {
-                throw new UnsupportedSchemaException(schema, "The millisecond time case can only be applied to an int schema with a millisecond time logical type.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (canonical)
+            if (schema is IntSchema && schema.LogicalType is MillisecondTimeLogicalType)
             {
-                json.WriteStringValue(JsonSchemaToken.Int);
+                if (canonical)
+                {
+                    json.WriteStringValue(JsonSchemaToken.Int);
+                }
+                else
+                {
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Int);
+                    json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.TimeMilliseconds);
+                    json.WriteEndObject();
+                }
             }
             else
             {
-                json.WriteStartObject();
-                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Int);
-                json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.TimeMilliseconds);
-                json.WriteEndObject();
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The millisecond time case can only be applied to an int schema with a millisecond time logical type."));
             }
+
+            return result;
         }
     }
 
@@ -928,24 +1013,30 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is LongSchema && schema.LogicalType is MillisecondTimestampLogicalType))
-            {
-                throw new UnsupportedSchemaException(schema, "The millisecond timestamp case can only be applied to a long schema with a millisecond timestamp logical type.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (canonical)
+            if (schema is LongSchema && schema.LogicalType is MillisecondTimestampLogicalType)
             {
-                json.WriteStringValue(JsonSchemaToken.Long);
+                if (canonical)
+                {
+                    json.WriteStringValue(JsonSchemaToken.Long);
+                }
+                else
+                {
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Long);
+                    json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.TimestampMilliseconds);
+                    json.WriteEndObject();
+                }
             }
             else
             {
-                json.WriteStartObject();
-                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Long);
-                json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.TimestampMilliseconds);
-                json.WriteEndObject();
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The millisecond timestamp case can only be applied to a long schema with a millisecond timestamp logical type."));
             }
+
+            return result;
         }
     }
 
@@ -971,14 +1062,20 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is PrimitiveSchema primitiveSchema))
+            var result = new JsonSchemaWriteResult();
+
+            if (schema is PrimitiveSchema primitiveSchema)
             {
-                throw new UnsupportedSchemaException(schema, "The primitive case can only be applied to a primitive schema.");
+                json.WriteStringValue(GetSchemaToken(primitiveSchema));
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The primitive case can only be applied to a primitive schema."));
             }
 
-            json.WriteStringValue(GetSchemaToken(primitiveSchema));
+            return result;
         }
 
         /// <summary>
@@ -1056,74 +1153,81 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is RecordSchema recordSchema))
-            {
-                throw new UnsupportedSchemaException(schema, "The record case can only be applied to a record schema.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (names.TryGetValue(recordSchema.FullName, out var existing))
+            if (schema is RecordSchema recordSchema)
             {
-                if (!schema.Equals(existing))
+                if (names.TryGetValue(recordSchema.FullName, out var existing))
                 {
-                    throw new InvalidSchemaException($"A conflicting schema with the name {recordSchema.FullName} has already been written.");
+                    if (!schema.Equals(existing))
+                    {
+                        throw new InvalidSchemaException($"A conflicting schema with the name {recordSchema.FullName} has already been written.");
+                    }
+
+                    json.WriteStringValue(recordSchema.FullName);
                 }
-
-                json.WriteStringValue(recordSchema.FullName);
-                return;
-            }
-
-            if (!names.TryAdd(recordSchema.FullName, recordSchema))
-            {
-                throw new InvalidOperationException();
-            }
-
-            json.WriteStartObject();
-            json.WriteString(JsonAttributeToken.Name, recordSchema.FullName);
-
-            if (!canonical)
-            {
-                if (recordSchema.Aliases.Count > 0)
+                else
                 {
-                    json.WritePropertyName(JsonAttributeToken.Aliases);
+                    if (!names.TryAdd(recordSchema.FullName, recordSchema))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Name, recordSchema.FullName);
+
+                    if (!canonical)
+                    {
+                        if (recordSchema.Aliases.Count > 0)
+                        {
+                            json.WritePropertyName(JsonAttributeToken.Aliases);
+                            json.WriteStartArray();
+
+                            foreach (var alias in recordSchema.Aliases)
+                            {
+                                json.WriteStringValue(alias);
+                            }
+
+                            json.WriteEndArray();
+                        }
+
+                        if (!string.IsNullOrEmpty(recordSchema.Documentation))
+                        {
+                            json.WriteString(JsonAttributeToken.Doc, recordSchema.Documentation);
+                        }
+                    }
+
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Record);
+                    json.WritePropertyName(JsonAttributeToken.Fields);
                     json.WriteStartArray();
 
-                    foreach (var alias in recordSchema.Aliases)
+                    foreach (var field in recordSchema.Fields)
                     {
-                        json.WriteStringValue(alias);
+                        json.WriteStartObject();
+                        json.WriteString(JsonAttributeToken.Name, field.Name);
+
+                        if (!canonical && !string.IsNullOrEmpty(field.Documentation))
+                        {
+                            json.WriteString(JsonAttributeToken.Doc, field.Documentation);
+                        }
+
+                        json.WritePropertyName(JsonAttributeToken.Type);
+                        Writer.Write(field.Type, json, canonical, names);
+                        json.WriteEndObject();
                     }
 
                     json.WriteEndArray();
-                }
-
-                if (!string.IsNullOrEmpty(recordSchema.Documentation))
-                {
-                    json.WriteString(JsonAttributeToken.Doc, recordSchema.Documentation);
+                    json.WriteEndObject();
                 }
             }
-
-            json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.Record);
-            json.WritePropertyName(JsonAttributeToken.Fields);
-            json.WriteStartArray();
-
-            foreach (var field in recordSchema.Fields)
+            else
             {
-                json.WriteStartObject();
-                json.WriteString(JsonAttributeToken.Name, field.Name);
-
-                if (!canonical && !string.IsNullOrEmpty(field.Documentation))
-                {
-                    json.WriteString(JsonAttributeToken.Doc, field.Documentation);
-                }
-
-                json.WritePropertyName(JsonAttributeToken.Type);
-                Writer.Write(field.Type, json, canonical, names);
-                json.WriteEndObject();
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The record case can only be applied to a record schema."));
             }
 
-            json.WriteEndArray();
-            json.WriteEndObject();
+            return result;
         }
     }
 
@@ -1165,21 +1269,27 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is UnionSchema unionSchema))
+            var result = new JsonSchemaWriteResult();
+
+            if (schema is UnionSchema unionSchema)
             {
-                throw new UnsupportedSchemaException(schema, "The union case can only be applied to a union schema.");
+                json.WriteStartArray();
+
+                foreach (var child in unionSchema.Schemas)
+                {
+                    Writer.Write(child, json, canonical, names);
+                }
+
+                json.WriteEndArray();
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The union case can only be applied to a union schema."));
             }
 
-            json.WriteStartArray();
-
-            foreach (var child in unionSchema.Schemas)
-            {
-                Writer.Write(child, json, canonical, names);
-            }
-
-            json.WriteEndArray();
+            return result;
         }
     }
 
@@ -1205,24 +1315,30 @@ namespace Chr.Avro.Representation
         /// A schema cache. The cache is populated as the schema is written and can be used to
         /// determine which named schemas have already been processed.
         /// </param>
-        public override void Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
+        public override IJsonSchemaWriteResult Write(Schema schema, Utf8JsonWriter json, bool canonical, ConcurrentDictionary<string, NamedSchema> names)
         {
-            if (!(schema is StringSchema && schema.LogicalType is UuidLogicalType))
-            {
-                throw new UnsupportedSchemaException(schema, "The UUID case can only be applied to a string schema with a UUID logical type.");
-            }
+            var result = new JsonSchemaWriteResult();
 
-            if (canonical)
+            if (schema is StringSchema && schema.LogicalType is UuidLogicalType)
             {
-                json.WriteStringValue(JsonSchemaToken.String);
+                if (canonical)
+                {
+                    json.WriteStringValue(JsonSchemaToken.String);
+                }
+                else
+                {
+                    json.WriteStartObject();
+                    json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.String);
+                    json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Uuid);
+                    json.WriteEndObject();
+                }
             }
             else
             {
-                json.WriteStartObject();
-                json.WriteString(JsonAttributeToken.Type, JsonSchemaToken.String);
-                json.WriteString(JsonAttributeToken.LogicalType, JsonSchemaToken.Uuid);
-                json.WriteEndObject();
+                result.Exceptions.Add(new UnsupportedSchemaException(schema, "The UUID case can only be applied to a string schema with a UUID logical type."));
             }
+
+            return result;
         }
     }
 }

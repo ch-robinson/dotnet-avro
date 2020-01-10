@@ -17,6 +17,6 @@ namespace Chr.Avro.Representation
         /// <param name="inner">
         /// An underlying error that may provide additional context.
         /// </param>
-        public UnknownSchemaException(string message, Exception inner = null) : base(message, inner) { }
+        public UnknownSchemaException(string message, Exception? inner = null) : base(message, inner) { }
     }
 }

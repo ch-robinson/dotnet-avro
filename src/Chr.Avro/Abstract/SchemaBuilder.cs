@@ -23,7 +23,7 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A schema that matches the type.
         /// </returns>
-        Schema BuildSchema<T>(ConcurrentDictionary<Type, Schema> cache = null);
+        Schema BuildSchema<T>(ConcurrentDictionary<Type, Schema>? cache = null);
 
         /// <summary>
         /// Builds a schema.
@@ -38,30 +38,46 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A schema that matches the type.
         /// </returns>
-        Schema BuildSchema(Type type, ConcurrentDictionary<Type, Schema> cache = null);
+        Schema BuildSchema(Type type, ConcurrentDictionary<Type, Schema>? cache = null);
     }
 
     /// <summary>
-    /// Builds Avro schemas for specific type resolutions. Used by <see cref="SchemaBuilder" /> to
-    /// break apart schema building logic.
+    /// Represents the outcome of a schema builder case.
+    /// </summary>
+    public interface ISchemaBuildResult
+    {
+        /// <summary>
+        /// Any exceptions related to the applicability of the case. If <see cref="Schema" /> is
+        /// not null, these exceptions should be interpreted as warnings.
+        /// </summary>
+        ICollection<Exception> Exceptions { get; }
+
+        /// <summary>
+        /// The result of applying the case. If null, the case was not applied successfully.
+        /// </summary>
+        Schema? Schema { get; }
+    }
+
+    /// <summary>
+    /// Builds Avro schemas for specific types. See <see cref="SchemaBuilder" /> for implementation
+    /// details.
     /// </summary>
     public interface ISchemaBuilderCase
     {
         /// <summary>
-        /// Builds a schema for a type resolution. If the case does not apply to the provided
-        /// resolution, this method should throw <see cref="UnsupportedTypeException" />.
+        /// Builds a schema for a type resolution.
         /// </summary>
         /// <param name="resolution">
         /// The resolution to build a schema for.
         /// </param>
         /// <param name="cache">
-        /// A schema cache. If a schema is cached for a specific type, that schema will be returned
-        /// for all subsequent occurrences of the type.
+        /// A schema cache. If a schema is cached for a type, that same schema instance will be
+        /// returned for all occurrences of the type.
         /// </param>
         /// <returns>
-        /// A subclass of <see cref="Schema" />.
+        /// A build result.
         /// </returns>
-        Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache);
+        ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache);
     }
 
     /// <summary>
@@ -92,7 +108,7 @@ namespace Chr.Avro.Abstract
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public SchemaBuilder(TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601, ITypeResolver typeResolver = null)
+        public SchemaBuilder(TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601, ITypeResolver? typeResolver = null)
             : this(CreateCaseBuilders(temporalBehavior), typeResolver) { }
 
         /// <summary>
@@ -105,7 +121,7 @@ namespace Chr.Avro.Abstract
         /// A resolver to retrieve type information from. If no resolver is provided, the schema
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public SchemaBuilder(IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> caseBuilders, ITypeResolver typeResolver = null)
+        public SchemaBuilder(IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> caseBuilders, ITypeResolver? typeResolver = null)
         {
             var cases = new List<ISchemaBuilderCase>();
 
@@ -132,11 +148,10 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A schema that matches the type.
         /// </returns>
-        /// <exception cref="AggregateException">
-        /// Thrown when no case matches the type. <see cref="AggregateException.InnerExceptions" />
-        /// will be contain the exceptions thrown by each case.
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when no case matches the type.
         /// </exception>
-        public Schema BuildSchema<T>(ConcurrentDictionary<Type, Schema> cache = null)
+        public Schema BuildSchema<T>(ConcurrentDictionary<Type, Schema>? cache = null)
         {
             return BuildSchema(typeof(T), cache);
         }
@@ -154,11 +169,10 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A schema that matches the type.
         /// </returns>
-        /// <exception cref="AggregateException">
-        /// Thrown when no case matches the type. <see cref="AggregateException.InnerExceptions" />
-        /// will be contain the exceptions thrown by each case.
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when no case matches the type.
         /// </exception>
-        public Schema BuildSchema(Type type, ConcurrentDictionary<Type, Schema> cache = null)
+        public Schema BuildSchema(Type type, ConcurrentDictionary<Type, Schema>? cache = null)
         {
             if (cache == null)
             {
@@ -173,20 +187,20 @@ namespace Chr.Avro.Abstract
 
                 foreach (var @case in Cases)
                 {
-                    try
+                    var result = @case.BuildSchema(resolution, cache);
+
+                    if (result.Schema != null)
                     {
-                        schema = @case.BuildSchema(resolution, cache);
+                        schema = result.Schema;
                         break;
                     }
-                    catch (UnsupportedTypeException exception)
-                    {
-                        exceptions.Add(exception);
-                    }
+
+                    exceptions.AddRange(result.Exceptions);
                 }
 
                 if (schema == null)
                 {
-                    throw new AggregateException($"No schema builder case could be applied to {resolution.Type.FullName} ({resolution.GetType().Name}).");
+                    throw new UnsupportedTypeException(resolution.Type, $"No schema builder case could be applied to {resolution.Type.FullName} ({resolution.GetType().Name}).", new AggregateException(exceptions));
                 }
             }
 
@@ -226,13 +240,29 @@ namespace Chr.Avro.Abstract
     }
 
     /// <summary>
+    /// A base <see cref="ISchemaBuildResult" /> implementation.
+    /// </summary>
+    public class SchemaBuildResult : ISchemaBuildResult
+    {
+        /// <summary>
+        /// Any exceptions related to the applicability of the case. If <see cref="Schema" /> is
+        /// not null, these exceptions should be interpreted as warnings.
+        /// </summary>
+        public ICollection<Exception> Exceptions { get; set; } = new List<Exception>();
+
+        /// <summary>
+        /// The result of applying the case. If null, the case was not applied successfully.
+        /// </summary>
+        public Schema? Schema { get; set; }
+    }
+
+    /// <summary>
     /// A base <see cref="ISchemaBuilderCase" /> implementation.
     /// </summary>
     public abstract class SchemaBuilderCase : ISchemaBuilderCase
     {
         /// <summary>
-        /// Builds a schema for a type resolution. If the case does not apply to the provided
-        /// resolution, this method should throw <see cref="UnsupportedTypeException" />.
+        /// Builds a schema for a type resolution.
         /// </summary>
         /// <param name="resolution">
         /// The resolution to build a schema for.
@@ -242,9 +272,9 @@ namespace Chr.Avro.Abstract
         /// for all subsequent occurrences of the type.
         /// </param>
         /// <returns>
-        /// A subclass of <see cref="Schema" />.
+        /// A build result.
         /// </returns>
-        public abstract Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache);
+        public abstract ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache);
     }
 
     /// <summary>
@@ -255,9 +285,6 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// A schema builder instance that will be used to resolve array item types.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema builder is set to null.
-        /// </exception>
         public ISchemaBuilder SchemaBuilder { get; }
 
         /// <summary>
@@ -266,12 +293,9 @@ namespace Chr.Avro.Abstract
         /// <param name="schemaBuilder">
         /// A schema builder instance that will be used to resolve array item types.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema builder is null.
-        /// </exception>
         public ArraySchemaBuilderCase(ISchemaBuilder schemaBuilder)
         {
-            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder is null.");
+            SchemaBuilder = schemaBuilder;
         }
 
         /// <summary>
@@ -284,19 +308,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// An <see cref="ArraySchema" /> that matches the type resolution.
+        /// A successful <see cref="ArraySchema" /> build result if <paramref name="resolution" />
+        /// is an <see cref="ArrayResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not an <see cref="ArrayResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is ArrayResolution array))
+            var result = new SchemaBuildResult();
+
+            if (resolution is ArrayResolution array)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(array.Type, _ => new ArraySchema(SchemaBuilder.BuildSchema(array.ItemType, cache)));
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(array.Type, new ArraySchema(SchemaBuilder.BuildSchema(array.ItemType, cache)));
+            return result;
         }
     }
 
@@ -315,19 +344,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="BooleanSchema" /> that matches the type resolution.
+        /// A successful <see cref="BooleanSchema" /> build result if <paramref name="resolution" />
+        /// is a <see cref="BooleanResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="BooleanResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is BooleanResolution boolean))
+            var result = new SchemaBuildResult();
+
+            if (resolution is BooleanResolution boolean)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(boolean.Type, _ => new BooleanSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(boolean.Type, new BooleanSchema());
+            return result;
         }
     }
 
@@ -346,19 +380,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="BytesSchema" /> that matches the type resolution.
+        /// A successful <see cref="BytesSchema" /> build result if <paramref name="resolution" />
+        /// is a <see cref="ByteArrayResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="ByteArrayResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is ByteArrayResolution bytes))
+            var result = new SchemaBuildResult();
+
+            if (resolution is ByteArrayResolution bytes)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(bytes.Type, _ => new BytesSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(bytes.Type, new BytesSchema());
+            return result;
         }
     }
 
@@ -377,23 +416,27 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="BytesSchema" /> with a <see cref="DecimalLogicalType" /> that matches the
-        /// type resolution.
+        /// A successful <see cref="BytesSchema" />/<see cref="DecimalLogicalType" /> build result
+        /// if <paramref name="resolution" /> is a <see cref="DecimalResolution" />; an unsuccessful
+        /// <see cref="UnsupportedTypeException" /> build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="DecimalResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is DecimalResolution @decimal))
+            var result = new SchemaBuildResult();
+
+            if (resolution is DecimalResolution @decimal)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(@decimal.Type, _ => new BytesSchema()
+                {
+                    LogicalType = new DecimalLogicalType(@decimal.Precision, @decimal.Scale)
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(@decimal.Type, new BytesSchema()
-            {
-                LogicalType = new DecimalLogicalType(@decimal.Precision, @decimal.Scale)
-            });
+            return result;
         }
     }
 
@@ -412,19 +455,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="DoubleSchema" /> that matches the type resolution.
+        /// A successful <see cref="DoubleSchema" /> build result if <paramref name="resolution" />
+        /// is a double-precision <see cref="FloatingPointResolution" />; an unsuccessful
+        /// <see cref="UnsupportedTypeException" /> build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a 16-bit <see cref="FloatingPointResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is FloatingPointResolution @double) || @double.Size != 16)
+            var result = new SchemaBuildResult();
+
+            if (resolution is FloatingPointResolution @double && @double.Size == 16)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(@double.Type, _ => new DoubleSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(@double.Type, new DoubleSchema());
+            return result;
         }
     }
 
@@ -443,19 +491,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="StringSchema" />.
+        /// A successful <see cref="StringSchema" /> build result if <paramref name="resolution" />
+        /// is a <see cref="DurationResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="DurationResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is DurationResolution duration))
+            var result = new SchemaBuildResult();
+
+            if (resolution is DurationResolution duration)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(duration.Type, _ => new StringSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(duration.Type, new StringSchema());
+            return result;
         }
     }
 
@@ -467,9 +520,6 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// A schema builder instance that will be used to resolve underlying integral types.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema builder is set to null.
-        /// </exception>
         public ISchemaBuilder SchemaBuilder { get; }
 
         /// <summary>
@@ -478,12 +528,9 @@ namespace Chr.Avro.Abstract
         /// <param name="schemaBuilder">
         /// A schema builder instance that will be used to resolve underlying integral types.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema builder is null.
-        /// </exception>
         public EnumSchemaBuilderCase(ISchemaBuilder schemaBuilder)
         {
-            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder is null.");
+            SchemaBuilder = schemaBuilder;
         }
 
         /// <summary>
@@ -496,37 +543,45 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="EnumSchema" /> that matches the type resolution.
+        /// A successful <see cref="EnumSchema" /> build result if <paramref name="resolution" />
+        /// is an <see cref="EnumResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not an <see cref="EnumResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is EnumResolution @enum))
-            {
-                throw new UnsupportedTypeException(resolution.Type);
-            }
+            var result = new SchemaBuildResult();
 
-            if (@enum.IsFlagEnum)
+            if (resolution is EnumResolution @enum)
             {
-                return cache.GetOrAdd(@enum.Type, type => SchemaBuilder.BuildSchema(@enum.UnderlyingType, cache));
+                result.Schema = cache.GetOrAdd(@enum.Type, _ =>
+                {
+                    if (@enum.IsFlagEnum)
+                    {
+                        return SchemaBuilder.BuildSchema(@enum.UnderlyingType, cache);
+                    }
+                    else
+                    {
+                        var name = @enum.Namespace == null
+                            ? @enum.Name.Value
+                            : $"{@enum.Namespace.Value}.{@enum.Name.Value}";
+
+                        var schema = new EnumSchema(name);
+
+                        foreach (var symbol in @enum.Symbols)
+                        {
+                            schema.Symbols.Add(symbol.Name.Value);
+                        }
+
+                        return schema;
+                    }
+                });
             }
             else
             {
-                var name = @enum.Namespace == null
-                    ? @enum.Name.Value
-                    : $"{@enum.Namespace.Value}.{@enum.Name.Value}";
-
-                var schema = new EnumSchema(name);
-
-                foreach (var symbol in @enum.Symbols)
-                {
-                    schema.Symbols.Add(symbol.Name.Value);
-                }
-
-                return cache.GetOrAdd(@enum.Type, schema);
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
+
+            return result;
         }
     }
 
@@ -545,19 +600,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="FloatSchema" /> that matches the type resolution.
+        /// A successful <see cref="FloatSchema" /> build result if <paramref name="resolution" />
+        /// is a single-precision <see cref="FloatingPointResolution" />; an unsuccessful
+        /// <see cref="UnsupportedTypeException" /> build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not an 8-bit <see cref="FloatingPointResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is FloatingPointResolution @float) || @float.Size != 8)
+            var result = new SchemaBuildResult();
+
+            if (resolution is FloatingPointResolution @float && @float.Size == 8)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(@float.Type, _ => new FloatSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(@float.Type, new FloatSchema());
+            return result;
         }
     }
 
@@ -576,20 +636,25 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// An <see cref="IntSchema" /> that matches the type resolution.
+        /// A successful <see cref="IntSchema" /> build result if <paramref name="resolution" />
+        /// is an <see cref="IntegerResolution" /> with <see cref="IntegerResolution.Size" /> less
+        /// than or equal to 32; an unsuccessful <see cref="UnsupportedTypeException" /> build
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not an <see cref="IntegerResolution" /> or specifies a
-        /// size greater than 32 bits.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is IntegerResolution @int) || @int.Size > 32)
+            var result = new SchemaBuildResult();
+
+            if (resolution is IntegerResolution @int && @int.Size <= 32)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(@int.Type, _ => new IntSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(@int.Type, new IntSchema());
+            return result;
         }
     }
 
@@ -608,20 +673,25 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="LongSchema" /> that matches the type resolution.
+        /// A successful <see cref="IntSchema" /> build result if <paramref name="resolution" />
+        /// is an <see cref="IntegerResolution" /> with <see cref="IntegerResolution.Size" />
+        /// greater than 32; an unsuccessful <see cref="UnsupportedTypeException" /> build result
+        /// otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not an <see cref="IntegerResolution" /> or specifies a
-        /// size less than or equal to 32 bits.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is IntegerResolution @long) || @long.Size <= 32)
+            var result = new SchemaBuildResult();
+
+            if (resolution is IntegerResolution @long && @long.Size > 32)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(@long.Type, _ => new LongSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(@long.Type, new LongSchema());
+            return result;
         }
     }
 
@@ -641,12 +711,9 @@ namespace Chr.Avro.Abstract
         /// <param name="schemaBuilder">
         /// A schema builder instance that will be used to resolve map value types.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema builder is null.
-        /// </exception>
         public MapSchemaBuilderCase(ISchemaBuilder schemaBuilder)
         {
-            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder cannot be null.");
+            SchemaBuilder = schemaBuilder;
         }
 
         /// <summary>
@@ -659,19 +726,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="MapSchema" /> that matches the type resolution.
+        /// A successful <see cref="MapSchema" /> build result if <paramref name="resolution" /> is
+        /// a <see cref="MapResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not an <see cref="MapResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is MapResolution map))
+            var result = new SchemaBuildResult();
+
+            if (resolution is MapResolution map)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(map.Type, _ => new MapSchema(SchemaBuilder.BuildSchema(map.ValueType, cache)));
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(map.Type, new MapSchema(SchemaBuilder.BuildSchema(map.ValueType, cache)));
+            return result;
         }
     }
 
@@ -691,12 +763,9 @@ namespace Chr.Avro.Abstract
         /// <param name="schemaBuilder">
         /// A schema builder instance that will be used to resolve record field types.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the schema builder is null.
-        /// </exception>
         public RecordSchemaBuilderCase(ISchemaBuilder schemaBuilder)
         {
-            SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder cannot be null.");
+            SchemaBuilder = schemaBuilder;
         }
 
         /// <summary>
@@ -709,30 +778,47 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="RecordSchema" /> that matches the type resolution.
+        /// A successful <see cref="RecordSchema" /> build result if <paramref name="resolution" />
+        /// is a <see cref="RecordResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not an <see cref="RecordResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is RecordResolution record))
+            var result = new SchemaBuildResult();
+
+            if (resolution is RecordResolution record)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                if (cache.TryGetValue(record.Type, out var schema))
+                {
+                    result.Schema = schema;
+                }
+                else
+                {
+                    var name = record.Namespace == null
+                        ? record.Name.Value
+                        : $"{record.Namespace.Value}.{record.Name.Value}";
+
+                    var instance = new RecordSchema(name);
+
+                    if (!cache.TryAdd(record.Type, instance))
+                    {
+                        throw new InvalidOperationException("Failed to cache record schema prior to building its fields.");
+                    }
+
+                    foreach (var field in record.Fields)
+                    {
+                        instance.Fields.Add(new RecordField(field.Name.Value, SchemaBuilder.BuildSchema(field.Type, cache)));
+                    }
+
+                    result.Schema = instance;
+                }
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            var name = record.Namespace == null
-                ? record.Name.Value
-                : $"{record.Namespace.Value}.{record.Name.Value}";
-
-            var schema = (RecordSchema)cache.GetOrAdd(record.Type, new RecordSchema(name));
-
-            foreach (var field in record.Fields)
-            {
-                schema.Fields.Add(new RecordField(field.Name.Value, SchemaBuilder.BuildSchema(field.Type, cache)));
-            }
-
-            return schema;
+            return result;
         }
     }
 
@@ -751,19 +837,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="StringSchema" /> that matches the type resolution.
+        /// A successful <see cref="StringSchema" /> build result if <paramref name="resolution" />
+        /// is a <see cref="StringResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="StringResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is StringResolution @string))
+            var result = new SchemaBuildResult();
+
+            if (resolution is StringResolution @string)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(@string.Type, _ => new StringSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(@string.Type, new StringSchema());
+            return result;
         }
     }
 
@@ -800,45 +891,36 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="StringSchema" />.
+        /// A successful <see cref="StringSchema" /> build result if <paramref name="resolution" />
+        /// is a <see cref="TimestampResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="TimestampResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is TimestampResolution timestamp))
+            var result = new SchemaBuildResult();
+
+            if (resolution is TimestampResolution timestamp)
             {
-                throw new UnsupportedTypeException(resolution.Type);
-            }
-
-            Schema schema = null;
-
-            switch (TemporalBehavior)
-            {
-                case TemporalBehavior.Iso8601:
-                    schema = new StringSchema();
-                    break;
-
-                case TemporalBehavior.EpochMilliseconds:
-                    schema = new LongSchema
-                    {
-                        LogicalType = new MillisecondTimestampLogicalType()
-                    };
-                    break;
-
-                case TemporalBehavior.EpochMicroseconds:
-                    schema = new LongSchema
+                result.Schema = cache.GetOrAdd(timestamp.Type, _ => TemporalBehavior switch
+                {
+                    TemporalBehavior.EpochMicroseconds => new LongSchema()
                     {
                         LogicalType = new MicrosecondTimestampLogicalType()
-                    };
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(TemporalBehavior));
+                    },
+                    TemporalBehavior.EpochMilliseconds => new LongSchema()
+                    {
+                        LogicalType = new MillisecondTimestampLogicalType()
+                    },
+                    TemporalBehavior.Iso8601 => new StringSchema(),
+                    _ => throw new ArgumentOutOfRangeException(nameof(TemporalBehavior))
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(timestamp.Type, schema);
+            return result;
         }
     }
 
@@ -857,19 +939,24 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="StringSchema" />.
+        /// A successful <see cref="StringSchema" /> build result if <paramref name="resolution" />
+        /// is a <see cref="UriResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="UriResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is UriResolution uri))
+            var result = new SchemaBuildResult();
+
+            if (resolution is UriResolution uri)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(uri.Type, _ => new StringSchema());
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(uri.Type, new StringSchema());
+            return result;
         }
     }
 
@@ -888,22 +975,27 @@ namespace Chr.Avro.Abstract
         /// A schema cache.
         /// </param>
         /// <returns>
-        /// A <see cref="StringSchema" />.
+        /// A successful <see cref="StringSchema" /> build result if <paramref name="resolution" />
+        /// is a <see cref="UuidResolution" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// build result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolution is not a <see cref="UuidResolution" />.
-        /// </exception>
-        public override Schema BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
+        public override ISchemaBuildResult BuildSchema(TypeResolution resolution, ConcurrentDictionary<Type, Schema> cache)
         {
-            if (!(resolution is UuidResolution uuid))
+            var result = new SchemaBuildResult();
+
+            if (resolution is UuidResolution uuid)
             {
-                throw new UnsupportedTypeException(resolution.Type);
+                result.Schema = cache.GetOrAdd(uuid.Type, new StringSchema()
+                {
+                    LogicalType = new UuidLogicalType()
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
             }
 
-            return cache.GetOrAdd(uuid.Type, new StringSchema()
-            {
-                LogicalType = new UuidLogicalType()
-            });
+            return result;
         }
     }
 }

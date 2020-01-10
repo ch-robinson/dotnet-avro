@@ -25,6 +25,6 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a deserialized schema object.
         /// </returns>
-        Schema Read(Stream stream, ConcurrentDictionary<string, Schema> cache = null, string scope = null);
+        Schema Read(Stream stream, ConcurrentDictionary<string, Schema>? cache = null, string? scope = null);
     }
 }

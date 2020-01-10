@@ -37,7 +37,7 @@ namespace Chr.Avro.Confluent
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
-            Func<SerializationContext, string> subjectNameBuilder = null
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
             registryClient,
             registerAutomatically: registerAutomatically,
@@ -67,7 +67,7 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
-            Func<SerializationContext, string> subjectNameBuilder = null
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
             registryClient,
             registerAutomatically: registerAutomatically,
@@ -96,7 +96,7 @@ namespace Chr.Avro.Confluent
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
-            Func<SerializationContext, string> subjectNameBuilder = null
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
             registryConfiguration,
             registerAutomatically: registerAutomatically,
@@ -125,7 +125,7 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
-            Func<SerializationContext, string> subjectNameBuilder = null
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
             registryConfiguration,
             registerAutomatically: registerAutomatically,
@@ -609,7 +609,7 @@ namespace Chr.Avro.Confluent
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
-            Func<SerializationContext, string> subjectNameBuilder = null
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
             registryClient,
             registerAutomatically: registerAutomatically,
@@ -639,7 +639,7 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             bool registerAutomatically = false,
-            Func<SerializationContext, string> subjectNameBuilder = null
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
             registryClient,
             registerAutomatically: registerAutomatically,
@@ -668,7 +668,7 @@ namespace Chr.Avro.Confluent
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
-            Func<SerializationContext, string> subjectNameBuilder = null
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
             registryConfiguration,
             registerAutomatically: registerAutomatically,
@@ -697,7 +697,7 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             bool registerAutomatically = false,
-            Func<SerializationContext, string> subjectNameBuilder = null
+            Func<SerializationContext, string>? subjectNameBuilder = null
         ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
             registryConfiguration,
             registerAutomatically: registerAutomatically,

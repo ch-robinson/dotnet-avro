@@ -26,6 +26,6 @@ namespace Chr.Avro.Representation
         /// An optional schema cache. The cache is populated as the schema is written and can be
         /// used to determine which named schemas have already been processed.
         /// </param>
-        void Write(Schema schema, Stream stream, bool canonical = false, ConcurrentDictionary<string, NamedSchema> names = null);
+        void Write(Schema schema, Stream stream, bool canonical = false, ConcurrentDictionary<string, NamedSchema>? names = null);
     }
 }

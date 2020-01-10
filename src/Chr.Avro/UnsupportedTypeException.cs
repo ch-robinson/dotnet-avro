@@ -3,7 +3,7 @@ using System;
 namespace Chr.Avro
 {
     /// <summary>
-    /// The exception that is thrown when an operation does not support a .NET type.
+    /// An exception thrown when an operation does not support a .NET type.
     /// </summary>
     [Serializable]
     public class UnsupportedTypeException : Exception
@@ -25,10 +25,8 @@ namespace Chr.Avro
         /// <param name="inner">
         /// An underlying error that may provide additional context.
         /// </param>
-        public UnsupportedTypeException(Type type, string message = null, Exception inner = null) : base(
-            string.IsNullOrEmpty(message) ? $"{type.FullName} is not supported." : message,
-            inner
-        ) {
+        public UnsupportedTypeException(Type type, string? message = null, Exception? inner = null) : base(message ?? $"{type.FullName} is not supported.", inner)
+        {
             UnsupportedType = type;
         }
     }

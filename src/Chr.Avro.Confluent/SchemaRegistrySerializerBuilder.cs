@@ -68,10 +68,10 @@ namespace Chr.Avro.Confluent
         /// </param>
         public SchemaRegistrySerializerBuilder(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            Abstract.ISchemaBuilder schemaBuilder = null,
-            IJsonSchemaReader schemaReader = null,
-            IJsonSchemaWriter schemaWriter = null,
-            Serialization.IBinarySerializerBuilder serializerBuilder = null
+            Abstract.ISchemaBuilder? schemaBuilder = null,
+            IJsonSchemaReader? schemaReader = null,
+            IJsonSchemaWriter? schemaWriter = null,
+            Serialization.IBinarySerializerBuilder? serializerBuilder = null
         ) : this(
             new CachedSchemaRegistryClient(registryConfiguration),
             schemaBuilder,
@@ -109,10 +109,10 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public SchemaRegistrySerializerBuilder(
             ISchemaRegistryClient registryClient,
-            Abstract.ISchemaBuilder schemaBuilder = null,
-            IJsonSchemaReader schemaReader = null,
-            IJsonSchemaWriter schemaWriter = null,
-            Serialization.IBinarySerializerBuilder serializerBuilder = null
+            Abstract.ISchemaBuilder? schemaBuilder = null,
+            IJsonSchemaReader? schemaReader = null,
+            IJsonSchemaWriter? schemaWriter = null,
+            Serialization.IBinarySerializerBuilder? serializerBuilder = null
         ) {
 
             _disposeRegistryClient = false;

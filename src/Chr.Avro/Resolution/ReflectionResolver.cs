@@ -97,7 +97,7 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// The attribute, or null if the attribute is not present.
         /// </returns>
-        protected virtual T GetAttribute<T>(MemberInfo member) where T : Attribute
+        protected virtual T? GetAttribute<T>(MemberInfo member) where T : Attribute
         {
             return member.GetCustomAttributes(typeof(T), true)
                 .OfType<T>()
@@ -110,7 +110,7 @@ namespace Chr.Avro.Resolution
         /// <returns>
         /// The attribute, or null if the attribute is not present.
         /// </returns>
-        protected virtual T GetAttribute<T>(Type type) where T : Attribute
+        protected virtual T? GetAttribute<T>(Type type) where T : Attribute
         {
             return type.GetCustomAttributes(typeof(T), true)
                 .OfType<T>()
@@ -154,19 +154,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="BooleanResolution" /> with information about the type.
+        /// A successful <see cref="BooleanResolution" /> result if the type is <see cref="bool" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="bool" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(bool))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(bool))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new BooleanResolution(type);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new BooleanResolution(type);
+            return result;
         }
     }
 
@@ -182,19 +186,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="IntegerResolution" /> with information about the type.
+        /// A successful <see cref="IntegerResolution" /> result if the type is <see cref="byte" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="byte" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(byte))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(byte))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new IntegerResolution(type, false, 8);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new IntegerResolution(type, false, 8);
+            return result;
         }
     }
 
@@ -210,19 +218,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="ByteArrayResolution" /> with information about the type.
+        /// A successful <see cref="ByteArrayResolution" /> result if the type is <see cref="T:System.Byte[]" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="T:System.Byte[]" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(byte[]))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(byte[]))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new ByteArrayResolution(type);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new ByteArrayResolution(type);
+            return result;
         }
     }
 
@@ -238,19 +250,24 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="TimestampResolution" /> with information about the type.
+        /// A successful <see cref="TimestampResolution" /> result if the type is <see cref="DateTime" />
+        /// or <see cref="DateTimeOffset" />; an unsuccessful <see cref="UnsupportedTypeException" />
+        /// result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (!(type == typeof(DateTime) || type == typeof(DateTimeOffset)))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(DateTime) || type == typeof(DateTimeOffset))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new TimestampResolution(type, 1m / TimeSpan.TicksPerSecond);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new TimestampResolution(type, 1m / TimeSpan.TicksPerSecond);
+            return result;
         }
     }
 
@@ -266,19 +283,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="DecimalResolution" /> with information about the type.
+        /// A successful <see cref="DecimalResolution" /> result if the type is <see cref="decimal" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="decimal" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(decimal))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(decimal))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new DecimalResolution(type, 29, 14);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new DecimalResolution(type, 29, 14);
+            return result;
         }
     }
 
@@ -294,23 +315,27 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="MapResolution" /> with information about the type.
+        /// A successful <see cref="MapResolution" /> result if the type is <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (!(type.GetEnumerableType() is Type pair && pair.IsGenericType && pair.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)))
+            var result = new TypeResolutionResult();
+
+            if (type.GetEnumerableType() is Type pair && pair.IsGenericType && pair.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
             {
-                throw new UnsupportedTypeException(type);
+                var arguments = pair.GetGenericArguments();
+                var key = arguments.ElementAt(0);
+                var value = arguments.ElementAt(1);
+
+                result.TypeResolution = new MapResolution(type, key, value);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            var arguments = pair.GetGenericArguments();
-            var key = arguments.ElementAt(0);
-            var value = arguments.ElementAt(1);
-
-            return new MapResolution(type, key, value);
+            return result;
         }
     }
 
@@ -326,19 +351,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="FloatingPointResolution" /> with information about the type.
+        /// A successful <see cref="FloatingPointResolution" /> result if the type is <see cref="double" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="double" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(double))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(double))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new FloatingPointResolution(type, 16);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new FloatingPointResolution(type, 16);
+            return result;
         }
     }
 
@@ -354,38 +383,42 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="EnumResolution" /> with information about the type.
+        /// A successful <see cref="EnumResolution" /> result if the type is an <see cref="Enum" /> type;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not an enum type.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (!type.IsEnum)
+            var result = new TypeResolutionResult();
+
+            if (type.IsEnum)
             {
-                throw new UnsupportedTypeException(type);
+                var name = new IdentifierResolution(type.Name);
+
+                var @namespace = string.IsNullOrEmpty(type.Namespace)
+                    ? null
+                    : new IdentifierResolution(type.Namespace);
+
+                var isFlagEnum = GetAttribute<FlagsAttribute>(type) != null;
+
+                var symbols = type.GetFields(BindingFlags.Public | BindingFlags.Static)
+                    .Select(f => (
+                        MemberInfo: f as MemberInfo,
+                        Name: new IdentifierResolution(f.Name),
+                        Value: Enum.Parse(type, f.Name)
+                    ))
+                    .OrderBy(f => f.Value)
+                    .ThenBy(f => f.Name.Value)
+                    .Select(f => new SymbolResolution(f.MemberInfo, f.Name, f.Value))
+                    .ToList();
+
+                result.TypeResolution = new EnumResolution(type, type.GetEnumUnderlyingType(), name, @namespace, isFlagEnum, symbols);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            var name = new IdentifierResolution(type.Name);
-
-            var @namespace = string.IsNullOrEmpty(type.Namespace)
-                ? null
-                : new IdentifierResolution(type.Namespace);
-
-            var isFlagEnum = GetAttribute<FlagsAttribute>(type) != null;
-
-            var symbols = type.GetFields(BindingFlags.Public | BindingFlags.Static)
-                .Select(f => (
-                    MemberInfo: f as MemberInfo,
-                    Name: new IdentifierResolution(f.Name),
-                    Value: Enum.Parse(type, f.Name)
-                ))
-                .OrderBy(f => f.Value)
-                .ThenBy(f => f.Name.Value)
-                .Select(f => new SymbolResolution(f.MemberInfo, f.Name, f.Value))
-                .ToList();
-
-            return new EnumResolution(type, type.GetEnumUnderlyingType(), name, @namespace, isFlagEnum, symbols);
+            return result;
         }
     }
 
@@ -421,22 +454,27 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="TypeResolution" /> for the underlying type.
+        /// If the type is an <see cref="Enum" /> type, a successful <see cref="TypeResolution" />
+        /// for its underlying type; an unsuccessful <see cref="UnsupportedTypeException" /> result
+        /// otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not an enum type.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (!type.IsEnum)
+            var result = new TypeResolutionResult();
+
+            if (type.IsEnum)
             {
-                throw new UnsupportedTypeException(type);
+                var resolution = Resolver.ResolveType(type.GetEnumUnderlyingType());
+                resolution.Type = type;
+
+                result.TypeResolution = resolution;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            var resolution = Resolver.ResolveType(type.GetEnumUnderlyingType());
-            resolution.Type = type;
-
-            return resolution;
+            return result;
         }
     }
 
@@ -468,32 +506,35 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="ArrayResolution" /> with information about the type.
+        /// A successful <see cref="ArrayResolution" /> result if the type is <see cref="IEnumerable{T}" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="IEnumerable{T}" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            var itemType = type.GetEnumerableType();
+            var result = new TypeResolutionResult();
 
-            if (itemType == null)
+            if (type.GetEnumerableType() is Type itemType)
             {
-                throw new UnsupportedTypeException(type);
+                var resolution = new ArrayResolution(type, itemType);
+
+                if (!type.IsArray)
+                {
+                    resolution.Constructors = GetConstructors(type, MemberVisibility)
+                        .Select(c => new ConstructorResolution(
+                            c.ConstructorInfo,
+                            c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
+                        ))
+                        .ToList();
+                }
+
+                result.TypeResolution = resolution;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            ICollection<ConstructorResolution> constructors = null;
-
-            if (!type.IsArray)
-            {
-                constructors = GetConstructors(type, MemberVisibility)
-                    .Select(c => new ConstructorResolution(
-                        c.ConstructorInfo,
-                        c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
-                    )).ToList();
-            }
-
-            return new ArrayResolution(type, itemType, constructors);
+            return result;
         }
     }
 
@@ -509,19 +550,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="UuidResolution" /> with information about the type.
+        /// A successful <see cref="UuidResolution" /> result if the type is <see cref="Guid" />; an
+        /// unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="Guid" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(Guid))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(Guid))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new UuidResolution(type, 2, 4);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new UuidResolution(type, 2, 4);
+            return result;
         }
     }
 
@@ -537,19 +582,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="IntegerResolution" /> with information about the type.
+        /// A successful <see cref="IntegerResolution" /> result if the type is <see cref="short" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="short" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(short))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(short))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new IntegerResolution(type, true, 16);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new IntegerResolution(type, true, 16);
+            return result;
         }
     }
 
@@ -565,19 +614,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="IntegerResolution" /> with information about the type.
+        /// A successful <see cref="IntegerResolution" /> result if the type is <see cref="int" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="int" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(int))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(int))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new IntegerResolution(type, true, 32);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new IntegerResolution(type, true, 32);
+            return result;
         }
     }
 
@@ -593,19 +646,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="IntegerResolution" /> with information about the type.
+        /// A successful <see cref="IntegerResolution" /> result if the type is <see cref="long" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="long" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(long))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(long))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new IntegerResolution(type, true, 64);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new IntegerResolution(type, true, 64);
+            return result;
         }
     }
 
@@ -625,12 +682,9 @@ namespace Chr.Avro.Resolution
         /// <param name="resolver">
         /// The resolver instance to use to resolve underlying types.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the resolver is null.
-        /// </exception>
         public NullableResolverCase(ITypeResolver resolver)
         {
-            Resolver = resolver ?? throw new ArgumentNullException(nameof(resolver), "Resolver cannot be null.");
+            Resolver = resolver;
         }
 
         /// <summary>
@@ -640,25 +694,28 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="TypeResolution" /> for the underlying type.
+        /// If the type is <see cref="Nullable{T}" />, a successful <see cref="TypeResolution" />
+        /// for its underlying type; an unsuccessful <see cref="UnsupportedTypeException" /> result
+        /// otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="Nullable{T}" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            var underlyingType = Nullable.GetUnderlyingType(type);
+            var result = new TypeResolutionResult();
 
-            if (underlyingType == null)
+            if (Nullable.GetUnderlyingType(type) is Type underlyingType)
             {
-                throw new UnsupportedTypeException(type);
+                var resolution = Resolver.ResolveType(underlyingType);
+                resolution.IsNullable = true;
+                resolution.Type = type;
+
+                result.TypeResolution = resolution;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            var resolution = Resolver.ResolveType(underlyingType);
-            resolution.IsNullable = true;
-            resolution.Type = type;
-
-            return resolution;
+            return result;
         }
     }
 
@@ -690,41 +747,44 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="RecordResolution" /> with information about the type.
+        /// An unsuccessful <see cref="UnsupportedTypeException" /> result if the type is an array
+        /// or primitive type; a successful <see cref="RecordResolution" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is an array type or a primitive type.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type.IsArray || type.IsPrimitive)
+            var result = new TypeResolutionResult();
+
+            if (!type.IsArray && !type.IsPrimitive)
             {
-                throw new UnsupportedTypeException(type);
+                var name = new IdentifierResolution(type.Name);
+                var @namespace = string.IsNullOrEmpty(type.Namespace)
+                    ? null
+                    : new IdentifierResolution(type.Namespace);
+
+                var fields = GetMembers(type, MemberVisibility)
+                    .Select(m => new FieldResolution(
+                        m.MemberInfo,
+                        m.Type,
+                        new IdentifierResolution(m.MemberInfo.Name)
+                    ))
+                    .OrderBy(m => m.Name.Value)
+                    .ToList();
+
+                var constructors = GetConstructors(type, MemberVisibility)
+                    .Select(c => new ConstructorResolution(
+                        c.ConstructorInfo,
+                        c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
+                    ))
+                    .ToList();
+
+                result.TypeResolution = new RecordResolution(type, name, @namespace, fields, constructors);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            var name = new IdentifierResolution(type.Name);
-
-            var @namespace = string.IsNullOrEmpty(type.Namespace)
-                ? null
-                : new IdentifierResolution(type.Namespace);
-
-            var fields = GetMembers(type, MemberVisibility)
-                .Select(m => (
-                    m.MemberInfo,
-                    m.Type,
-                    Name: new IdentifierResolution(m.MemberInfo.Name)
-                ))
-                .OrderBy(m => m.Name.Value)
-                .Select(m => new FieldResolution(m.MemberInfo, m.Type, m.Name))
-                .ToList();
-
-            var constructors = GetConstructors(type, MemberVisibility)
-                .Select(c => new ConstructorResolution(
-                    c.ConstructorInfo,
-                    c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
-                )).ToList();
-
-            return new RecordResolution(type, name, @namespace, fields, constructors);
+            return result;
         }
     }
 
@@ -740,19 +800,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="IntegerResolution" /> with information about the type.
+        /// A successful <see cref="IntegerResolution" /> result if the type is <see cref="sbyte" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="sbyte" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(sbyte))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(sbyte))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new IntegerResolution(type, true, 8);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new IntegerResolution(type, true, 8);
+            return result;
         }
     }
 
@@ -768,19 +832,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="FloatingPointResolution" /> with information about the type.
+        /// A successful <see cref="FloatingPointResolution" /> result if the type is <see cref="float" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="float" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(float))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(float))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new FloatingPointResolution(type, 8);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new FloatingPointResolution(type, 8);
+            return result;
         }
     }
 
@@ -796,19 +864,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="StringResolution" /> with information about the type.
+        /// A successful <see cref="StringResolution" /> result if the type is <see cref="string" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="string" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(string))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(string))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new StringResolution(type);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new StringResolution(type);
+            return result;
         }
     }
 
@@ -824,19 +896,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="DurationResolution" /> with information about the type.
+        /// A successful <see cref="DurationResolution" /> result if the type is <see cref="TimeSpan" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="TimeSpan" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(TimeSpan))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(TimeSpan))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new DurationResolution(type, 1m / TimeSpan.TicksPerSecond);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new DurationResolution(type, 1m / TimeSpan.TicksPerSecond);
+            return result;
         }
     }
 
@@ -852,19 +928,24 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="IntegerResolution" /> with information about the type.
+        /// A successful <see cref="IntegerResolution" /> result if the type is <see cref="char" />
+        /// or <see cref="ushort" />; an unsuccessful <see cref="UnsupportedTypeException" /> result
+        /// otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="char" /> or <see cref="ushort" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (!(type == typeof(char) || type == typeof(ushort)))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(char) || type == typeof(ushort))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new IntegerResolution(type, false, 16);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new IntegerResolution(type, false, 16);
+            return result;
         }
     }
 
@@ -880,19 +961,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="IntegerResolution" /> with information about the type.
+        /// A successful <see cref="IntegerResolution" /> result if the type is <see cref="uint" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="uint" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(uint))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(uint))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new IntegerResolution(type, false, 32);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new IntegerResolution(type, false, 32);
+            return result;
         }
     }
 
@@ -908,19 +993,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// An <see cref="IntegerResolution" /> with information about the type.
+        /// A successful <see cref="IntegerResolution" /> result if the type is <see cref="ulong" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="ulong" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(ulong))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(ulong))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new IntegerResolution(type, false, 64);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new IntegerResolution(type, false, 64);
+            return result;
         }
     }
 
@@ -936,19 +1025,23 @@ namespace Chr.Avro.Resolution
         /// The type to resolve.
         /// </param>
         /// <returns>
-        /// A <see cref="UriResolution" /> with information about the type.
+        /// A successful <see cref="UriResolution" /> result if the type is <see cref="Uri" />;
+        /// an unsuccessful <see cref="UnsupportedTypeException" /> result otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the type is not <see cref="Uri" />.
-        /// </exception>
-        public override TypeResolution Resolve(Type type)
+        public override ITypeResolutionResult ResolveType(Type type)
         {
-            if (type != typeof(Uri))
+            var result = new TypeResolutionResult();
+
+            if (type == typeof(Uri))
             {
-                throw new UnsupportedTypeException(type);
+                result.TypeResolution = new UriResolution(type);
+            }
+            else
+            {
+                result.Exceptions.Add(new UnsupportedTypeException(type));
             }
 
-            return new UriResolution(type);
+            return result;
         }
     }
 }

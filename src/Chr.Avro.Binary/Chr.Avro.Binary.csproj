@@ -5,6 +5,8 @@
   <PropertyGroup>
     <Description>Avro binary serialization and deserialization</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
   </PropertyGroup>
 

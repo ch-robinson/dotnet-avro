@@ -10,7 +10,7 @@ namespace Chr.Avro.Resolution
     {
         private static readonly Regex fuzzyCharacters = new Regex(@"[^A-Za-z0-9]");
 
-        private string value;
+        private string value = null!;
 
         /// <summary>
         /// Whether the name was set explicitly (e.g., in an annotation).
@@ -20,9 +20,6 @@ namespace Chr.Avro.Resolution
         /// <summary>
         /// The resolved name.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown when the name is set to null.
-        /// </exception>
         public virtual string Value
         {
             get

@@ -29,7 +29,7 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a deserialized schema object.
         /// </returns>
-        Schema Read(string schema, ConcurrentDictionary<string, Schema> cache = null, string scope = null);
+        Schema Read(string schema, ConcurrentDictionary<string, Schema>? cache = null, string? scope = null);
 
         /// <summary>
         /// Reads a serialized Avro schema.
@@ -47,7 +47,24 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a deserialized schema object.
         /// </returns>
-        Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache = null, string scope = null);
+        Schema Read(JsonElement element, ConcurrentDictionary<string, Schema>? cache = null, string? scope = null);
+    }
+
+    /// <summary>
+    /// Represents the outcome of a JSON schema reader case.
+    /// </summary>
+    public interface IJsonSchemaReadResult
+    {
+        /// <summary>
+        /// Any exceptions related to the applicability of the case. If <see cref="Schema" /> is
+        /// not null, these exceptions should be interpreted as warnings.
+        /// </summary>
+        ICollection<Exception> Exceptions { get; }
+
+        /// <summary>
+        /// The result of applying the case. If null, the case was not applied successfully.
+        /// </summary>
+        Schema? Schema { get; }
     }
 
     /// <summary>
@@ -69,7 +86,7 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope);
+        IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope);
     }
 
     /// <summary>
@@ -94,7 +111,7 @@ namespace Chr.Avro.Representation
         /// <param name="caseBuilders">
         /// A list of case builders.
         /// </param>
-        public JsonSchemaReader(IEnumerable<Func<IJsonSchemaReader, IJsonSchemaReaderCase>> caseBuilders)
+        public JsonSchemaReader(IEnumerable<Func<IJsonSchemaReader, IJsonSchemaReaderCase>>? caseBuilders)
         {
             var cases = new List<IJsonSchemaReaderCase>();
 
@@ -123,7 +140,7 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a deserialized schema object.
         /// </returns>
-        public Schema Read(string schema, ConcurrentDictionary<string, Schema> cache = null, string scope = null)
+        public Schema Read(string schema, ConcurrentDictionary<string, Schema>? cache = null, string? scope = null)
         {
             using (var document = JsonDocument.Parse(schema))
             {
@@ -147,7 +164,7 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a deserialized schema object.
         /// </returns>
-        public Schema Read(Stream stream, ConcurrentDictionary<string, Schema> cache = null, string scope = null)
+        public Schema Read(Stream stream, ConcurrentDictionary<string, Schema>? cache = null, string? scope = null)
         {
             using (var document = JsonDocument.Parse(stream))
             {
@@ -171,7 +188,7 @@ namespace Chr.Avro.Representation
         /// <returns>
         /// Returns a deserialized schema object.
         /// </returns>
-        public Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache = null, string scope = null)
+        public Schema Read(JsonElement element, ConcurrentDictionary<string, Schema>? cache = null, string? scope = null)
         {
             if (cache == null)
             {
@@ -182,17 +199,17 @@ namespace Chr.Avro.Representation
 
             foreach (var @case in Cases)
             {
-                try
+                var result = @case.Read(element, cache, scope);
+
+                if (result.Schema != null)
                 {
-                    return @case.Read(element, cache, scope);
+                    return result.Schema;
                 }
-                catch (UnknownSchemaException exception)
-                {
-                    exceptions.Add(exception);
-                }
+
+                exceptions.AddRange(result.Exceptions);
             }
 
-            throw new AggregateException($"No schema reader case matched {element.ToString()}", exceptions);
+            throw new UnknownSchemaException($"No schema reader case matched {element.ToString()}", new AggregateException(exceptions));
         }
 
         /// <summary>
@@ -231,7 +248,24 @@ namespace Chr.Avro.Representation
     }
 
     /// <summary>
-    /// A base JSON schema reader case.
+    /// A base <see cref="IJsonSchemaReadResult" /> implementation.
+    /// </summary>
+    public class JsonSchemaReadResult : IJsonSchemaReadResult
+    {
+        /// <summary>
+        /// Any exceptions related to the applicability of the case. If <see cref="Schema" />
+        /// is not null, these exceptions should be interpreted as warnings.
+        /// </summary>
+        public ICollection<Exception> Exceptions { get; set; } = new List<Exception>();
+
+        /// <summary>
+        /// The result of applying the case. If null, the case was not applied successfully.
+        /// </summary>
+        public Schema? Schema { get; set; }
+    }
+
+    /// <summary>
+    /// A base <see cref="IJsonSchemaReaderCase" /> implementation.
     /// </summary>
     public abstract class JsonSchemaReaderCase : IJsonSchemaReaderCase
     {
@@ -248,12 +282,12 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public abstract Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope);
+        public abstract IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope);
 
         /// <summary>
         /// Extracts the logical type from a schema, if any.
         /// </summary>
-        protected virtual string GetLogicalType(JsonElement element)
+        protected virtual string? GetLogicalType(JsonElement element)
         {
             if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(JsonAttributeToken.LogicalType, out var logicalType))
             {
@@ -271,7 +305,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the type from a schema, if any.
         /// </summary>
-        protected virtual string GetType(JsonElement element)
+        protected virtual string? GetType(JsonElement element)
         {
             if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(JsonAttributeToken.Type, out var type))
             {
@@ -289,7 +323,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Qualifies a name if it’s in a scope.
         /// </summary>
-        protected virtual string QualifyName(string name, string scope)
+        protected virtual string QualifyName(string name, string? scope)
         {
             return name.Contains(".") == false && scope != null
                 ? $"{scope}.{name}"
@@ -305,7 +339,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts fully-qualified aliases from a named schema.
         /// </summary>
-        protected virtual ICollection<string> GetQualifiedAliases(JsonElement element, string scope)
+        protected virtual ICollection<string>? GetQualifiedAliases(JsonElement element, string? scope)
         {
             if (!element.TryGetProperty(JsonAttributeToken.Aliases, out var aliases))
             {
@@ -334,7 +368,7 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the fully-qualified name from a named schema.
         /// </summary>
-        protected virtual string GetQualifiedName(JsonElement element, string scope)
+        protected virtual string GetQualifiedName(JsonElement element, string? scope)
         {
             if (!element.TryGetProperty(JsonAttributeToken.Name, out var name))
             {
@@ -394,17 +428,23 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Array)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) == JsonSchemaToken.Array)
             {
-                throw new UnknownSchemaException("The array case can only be applied to valid array schema representations.");
+                var child = Reader.Read(GetItems(element), cache, scope);
+                var key = cache.Single(p => p.Value == child).Key;
+
+                result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Array}<{key}>", _ => new ArraySchema(child));
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The array case can only be applied to valid array schema representations."));
             }
 
-            var child = Reader.Read(GetItems(element), cache, scope);
-            var key = cache.Single(p => p.Value == child).Key;
-
-            return cache.GetOrAdd($"{JsonSchemaToken.Array}<{key}>", _ => new ArraySchema(child));
+            return result;
         }
 
         /// <summary>
@@ -439,17 +479,23 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Int || GetLogicalType(element) != JsonSchemaToken.Date)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) == JsonSchemaToken.Int && GetLogicalType(element) == JsonSchemaToken.Date)
             {
-                throw new UnknownSchemaException("The date case can only be applied to \"int\" schemas with a \"date\" logical type.");
+                result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Int}!{JsonSchemaToken.Date}", _ => new IntSchema()
+                {
+                    LogicalType = new DateLogicalType()
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The date case can only be applied to \"int\" schemas with a \"date\" logical type."));
             }
 
-            return cache.GetOrAdd($"{JsonSchemaToken.Int}!{JsonSchemaToken.Date}", _ => new IntSchema()
-            {
-                LogicalType = new DateLogicalType()
-            });
+            return result;
         }
     }
 
@@ -471,43 +517,49 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (!(GetType(element) is string type) || !(type == JsonSchemaToken.Bytes || type == JsonSchemaToken.Fixed) || GetLogicalType(element) != JsonSchemaToken.Decimal)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) is string type && (type == JsonSchemaToken.Bytes || type == JsonSchemaToken.Fixed) && GetLogicalType(element) == JsonSchemaToken.Decimal)
             {
-                throw new UnknownSchemaException("The decimal case can only be applied to \"bytes\" schemas with a \"decimal\" logical type.");
-            }
-
-            if (type == JsonSchemaToken.Fixed)
-            {
-                var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
+                if (type == JsonSchemaToken.Fixed)
                 {
-                    Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
-                    LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element))
-                };
-
-                if (!cache.TryAdd(schema.FullName, schema))
-                {
-                    throw new InvalidDataException($"Invalid fixed name; a definition for {schema.FullName} was already read.");
-                }
-
-                foreach (var alias in schema.Aliases)
-                {
-                    if (!cache.TryAdd(alias, schema))
+                    var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
                     {
-                        throw new InvalidDataException($"Invalid fixed alias; a definition for {alias} was already read.");
-                    }
-                }
+                        Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
+                        LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element))
+                    };
 
-                return schema;
+                    if (!cache.TryAdd(schema.FullName, schema))
+                    {
+                        throw new InvalidDataException($"Invalid fixed name; a definition for {schema.FullName} was already read.");
+                    }
+
+                    foreach (var alias in schema.Aliases)
+                    {
+                        if (!cache.TryAdd(alias, schema))
+                        {
+                            throw new InvalidDataException($"Invalid fixed alias; a definition for {alias} was already read.");
+                        }
+                    }
+
+                    result.Schema = schema;
+                }
+                else
+                {
+                    result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Bytes}!{JsonSchemaToken.Decimal}", new BytesSchema()
+                    {
+                        LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element))
+                    });
+                }
             }
             else
             {
-                return cache.GetOrAdd($"{JsonSchemaToken.Bytes}!{JsonSchemaToken.Decimal}", new BytesSchema()
-                {
-                    LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element))
-                });
+                result.Exceptions.Add(new UnknownSchemaException("The decimal case can only be applied to \"bytes\" or \"fixed\" schemas with a \"decimal\" logical type."));
             }
+
+            return result;
         }
 
         /// <summary>
@@ -555,61 +607,55 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
+            Schema GetNamedSchema(string name)
+            {
+                var qualified = QualifyName(name, scope);
+
+                if (cache.TryGetValue(qualified, out var match))
+                {
+                    return match;
+                }
+
+                if (name != qualified && cache.TryGetValue(name, out match))
+                {
+                    return match;
+                }
+
+                throw new UnknownSchemaException($"\"{name}\" is not a known schema.");
+            }
+
+            var result = new JsonSchemaReadResult();
+
             if (element.ValueKind == JsonValueKind.Object)
             {
                 element.TryGetProperty(JsonAttributeToken.Type, out element);
             }
 
-            if (element.ValueKind != JsonValueKind.String)
+            if (element.ValueKind == JsonValueKind.String)
             {
-                throw new UnknownSchemaException("The primitive case can only be applied to valid primitive schema representations.");
+                var type = element.GetString();
+
+                result.Schema = type switch
+                {
+                    JsonSchemaToken.Boolean => cache.GetOrAdd(type, _ => new BooleanSchema()),
+                    JsonSchemaToken.Bytes => cache.GetOrAdd(type, _ => new BytesSchema()),
+                    JsonSchemaToken.Double => cache.GetOrAdd(type, _ => new DoubleSchema()),
+                    JsonSchemaToken.Float => cache.GetOrAdd(type, _ => new FloatSchema()),
+                    JsonSchemaToken.Int => cache.GetOrAdd(type, _ => new IntSchema()),
+                    JsonSchemaToken.Long => cache.GetOrAdd(type, _ => new LongSchema()),
+                    JsonSchemaToken.Null => cache.GetOrAdd(type, _ => new NullSchema()),
+                    JsonSchemaToken.String => cache.GetOrAdd(type, _ => new StringSchema()),
+                    var name => GetNamedSchema(name)
+                };
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The primitive case can only be applied to valid primitive schema representations."));
             }
 
-            var type = element.GetString();
-
-            switch (type)
-            {
-                case JsonSchemaToken.Boolean:
-                    return cache.GetOrAdd(type, _ => new BooleanSchema());
-
-                case JsonSchemaToken.Bytes:
-                    return cache.GetOrAdd(type, _ => new BytesSchema());
-
-                case JsonSchemaToken.Double:
-                    return cache.GetOrAdd(type, _ => new DoubleSchema());
-
-                case JsonSchemaToken.Float:
-                    return cache.GetOrAdd(type, _ => new FloatSchema());
-
-                case JsonSchemaToken.Int:
-                    return cache.GetOrAdd(type, _ => new IntSchema());
-
-                case JsonSchemaToken.Long:
-                    return cache.GetOrAdd(type, _ => new LongSchema());
-
-                case JsonSchemaToken.Null:
-                    return cache.GetOrAdd(type, _ => new NullSchema());
-
-                case JsonSchemaToken.String:
-                    return cache.GetOrAdd(type, _ => new StringSchema());
-
-                case var name:
-                    var qualified = QualifyName(name, scope);
-
-                    if (cache.TryGetValue(qualified, out var match))
-                    {
-                        return match;
-                    }
-
-                    if (name != qualified && cache.TryGetValue(name, out match))
-                    {
-                        return match;
-                    }
-
-                    throw new UnknownSchemaException($"\"{name}\" is not a known schema.");
-            }
+            return result;
         }
     }
 
@@ -631,33 +677,39 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Fixed || GetLogicalType(element) != JsonSchemaToken.Duration)
-            {
-                throw new UnknownSchemaException("The duration case can only be applied to \"fixed\" schemas with a \"duration\" logical type.");
-            }
+            var result = new JsonSchemaReadResult();
 
-            var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
+            if (GetType(element) == JsonSchemaToken.Fixed && GetLogicalType(element) == JsonSchemaToken.Duration)
             {
-                Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
-                LogicalType = new DurationLogicalType()
-            };
-
-            if (!cache.TryAdd(schema.FullName, schema))
-            {
-                throw new InvalidDataException($"Invalid duration name; a definition for {schema.FullName} was already read.");
-            }
-
-            foreach (var alias in schema.Aliases)
-            {
-                if (!cache.TryAdd(alias, schema))
+                var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
                 {
-                    throw new InvalidDataException($"Invalid duration alias; a definition for {alias} was already read.");
+                    Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
+                    LogicalType = new DurationLogicalType()
+                };
+
+                if (!cache.TryAdd(schema.FullName, schema))
+                {
+                    throw new InvalidDataException($"Invalid duration name; a definition for {schema.FullName} was already read.");
                 }
+
+                foreach (var alias in schema.Aliases)
+                {
+                    if (!cache.TryAdd(alias, schema))
+                    {
+                        throw new InvalidDataException($"Invalid duration alias; a definition for {alias} was already read.");
+                    }
+                }
+
+                result.Schema = schema;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The duration case can only be applied to \"fixed\" schemas with a \"duration\" logical type."));
             }
 
-            return schema;
+            return result;
         }
     }
 
@@ -679,39 +731,45 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Enum)
-            {
-                throw new UnknownSchemaException("The enum case can only be applied to valid enum schema representations.");
-            }
+            var result = new JsonSchemaReadResult();
 
-            var schema = new EnumSchema(GetQualifiedName(element, scope), GetSymbols(element))
+            if (GetType(element) == JsonSchemaToken.Enum)
             {
-                Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
-                Documentation = GetDoc(element)
-            };
-
-            if (!cache.TryAdd(schema.FullName, schema))
-            {
-                throw new InvalidDataException($"Invalid enum name; a definition for {schema.FullName} was already read.");
-            }
-
-            foreach (var alias in schema.Aliases)
-            {
-                if (!cache.TryAdd(alias, schema))
+                var schema = new EnumSchema(GetQualifiedName(element, scope), GetSymbols(element))
                 {
-                    throw new InvalidDataException($"Invalid enum alias; a definition for {alias} was already read.");
+                    Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
+                    Documentation = GetDoc(element)
+                };
+
+                if (!cache.TryAdd(schema.FullName, schema))
+                {
+                    throw new InvalidDataException($"Invalid enum name; a definition for {schema.FullName} was already read.");
                 }
+
+                foreach (var alias in schema.Aliases)
+                {
+                    if (!cache.TryAdd(alias, schema))
+                    {
+                        throw new InvalidDataException($"Invalid enum alias; a definition for {alias} was already read.");
+                    }
+                }
+
+                result.Schema = schema;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The enum case can only be applied to valid enum schema representations."));
             }
 
-            return schema;
+            return result;
         }
 
         /// <summary>
         /// Extracts the documentation field from an enum schema.
         /// </summary>
-        protected virtual string GetDoc(JsonElement element)
+        protected virtual string? GetDoc(JsonElement element)
         {
             if (!element.TryGetProperty(JsonAttributeToken.Doc, out var doc))
             {
@@ -774,32 +832,38 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Fixed)
-            {
-                throw new UnknownSchemaException("The fixed case can only be applied to valid fixed schema representations.");
-            }
+            var result = new JsonSchemaReadResult();
 
-            var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
+            if (GetType(element) == JsonSchemaToken.Fixed)
             {
-                Aliases = GetQualifiedAliases(element, scope) ?? new string[0]
-            };
-
-            if (!cache.TryAdd(schema.FullName, schema))
-            {
-                throw new InvalidDataException($"Invalid fixed name; a definition for {schema.FullName} was already read.");
-            }
-
-            foreach (var alias in schema.Aliases)
-            {
-                if (!cache.TryAdd(alias, schema))
+                var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
                 {
-                    throw new InvalidDataException($"Invalid fixed alias; a definition for {alias} was already read.");
+                    Aliases = GetQualifiedAliases(element, scope) ?? new string[0]
+                };
+
+                if (!cache.TryAdd(schema.FullName, schema))
+                {
+                    throw new InvalidDataException($"Invalid fixed name; a definition for {schema.FullName} was already read.");
                 }
+
+                foreach (var alias in schema.Aliases)
+                {
+                    if (!cache.TryAdd(alias, schema))
+                    {
+                        throw new InvalidDataException($"Invalid fixed alias; a definition for {alias} was already read.");
+                    }
+                }
+
+                result.Schema = schema;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The fixed case can only be applied to valid fixed schema representations."));
             }
 
-            return schema;
+            return result;
         }
 
         /// <summary>
@@ -850,17 +914,23 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Map)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) == JsonSchemaToken.Map)
             {
-                throw new UnknownSchemaException("The map case can only be applied to valid map schema representations.");
+                var child = Reader.Read(GetValues(element), cache, scope);
+                var key = cache.Single(p => p.Value == child).Key;
+
+                result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Map}<{key}>", _ => new MapSchema(child));
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The map case can only be applied to valid map schema representations."));
             }
 
-            var child = Reader.Read(GetValues(element), cache, scope);
-            var key = cache.Single(p => p.Value == child).Key;
-
-            return cache.GetOrAdd($"{JsonSchemaToken.Map}<{key}>", _ => new MapSchema(child));
+            return result;
         }
 
         /// <summary>
@@ -895,17 +965,23 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Long || GetLogicalType(element) != JsonSchemaToken.TimeMicroseconds)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) == JsonSchemaToken.Long && GetLogicalType(element) == JsonSchemaToken.TimeMicroseconds)
             {
-                throw new UnknownSchemaException("The microsecond time case can only be applied to \"long\" schemas with a \"time-micros\" logical type.");
+                result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Long}!{JsonSchemaToken.TimeMicroseconds}", _ => new LongSchema()
+                {
+                    LogicalType = new MicrosecondTimeLogicalType()
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The microsecond time case can only be applied to \"long\" schemas with a \"time-micros\" logical type."));
             }
 
-            return cache.GetOrAdd($"{JsonSchemaToken.Long}!{JsonSchemaToken.TimeMicroseconds}", _ => new LongSchema()
-            {
-                LogicalType = new MicrosecondTimeLogicalType()
-            });
+            return result;
         }
     }
 
@@ -927,17 +1003,23 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Long || GetLogicalType(element) != JsonSchemaToken.TimestampMicroseconds)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) == JsonSchemaToken.Long && GetLogicalType(element) == JsonSchemaToken.TimestampMicroseconds)
             {
-                throw new UnknownSchemaException("The microsecond timestamp case can only be applied to \"long\" schemas with a \"timestamp-micros\" logical type.");
+                result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Long}!{JsonSchemaToken.TimestampMicroseconds}", _ => new LongSchema()
+                {
+                    LogicalType = new MicrosecondTimestampLogicalType()
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The microsecond timestamp case can only be applied to \"long\" schemas with a \"timestamp-micros\" logical type."));
             }
 
-            return cache.GetOrAdd($"{JsonSchemaToken.Long}!{JsonSchemaToken.TimestampMicroseconds}", _ => new LongSchema()
-            {
-                LogicalType = new MicrosecondTimestampLogicalType()
-            });
+            return result;
         }
     }
 
@@ -959,17 +1041,23 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Int || GetLogicalType(element) != JsonSchemaToken.TimeMilliseconds)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) == JsonSchemaToken.Int && GetLogicalType(element) == JsonSchemaToken.TimeMilliseconds)
             {
-                throw new UnknownSchemaException("The millisecond time case can only be applied to \"int\" schemas with a \"time-millis\" logical type.");
+                result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Int}!{JsonSchemaToken.TimeMilliseconds}", _ => new IntSchema()
+                {
+                    LogicalType = new MillisecondTimeLogicalType()
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The millisecond time case can only be applied to \"int\" schemas with a \"time-millis\" logical type."));
             }
 
-            return cache.GetOrAdd($"{JsonSchemaToken.Int}!{JsonSchemaToken.TimeMilliseconds}", _ => new IntSchema()
-            {
-                LogicalType = new MillisecondTimeLogicalType()
-            });
+            return result;
         }
     }
 
@@ -991,17 +1079,23 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Long || GetLogicalType(element) != JsonSchemaToken.TimestampMilliseconds)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) == JsonSchemaToken.Long && GetLogicalType(element) == JsonSchemaToken.TimestampMilliseconds)
             {
-                throw new UnknownSchemaException("The millisecond time case can only be applied to \"long\" schemas with a \"timestamp-millis\" logical type.");
+                result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Long}!{JsonSchemaToken.TimestampMilliseconds}", _ => new LongSchema()
+                {
+                    LogicalType = new MillisecondTimestampLogicalType()
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The millisecond time case can only be applied to \"long\" schemas with a \"timestamp-millis\" logical type."));
             }
 
-            return cache.GetOrAdd($"{JsonSchemaToken.Long}!{JsonSchemaToken.TimestampMilliseconds}", _ => new LongSchema()
-            {
-                LogicalType = new MillisecondTimestampLogicalType()
-            });
+            return result;
         }
     }
 
@@ -1039,51 +1133,57 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.Record)
-            {
-                throw new UnknownSchemaException("The record case can only be applied to valid record schema representations.");
-            }
+            var result = new JsonSchemaReadResult();
 
-            var schema = new RecordSchema(GetQualifiedName(element, scope))
+            if (GetType(element) == JsonSchemaToken.Record)
             {
-                Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
-                Documentation = GetDoc(element)
-            };
-
-            var fields = GetFields(element);
-
-            if (!cache.TryAdd(schema.FullName, schema))
-            {
-                throw new InvalidDataException($"Invalid record name; a definition for {schema.FullName} was already read.");
-            }
-
-            foreach (var alias in schema.Aliases)
-            {
-                if (!cache.TryAdd(alias, schema))
+                var schema = new RecordSchema(GetQualifiedName(element, scope))
                 {
-                    throw new InvalidDataException($"Invalid record alias; a definition for {alias} was already read.");
+                    Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
+                    Documentation = GetDoc(element)
+                };
+
+                var fields = GetFields(element);
+
+                if (!cache.TryAdd(schema.FullName, schema))
+                {
+                    throw new InvalidDataException($"Invalid record name; a definition for {schema.FullName} was already read.");
                 }
-            }
 
-            foreach (JsonElement field in fields)
-            {
-                var type = Reader.Read(GetFieldType(field), cache, schema.Namespace);
-
-                schema.Fields.Add(new RecordField(GetFieldName(field), type)
+                foreach (var alias in schema.Aliases)
                 {
-                    Documentation = GetDoc(field)
-                });
+                    if (!cache.TryAdd(alias, schema))
+                    {
+                        throw new InvalidDataException($"Invalid record alias; a definition for {alias} was already read.");
+                    }
+                }
+
+                foreach (JsonElement field in fields)
+                {
+                    var type = Reader.Read(GetFieldType(field), cache, schema.Namespace);
+
+                    schema.Fields.Add(new RecordField(GetFieldName(field), type)
+                    {
+                        Documentation = GetDoc(field)
+                    });
+                }
+
+                result.Schema = schema;
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The record case can only be applied to valid record schema representations."));
             }
 
-            return schema;
+            return result;
         }
 
         /// <summary>
         /// Extracts the documentation field from a record schema.
         /// </summary>
-        protected virtual string GetDoc(JsonElement element)
+        protected virtual string? GetDoc(JsonElement element)
         {
             if (!element.TryGetProperty(JsonAttributeToken.Doc, out var doc))
             {
@@ -1183,22 +1283,28 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (element.ValueKind != JsonValueKind.Array)
+            var result = new JsonSchemaReadResult();
+
+            if (element.ValueKind == JsonValueKind.Array)
             {
-                throw new UnknownSchemaException("The union case can only be applied to valid union schema representations.");
+                var children = element
+                    .EnumerateArray()
+                    .Select(child => Reader.Read(child, cache, scope))
+                    .ToList();
+
+                var keys = children
+                    .Select(s => cache.Single(p => p.Value == s).Key);
+
+                result.Schema = cache.GetOrAdd($"[{string.Join(",", keys)}]", _ => new UnionSchema(children));
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The union case can only be applied to valid union schema representations."));
             }
 
-            var children = element
-                .EnumerateArray()
-                .Select(child => Reader.Read(child, cache, scope))
-                .ToList();
-
-            var keys = children
-                .Select(s => cache.Single(p => p.Value == s).Key);
-
-            return cache.GetOrAdd($"[{string.Join(",", keys)}]", _ => new UnionSchema(children));
+            return result;
         }
     }
 
@@ -1220,17 +1326,23 @@ namespace Chr.Avro.Representation
         /// <param name="scope">
         /// The surrounding namespace, if any.
         /// </param>
-        public override Schema Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string scope)
+        public override IJsonSchemaReadResult Read(JsonElement element, ConcurrentDictionary<string, Schema> cache, string? scope)
         {
-            if (GetType(element) != JsonSchemaToken.String || GetLogicalType(element) != JsonSchemaToken.Uuid)
+            var result = new JsonSchemaReadResult();
+
+            if (GetType(element) == JsonSchemaToken.String && GetLogicalType(element) == JsonSchemaToken.Uuid)
             {
-                throw new UnknownSchemaException("The UUID case can only be applied to \"string\" schemas with a \"uuid\" logical type.");
+                result.Schema = cache.GetOrAdd($"{JsonSchemaToken.String}!{JsonSchemaToken.Uuid}", _ => new StringSchema()
+                {
+                    LogicalType = new UuidLogicalType()
+                });
+            }
+            else
+            {
+                result.Exceptions.Add(new UnknownSchemaException("The UUID case can only be applied to \"string\" schemas with a \"uuid\" logical type."));
             }
 
-            return cache.GetOrAdd($"{JsonSchemaToken.String}!{JsonSchemaToken.Uuid}", _ => new StringSchema()
-            {
-                LogicalType = new UuidLogicalType()
-            });
+            return result;
         }
     }
 }

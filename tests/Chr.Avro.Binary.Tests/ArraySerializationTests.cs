@@ -60,7 +60,7 @@ namespace Chr.Avro.Serialization.Tests
             var serializer = SerializerBuilder.BuildSerializer<ISet<string>>(schema);
             var encoding = serializer.Serialize(value);
 
-            Assert.Throws<AggregateException>(() => DeserializerBuilder.BuildDeserializer<ISet<string>>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => DeserializerBuilder.BuildDeserializer<ISet<string>>(schema));
         }
 
         [Theory]

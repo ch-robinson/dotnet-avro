@@ -24,8 +24,8 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new UnionSchema();
 
-            Assert.Throws<AggregateException>(() => SerializerBuilder.BuildSerializer<object>(schema));
-            Assert.Throws<AggregateException>(() => DeserializerBuilder.BuildDeserializer<object>(schema));
+            Assert.Throws<UnsupportedSchemaException>(() => SerializerBuilder.BuildSerializer<object>(schema));
+            Assert.Throws<UnsupportedSchemaException>(() => DeserializerBuilder.BuildDeserializer<object>(schema));
         }
 
         [Theory]
@@ -45,7 +45,7 @@ namespace Chr.Avro.Serialization.Tests
                 Assert.Equal(encoding, serializer.Serialize(value.Value));
             }
 
-            Assert.Throws<AggregateException>(() => DeserializerBuilder.BuildDeserializer<int>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => DeserializerBuilder.BuildDeserializer<int>(schema));
         }
 
         [Theory]
@@ -74,8 +74,8 @@ namespace Chr.Avro.Serialization.Tests
                 new IntSchema()
             });
 
-            Assert.Throws<AggregateException>(() => SerializerBuilder.BuildSerializer<string>(schema));
-            Assert.Throws<AggregateException>(() => DeserializerBuilder.BuildDeserializer<string>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => SerializerBuilder.BuildSerializer<string>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => DeserializerBuilder.BuildDeserializer<string>(schema));
         }
 
         [Theory]

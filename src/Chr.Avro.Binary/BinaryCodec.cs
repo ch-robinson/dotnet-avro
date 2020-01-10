@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace Chr.Avro.Serialization
 {
@@ -11,74 +13,69 @@ namespace Chr.Avro.Serialization
     public interface IBinaryCodec
     {
         /// <summary>
-        /// Reads bytes from a stream.
+        /// Generates an expression that reads a number of bytes from a stream.
         /// </summary>
-        byte[] Read(Stream stream, int length);
+        Expression Read(Expression stream, Expression length);
 
         /// <summary>
-        /// Reads blocks from a stream.
+        /// Generates an expression that reads item blocks from a stream.
         /// </summary>
-        IEnumerable<T> ReadBlocks<T>(Stream stream, Func<Stream, T> @delegate);
+        Expression ReadArray(Expression stream, Expression readItem);
 
         /// <summary>
-        /// Reads key-value blocks from a stream.
+        /// Generates an expression that reads a boolean.
         /// </summary>
-        IDictionary<TKey, TValue> ReadBlocks<TKey, TValue>(Stream stream, Func<Stream, TKey> keyDelegate, Func<Stream, TValue> valueDelegate);
+        Expression ReadBoolean(Expression stream);
 
         /// <summary>
-        /// Reads a boolean.
+        /// Generates an expression that reads a double-precision floating-point number.
         /// </summary>
-        bool ReadBoolean(Stream stream);
+        Expression ReadDouble(Expression stream);
 
         /// <summary>
-        /// Reads a double-precision floating-point number.
+        /// Generates an expression that reads a zig-zag encoded integer.
         /// </summary>
-        double ReadDouble(Stream stream);
+        Expression ReadInteger(Expression stream);
 
         /// <summary>
-        /// Reads a zig-zag encoded integer.
+        /// Generates an expression that reads key-value blocks from a stream.
         /// </summary>
-        long ReadInteger(Stream stream);
+        Expression ReadMap(Expression stream, Expression readKey, Expression readValue);
 
         /// <summary>
-        /// Reads a single-precision floating-point number.
+        /// Generates an expression that reads a single-precision floating-point number.
         /// </summary>
-        float ReadSingle(Stream stream);
+        Expression ReadSingle(Expression stream);
 
         /// <summary>
-        /// Writes bytes to a stream.
+        /// Generates an expression that writes bytes to a stream.
         /// </summary>
-        void Write(byte[] bytes, Stream stream);
+        Expression Write(Expression bytes, Expression stream);
 
         /// <summary>
-        /// Writes blocks to a stream.
+        /// Generates an expression that writes item blocks to a stream.
         /// </summary>
-        void WriteBlocks<T>(IEnumerable<T> items, Action<T, Stream> @delegate, Stream stream);
+        Expression WriteArray(Expression items, ParameterExpression item, Expression writeItem, Expression stream);
 
         /// <summary>
-        /// Writes key-value blocks to a stream.
+        /// Generates an expression that writes a boolean.
         /// </summary>
-        void WriteBlocks<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> items, Action<TKey, Stream> keyDelegate, Action<TValue, Stream> valueDelegate, Stream stream);
+        Expression WriteBoolean(Expression value, Expression stream);
 
         /// <summary>
-        /// Writes a boolean.
+        /// Generates an expression that writes a single- or double-precision floating-point number.
         /// </summary>
-        void WriteBoolean(bool value, Stream stream);
+        Expression WriteFloat(Expression value, Expression stream);
 
         /// <summary>
-        /// Writes a double-precision floating-point number.
+        /// Generates an expression that writes a zig-zag encoded integer.
         /// </summary>
-        void WriteDouble(double value, Stream stream);
+        Expression WriteInteger(Expression value, Expression stream);
 
         /// <summary>
-        /// Writes a zig-zag encoded integer.
+        /// Generates an expression that writes key-value blocks to a stream.
         /// </summary>
-        void WriteInteger(long value, Stream stream);
-
-        /// <summary>
-        /// Writes a single-precision floating-point number.
-        /// </summary>
-        void WriteSingle(float value, Stream stream);
+        Expression WriteMap(Expression pairs, ParameterExpression key, ParameterExpression value, Expression writeKey, Expression writeValue, Expression stream);
     }
 
     /// <summary>
@@ -87,77 +84,126 @@ namespace Chr.Avro.Serialization
     public class BinaryCodec : IBinaryCodec
     {
         /// <summary>
-        /// Reads a fixed number of bytes from the stream.
+        /// Generates an expression that reads a number of bytes from a stream.
         /// </summary>
-        public virtual byte[] Read(Stream stream, int length)
+        public virtual Expression Read(Expression stream, Expression count)
         {
-            var bytes = new byte[length];
-            stream.Read(bytes, 0, length);
+            var buffer = Expression.Variable(typeof(byte[]));
+            var size = Expression.Variable(typeof(int));
 
-            return bytes;
-        }
-        
-        /// <summary>
-        /// Reads blocks from a stream.
-        /// </summary>
-        public virtual IEnumerable<T> ReadBlocks<T>(Stream stream, Func<Stream, T> @delegate)
-        {
-            var list = new List<T>();
-            long size;
+            var read = typeof(Stream)
+                .GetMethod(nameof(Stream.Read), new[] { buffer.Type, typeof(int), typeof(int) });
 
-            while ((size = ReadInteger(stream)) != 0L)
-            {
-                if (size < 0L)
-                {
-                    size = Math.Abs(size);
-
-                    // negative size indicates that the number of bytes in the block follows, so
-                    // discard that:
-                    ReadInteger(stream);
-                }
-
-                for (var i = 0L; i < size; i++)
-                {
-                    list.Add(@delegate(stream));
-                }
-            }
-
-            return list;
-        }
-        
-        /// <summary>
-        /// Reads key-value blocks from a stream.
-        /// </summary>
-        public virtual IDictionary<TKey, TValue> ReadBlocks<TKey, TValue>(Stream stream, Func<Stream, TKey> keyDelegate, Func<Stream, TValue> valueDelegate)
-        {
-            return ReadBlocks(stream, s => new KeyValuePair<TKey, TValue>(keyDelegate(s), valueDelegate(s)))
-                .ToDictionary(p => p.Key, p => p.Value);
+            return Expression.Block(
+                new[] { buffer, size },
+                Expression.Assign(size, count),
+                Expression.Assign(buffer, Expression.NewArrayBounds(buffer.Type.GetElementType(), size)),
+                Expression.Call(stream, read, buffer, Expression.Constant(0), size),
+                buffer
+            );
         }
 
         /// <summary>
-        /// Reads a boolean.
+        /// Generates an expression that reads item blocks from a stream.
+        /// </summary>
+        public virtual Expression ReadArray(Expression stream, Expression readItem)
+        {
+            var constructor = typeof(List<>)
+                .MakeGenericType(readItem.Type)
+                .GetConstructor(Type.EmptyTypes);
+
+            var list = Expression.Variable(constructor.DeclaringType);
+
+            var add = typeof(ICollection<>)
+                .MakeGenericType(readItem.Type)
+                .GetMethod("Add", new[] { readItem.Type });
+
+            return Expression.Block(
+                new[] { list },
+                Expression.Assign(list, Expression.New(constructor)),
+                ReadBlocks(
+                    stream,
+                    Expression.Call(list, add, readItem)),
+                list);
+        }
+
+        /// <summary>
+        /// Generates an expression that reads blocks from a stream.
+        /// </summary>
+        public virtual Expression ReadBlocks(Expression stream, Expression body)
+        {
+            var index = Expression.Variable(typeof(long));
+            var size = Expression.Variable(typeof(long));
+
+            var outer = Expression.Label();
+            var inner = Expression.Label();
+
+            return Expression.Block(
+                new[] { index, size },
+                Expression.Loop(
+                    Expression.Block(
+                        Expression.Assign(size, ReadInteger(stream)),
+                        Expression.IfThen(
+                            Expression.Equal(size, Expression.Constant(0L)),
+                            Expression.Break(outer)),
+
+                        // negative size indicates that the number of bytes in the block follows,
+                        // so discard:
+                        Expression.IfThen(
+                            Expression.LessThan(size, Expression.Constant(0L)),
+                            Expression.Block(
+                                Expression.MultiplyAssign(size, Expression.Constant(-1L)),
+                                ReadInteger(stream))),
+
+                        Expression.Assign(index, Expression.Constant(0L)),
+                        Expression.Loop(
+                            Expression.Block(
+                                Expression.IfThen(
+                                    Expression.Equal(Expression.PostIncrementAssign(index), size),
+                                    Expression.Break(inner)),
+                                body),
+                            inner)),
+                    outer));
+        }
+
+        /// <summary>
+        /// Generates an expression that reads a boolean.
         /// </summary>
         /// <remarks>
         /// Unlike some implementations, Chr.Avro treats any non-zero byte as true.
         /// </remarks>
-        public virtual bool ReadBoolean(Stream stream)
+        public virtual Expression ReadBoolean(Expression stream)
         {
-            return stream.ReadByte() != 0x00;
+            var readByte = typeof(Stream)
+                .GetMethod(nameof(Stream.ReadByte), Type.EmptyTypes);
+
+            return Expression.NotEqual(Expression.Call(stream, readByte), Expression.Constant(0x00));
         }
 
         /// <summary>
-        /// Reads a double-precision floating-point number.
+        /// Generates an expression that reads a double-precision floating-point number.
         /// </summary>
-        public virtual double ReadDouble(Stream stream)
+        public virtual Expression ReadDouble(Expression stream)
         {
-            var bytes = Read(stream, 8);
+            var expression = Read(stream, Expression.Constant(8));
 
             if (!BitConverter.IsLittleEndian)
             {
-                Array.Reverse(bytes);
+                var buffer = Expression.Variable(expression.Type);
+                var reverse = typeof(Array)
+                    .GetMethod(nameof(Array.Reverse), new[] { expression.Type });
+
+                expression = Expression.Block(
+                    new[] { buffer },
+                    Expression.Assign(buffer, expression),
+                    Expression.Call(null, reverse, buffer),
+                    buffer);
             }
 
-            return BitConverter.ToDouble(bytes, 0);
+            var toDouble = typeof(BitConverter)
+                .GetMethod(nameof(BitConverter.ToDouble), new[] { expression.Type, typeof(int) });
+
+            return Expression.Call(null, toDouble, expression, Expression.Constant(0));
         }
 
         /// <summary>
@@ -166,140 +212,261 @@ namespace Chr.Avro.Serialization
         /// <exception cref="OverflowException">
         /// Thrown when an encoded integer cannot fit in a <see cref="long" />.
         /// </exception>
-        public virtual long ReadInteger(Stream stream)
+        public virtual Expression ReadInteger(Expression stream)
         {
-            byte read = 0;
-            int shift = 0;
-            ulong result = 0;
-            uint chunk;
+            var read = Expression.Variable(typeof(int));
+            var shift = Expression.Variable(typeof(int));
+            var result = Expression.Variable(typeof(ulong));
+            var chunk = Expression.Variable(typeof(ulong));
+            var coerced = Expression.Variable(typeof(long));
 
-            do
-            {
-                read += 1;
-                chunk = (uint)stream.ReadByte();
-                result |= (chunk & 0x7FUL) << shift;
-                shift += 7;
+            var target = Expression.Label();
 
-                if (read > 10)
-                {
-                    throw new OverflowException("Encoded integer exceeds long bounds.");
-                }
-            }
-            while ((chunk & 0x80) != 0);
+            var readByte = typeof(Stream)
+                .GetMethod(nameof(Stream.ReadByte), Type.EmptyTypes);
 
-            var coerced = unchecked((long)result);
-            return (-(coerced & 0x1L)) ^ ((coerced >> 1) & 0x7FFFFFFFFFFFFFFFL);
+            var exceptionConstructor = typeof(OverflowException)
+                .GetConstructor(new[] { typeof(string) });
+
+            return Expression.Block(
+                new[] { read, shift, result, chunk, coerced },
+                Expression.Assign(read, Expression.Constant(0)),
+                Expression.Assign(shift, Expression.Constant(0)),
+                Expression.Assign(result, Expression.Constant(0UL)),
+                Expression.Loop(
+                    Expression.Block(
+                        Expression.IfThen(
+                            Expression.Equal(Expression.PostIncrementAssign(read), Expression.Constant(10)),
+                            Expression.Throw(Expression.New(exceptionConstructor, Expression.Constant("Encoded integer exceeds long bounds.")))),
+                        Expression.Assign(chunk, Expression.Convert(Expression.Call(stream, readByte), chunk.Type)),
+                        Expression.OrAssign(result, Expression.LeftShift(Expression.And(chunk, Expression.Constant(0x7FUL)), shift)),
+                        Expression.AddAssign(shift, Expression.Constant(7)),
+                        Expression.IfThen(
+                            Expression.Equal(Expression.And(chunk, Expression.Constant(0x80UL)), Expression.Constant(0UL)),
+                            Expression.Break(target))),
+                    target),
+                Expression.Assign(coerced, Expression.Convert(result, typeof(long))),
+                Expression.ExclusiveOr(Expression.Negate(Expression.And(coerced, Expression.Constant(0x1L))), Expression.And(Expression.RightShift(coerced, Expression.Constant(1)), Expression.Constant(0x7FFFFFFFFFFFFFFFL))));
         }
 
         /// <summary>
-        /// Reads a single-precision floating-point number.
+        /// Generates an expression that reads key-value blocks from a stream.
         /// </summary>
-        public virtual float ReadSingle(Stream stream)
+        public virtual Expression ReadMap(Expression stream, Expression readKey, Expression readValue)
         {
-            var bytes = Read(stream, 4);
+            var constructor = typeof(Dictionary<,>)
+                .MakeGenericType(readKey.Type, readValue.Type)
+                .GetConstructor(Type.EmptyTypes);
+
+            var dictionary = Expression.Variable(constructor.DeclaringType);
+
+            var add = typeof(IDictionary<,>)
+                .MakeGenericType(readKey.Type, readValue.Type)
+                .GetMethod("Add", new[] { readKey.Type, readValue.Type });
+
+            return Expression.Block(
+                new[] { dictionary },
+                Expression.Assign(dictionary, Expression.New(constructor)),
+                ReadBlocks(
+                    stream,
+                    Expression.Call(dictionary, add, readKey, readValue)),
+                dictionary);
+        }
+
+        /// <summary>
+        /// Generates an expression that reads a single-precision floating-point number.
+        /// </summary>
+        public virtual Expression ReadSingle(Expression stream)
+        {
+            var expression = Read(stream, Expression.Constant(4));
 
             if (!BitConverter.IsLittleEndian)
             {
-                Array.Reverse(bytes);
+                var buffer = Expression.Variable(expression.Type);
+
+                var reverse = typeof(Array)
+                    .GetMethod(nameof(Array.Reverse), new[] { expression.Type });
+
+                expression = Expression.Block(
+                    new[] { buffer },
+                    Expression.Assign(buffer, expression),
+                    Expression.Call(null, reverse, buffer),
+                    buffer
+                );
             }
 
-            return BitConverter.ToSingle(bytes, 0);
+            var toDouble = typeof(BitConverter)
+                .GetMethod(nameof(BitConverter.ToSingle), new[] { expression.Type, typeof(int) });
+
+            return Expression.Call(null, toDouble, expression, Expression.Constant(0));
         }
 
         /// <summary>
-        /// Writes a boolean.
+        /// Generates an expression that writes bytes to a stream.
         /// </summary>
-        public virtual void Write(byte[] bytes, Stream stream)
+        public virtual Expression Write(Expression bytes, Expression stream)
         {
-            stream.Write(bytes, 0, bytes.Length);
+            var write = typeof(Stream)
+                .GetMethod(nameof(Stream.Write), new[] { bytes.Type, typeof(int), typeof(int) });
+
+            return Expression.Call(stream, write, bytes, Expression.Constant(0), Expression.ArrayLength(bytes));
         }
 
         /// <summary>
-        /// Writes blocks to a stream.
+        /// Generates an expression that writes item blocks to a stream.
         /// </summary>
-        public void WriteBlocks<T>(IEnumerable<T> items, Action<T, Stream> @delegate, Stream stream)
+        public Expression WriteArray(Expression items, ParameterExpression item, Expression writeItem, Expression stream)
         {
-            var list = items.ToList();
+            var collection = Expression.Variable(typeof(ICollection<>).MakeGenericType(item.Type));
+            var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(item.Type));
 
-            if (list.Count > 0)
-            {
-                WriteInteger(list.LongCount(), stream);
+            var loop = Expression.Label();
 
-                foreach (var item in list)
-                {
-                    @delegate(item, stream);
-                }
-            }
+            var dispose = typeof(IDisposable)
+                .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
 
-            WriteInteger(0L, stream);
+            var getCount = collection.Type
+                .GetProperty("Count")
+                .GetGetMethod();
+
+            var getCurrent = enumerator.Type
+                .GetProperty(nameof(IEnumerator.Current))
+                .GetGetMethod();
+
+            var getEnumerator = typeof(IEnumerable<>)
+                .MakeGenericType(item.Type)
+                .GetMethod("GetEnumerator", Type.EmptyTypes);
+
+            var moveNext = typeof(IEnumerator)
+                .GetMethod(nameof(IEnumerator.MoveNext), Type.EmptyTypes);
+
+            var toList = typeof(Enumerable)
+                .GetMethod(nameof(Enumerable.ToList))
+                .MakeGenericMethod(item.Type);
+
+            return Expression.Block(
+                new[] { enumerator, collection },
+                Expression.Assign(
+                    collection,
+                    Expression.Condition(
+                        Expression.TypeIs(items, collection.Type),
+                        Expression.Convert(items, collection.Type),
+                        Expression.Convert(Expression.Call(null, toList, items), collection.Type))),
+                Expression.IfThen(
+                    Expression.GreaterThan(Expression.Property(collection, getCount), Expression.Constant(0)),
+                    Expression.Block(
+                        WriteInteger(Expression.Property(collection, getCount), stream),
+                        Expression.Assign(enumerator, Expression.Call(collection, getEnumerator)),
+                        Expression.TryFinally(
+                            Expression.Loop(
+                                Expression.IfThenElse(
+                                    Expression.Call(enumerator, moveNext),
+                                    Expression.Block(
+                                        new[] { item },
+                                        Expression.Assign(item, Expression.Property(enumerator, getCurrent)),
+                                        writeItem),
+                                    Expression.Break(loop)),
+                                loop),
+                            Expression.Call(enumerator, dispose)))),
+                WriteInteger(Expression.Constant(0L), stream));
+        }
+        /// <summary>
+        /// Generates an expression that writes a boolean.
+        /// </summary>
+        public virtual Expression WriteBoolean(Expression value, Expression stream)
+        {
+            var write = typeof(Stream)
+                .GetMethod(nameof(Stream.WriteByte), new[] { typeof(byte) });
+
+            var @false = Expression.Constant((byte)0);
+            var @true = Expression.Constant((byte)1);
+
+            return Expression.Call(stream, write, Expression.Condition(value, @true, @false));
         }
 
         /// <summary>
-        /// Writes key-value blocks to a stream.
+        /// Generates an expression that writes a single- or double-precision floating-point number.
         /// </summary>
-        public void WriteBlocks<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> items, Action<TKey, Stream> keyDelegate, Action<TValue, Stream> valueDelegate, Stream stream)
+        public virtual Expression WriteFloat(Expression value, Expression stream)
         {
-            WriteBlocks(items, (p, s) => { keyDelegate(p.Key, s); valueDelegate(p.Value, s); }, stream);
+            var bytes = Expression.Variable(typeof(byte[]));
+
+            var convert = typeof(BitConverter)
+                .GetMethod(nameof(BitConverter.GetBytes), new[] { value.Type });
+
+            var reverse = typeof(Array)
+                .GetMethod(nameof(Array.Reverse), new[] { convert.ReturnType });
+
+            return Expression.Block(
+                new[] { bytes },
+                Expression.Assign(bytes, Expression.Call(null, convert, value)),
+                BitConverter.IsLittleEndian
+                    ? Expression.Empty() as Expression
+                    : Expression.Call(null, reverse, bytes) as Expression,
+                Write(bytes, stream));
         }
 
         /// <summary>
-        /// Writes a boolean.
+        /// Generates an expression that writes a zig-zag encoded integer.
         /// </summary>
-        public virtual void WriteBoolean(bool value, Stream stream)
+        public virtual Expression WriteInteger(Expression value, Expression stream)
         {
-            stream.WriteByte((byte)(value ? 1 : 0));
+            var chunk = Expression.Variable(typeof(ulong));
+            var encoded = Expression.Variable(typeof(ulong));
+
+            var loop = Expression.Label();
+
+            var write = typeof(Stream)
+                .GetMethod(nameof(Stream.WriteByte), new[] { typeof(byte) });
+
+            return Expression.Block(
+                new[] { chunk, encoded },
+                Expression.Assign(
+                    encoded,
+                    Expression.Convert(
+                        Expression.ExclusiveOr(
+                            Expression.LeftShift(value, Expression.Constant(1)),
+                            Expression.RightShift(value, Expression.Constant(63))),
+                        encoded.Type)),
+                Expression.Loop(
+                    Expression.Block(
+                        Expression.Assign(chunk, Expression.And(encoded, Expression.Constant(0x7fUL))),
+                        Expression.RightShiftAssign(encoded, Expression.Constant(7)),
+                        Expression.IfThen(
+                            Expression.NotEqual(encoded, Expression.Constant(0UL)),
+                            Expression.OrAssign(chunk, Expression.Constant(0x80UL))),
+                        Expression.Call(stream, write, Expression.Convert(chunk, typeof(byte))),
+                        Expression.IfThen(
+                            Expression.Equal(encoded, Expression.Constant(0UL)),
+                            Expression.Break(loop))),
+                    loop));
         }
 
         /// <summary>
-        /// Writes a double-precision floating-point number.
+        /// Generates an expression that writes key-value blocks to a stream.
         /// </summary>
-        public virtual void WriteDouble(double value, Stream stream)
+        public Expression WriteMap(Expression pairs, ParameterExpression key, ParameterExpression value, Expression writeKey, Expression writeValue, Expression stream)
         {
-            var bytes = BitConverter.GetBytes(value);
+            var pair = Expression.Variable(typeof(KeyValuePair<,>).MakeGenericType(key.Type, value.Type));
 
-            if (!BitConverter.IsLittleEndian)
-            {
-                Array.Reverse(bytes);
-            }
+            var getKey = pair.Type
+                .GetProperty("Key")
+                .GetGetMethod();
 
-            Write(bytes, stream);
-        }
+            var getValue = pair.Type
+                .GetProperty("Value")
+                .GetGetMethod();
 
-        /// <summary>
-        /// Writes a zig-zag encoded integer.
-        /// </summary>
-        public virtual void WriteInteger(long value, Stream stream)
-        {
-            var encoded = unchecked((ulong)((value << 1) ^ (value >> 63)));
-
-            do
-            {
-                var chunk = encoded & 0x7f;
-                encoded >>= 7;
-
-                if (encoded != 0)
-                {
-                    chunk |= 0x80;
-                }
-
-                stream.WriteByte((byte)chunk);
-            }
-            while (encoded != 0);
-        }
-
-        /// <summary>
-        /// Writes a single-precision floating-point number.
-        /// </summary>
-        public virtual void WriteSingle(float value, Stream stream)
-        {
-            var bytes = BitConverter.GetBytes(value);
-
-            if (!BitConverter.IsLittleEndian)
-            {
-                Array.Reverse(bytes);
-            }
-
-            Write(bytes, stream);
+            return WriteArray(
+                pairs,
+                pair,
+                Expression.Block(
+                    new[] { key, value },
+                    Expression.Assign(key, Expression.Property(pair, getKey)),
+                    Expression.Assign(value, Expression.Property(pair, getValue)),
+                    writeKey,
+                    writeValue),
+                stream);
         }
     }
 }
