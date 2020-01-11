@@ -3,6 +3,7 @@ using Chr.Avro.Resolution;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1393,7 +1394,7 @@ namespace Chr.Avro.Serialization
                     }
 
                     expression = GenerateConversion(expression, target);
-
+                    
                     var lambda = Expression.Lambda(expression, "map deserializer", new[] { stream });
                     var compiled = lambda.Compile();
 
@@ -1415,6 +1416,27 @@ namespace Chr.Avro.Serialization
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Generates a conversion from the intermediate type to the target type. This override
+        /// will create an intermediate dictionary for assigning to immutable dictionary types,
+        /// and otherwise it will call the standard conversion.
+        /// </summary>
+        protected override Expression GenerateConversion(Expression input, Type target)
+        {
+            var genericImmutableDictionary = typeof(ImmutableDictionary<,>);
+
+            if (target.GetGenericTypeDefinition() == genericImmutableDictionary)
+            {
+                var immutableDictionary = genericImmutableDictionary
+                    .MakeGenericType(target.GenericTypeArguments[0], target.GenericTypeArguments[1]);
+                var emptyImmutableDictionary = Expression.Field(null, immutableDictionary.GetField("Empty"));
+                var addRange = immutableDictionary.GetMethod("AddRange");
+                return Expression.Call(emptyImmutableDictionary, addRange, new[] { input });
+            }
+
+            return base.GenerateConversion(input, target);
         }
     }
 
