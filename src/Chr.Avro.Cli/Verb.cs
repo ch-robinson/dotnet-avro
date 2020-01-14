@@ -97,7 +97,7 @@ namespace Chr.Avro.Cli
         }
     }
 
-    [Verb("generate", HelpText = "Generates C# code for a schema from the Schema Registry.")]
+    [Verb("generate", HelpText = "Generates C# code for a schema from the Schema Registry or stdin.")]
     public class GenerateCodeVerb : Verb, ISchemaResolutionOptions
     {
         [Usage(ApplicationAlias = "dotnet avro")]
@@ -114,13 +114,13 @@ namespace Chr.Avro.Cli
 
         private const string BySubjectSet = "BySubject";
 
-        [Option('r', "registry-url", Required = true, HelpText = "The URL of the schema registry.")]
+        [Option('r', "registry-url", HelpText = "The URL of the schema registry.")]
         public string RegistryUrl { get; set; }
 
-        [Option('i', "id", Required = true, SetName = ByIdSet, HelpText = "If a subject/version is not specified, the ID of the schema.")]
+        [Option('i', "id", SetName = ByIdSet, HelpText = "If a subject/version is not specified, the ID of the schema.")]
         public int? SchemaId { get; set; }
 
-        [Option('s', "subject", Required = true, SetName = BySubjectSet, HelpText = "If an ID is not specified, the subject of the schema.")]
+        [Option('s', "subject", SetName = BySubjectSet, HelpText = "If an ID is not specified, the subject of the schema.")]
         public string SchemaSubject { get; set; }
 
         [Option('v', "version", SetName = BySubjectSet, HelpText = "The version of the schema.")]
