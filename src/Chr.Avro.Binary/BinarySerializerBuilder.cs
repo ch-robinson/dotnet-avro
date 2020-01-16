@@ -8,8 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Numerics;
-using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Xml;
 
@@ -29,15 +27,22 @@ namespace Chr.Avro.Serialization
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// An optional delegate cache. The cache can be used to provide custom implementations for
-        /// particular type-schema pairs, and it will also be populated as the delegate is built.
+        Action<T, Stream> BuildDelegate<T>(Schema schema);
+
+        /// <summary>
+        /// Builds an expression that represents writing <paramref name="value" /> to a stream
+        /// (provided by <paramref name="context" />).
+        /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
         /// </param>
-        /// <returns>
-        /// An action that accepts an object and a <see cref="Stream" /> and writes the serialized
-        /// object to the stream.
-        /// </returns>
-        Action<T, Stream> BuildDelegate<T>(Schema schema, ConcurrentDictionary<(Type, Schema), Delegate>? cache = null);
+        /// <param name="schema">
+        /// The schema to map to <paramref name="value" />.
+        /// </param>
+        /// <param name="context">
+        /// Information describing top-level expressions.
+        /// </param>
+        Expression BuildExpression(Expression value, Schema schema, IBinarySerializerBuilderContext context);
 
         /// <summary>
         /// Builds a binary serializer.
@@ -57,19 +62,15 @@ namespace Chr.Avro.Serialization
     public interface IBinarySerializerBuildResult
     {
         /// <summary>
-        /// The result of applying the case. If null, the case was not applied successfully.
-        /// </summary>
-        /// <remarks>
-        /// The delegate should be an action that accepts an object and a <see cref="Stream" />.
-        /// Since this is not a typed method, the general <see cref="Delegate" /> type is used.
-        /// </remarks>
-        Delegate? Delegate { get; }
-
-        /// <summary>
-        /// Any exceptions related to the applicability of the case. If <see cref="Delegate" /> is
+        /// Any exceptions related to the applicability of the case. If <see cref="Expression" /> is
         /// not null, these exceptions should be interpreted as warnings.
         /// </summary>
         ICollection<Exception> Exceptions { get; }
+
+        /// <summary>
+        /// The result of applying the case. If null, the case was not applied successfully.
+        /// </summary>
+        Expression? Expression { get; }
     }
 
     /// <summary>
@@ -81,20 +82,40 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
-        /// The schema to map to the type.
+        /// The schema to map to <paramref name="value" />.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache. If a delegate is cached for a specific type-schema pair, that delegate
-        /// will be returned for all subsequent occurrences of the pair.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
-        /// <returns>
-        /// A build result.
-        /// </returns>
-        IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache);
+        IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context);
+    }
+
+    /// <summary>
+    /// An object that contains information to build a top-level serialization function.
+    /// </summary>
+    public interface IBinarySerializerBuilderContext
+    {
+        /// <summary>
+        /// A map of top-level variables to their values.
+        /// </summary>
+        ConcurrentDictionary<ParameterExpression, Expression> Assignments { get; }
+
+        /// <summary>
+        /// A map of types to top-level variables.
+        /// </summary>
+        ConcurrentDictionary<Type, ParameterExpression> References { get; }
+
+        /// <summary>
+        /// The output <see cref="System.IO.Stream" />.
+        /// </summary>
+        ParameterExpression Stream { get; }
     }
 
     /// <summary>
@@ -159,50 +180,59 @@ namespace Chr.Avro.Serialization
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// An optional delegate cache. The cache can be used to provide custom implementations for
-        /// particular type-schema pairs, and it will also be populated as the delegate is built.
-        /// </param>
-        /// <returns>
-        /// An action that accepts an object and a <see cref="Stream" /> and writes the serialized
-        /// object to the stream.
-        /// </returns>
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map the type to the schema.
         /// </exception>
-        public Action<T, Stream> BuildDelegate<T>(Schema schema, ConcurrentDictionary<(Type, Schema), Delegate>? cache = null)
+        public virtual Action<T, Stream> BuildDelegate<T>(Schema schema)
         {
-            if (cache == null)
+            var context = new BinarySerializerBuilderContext();
+            var value = Expression.Parameter(typeof(T));
+
+            // ensure that all assignments are present before building the lambda:
+            var root = BuildExpression(value, schema, context);
+
+            return Expression.Lambda<Action<T, Stream>>(Expression.Block(
+                context.Assignments.Keys,
+                context.Assignments
+                    .Select(a => (Expression)Expression.Assign(a.Key, a.Value))
+                    .Concat(new[] { root })
+            ), new[] { value, context.Stream }).Compile();
+        }
+
+        /// <summary>
+        /// Builds an expression that represents writing <paramref name="value" /> to a stream
+        /// (provided by <paramref name="context" />).
+        /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
+        /// <param name="schema">
+        /// The schema to map to <paramref name="value" />.
+        /// </param>
+        /// <param name="context">
+        /// Information describing top-level expressions.
+        /// </param>
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when no case can map <paramref name="value" /> to the schema.
+        /// </exception>
+        public virtual Expression BuildExpression(Expression value, Schema schema, IBinarySerializerBuilderContext context)
+        {
+            var resolution = Resolver.ResolveType(value.Type);
+            var exceptions = new List<Exception>();
+
+            foreach (var @case in Cases)
             {
-                cache = new ConcurrentDictionary<(Type, Schema), Delegate>();
-            }
+                var result = @case.BuildExpression(value, resolution, schema, context);
 
-            var resolution = Resolver.ResolveType(typeof(T));
-
-            if (!cache.TryGetValue((resolution.Type, schema), out var @delegate))
-            {
-                var exceptions = new List<Exception>();
-
-                foreach (var @case in Cases)
+                if (result.Expression != null)
                 {
-                    var result = @case.BuildDelegate(resolution, schema, cache);
-
-                    if (result.Delegate != null)
-                    {
-                        @delegate = result.Delegate;
-                        break;
-                    }
-
-                    exceptions.AddRange(result.Exceptions);
+                    return result.Expression;
                 }
 
-                if (@delegate == null)
-                {
-                    throw new UnsupportedTypeException(resolution.Type, $"No serializer builder case matched {resolution.GetType().Name}.", new AggregateException(exceptions));
-                }
+                exceptions.AddRange(result.Exceptions);
             }
 
-            return (Action<T, Stream>)@delegate;
+            throw new UnsupportedTypeException(resolution.Type, $"No serializer builder case matched {resolution.GetType().Name}.", new AggregateException(exceptions));
         }
 
         /// <summary>
@@ -269,19 +299,15 @@ namespace Chr.Avro.Serialization
     public class BinarySerializerBuildResult : IBinarySerializerBuildResult
     {
         /// <summary>
-        /// The result of applying the case. If null, the case was not applied successfully.
-        /// </summary>
-        /// <remarks>
-        /// The delegate should be an action that accepts an object and a <see cref="Stream" />.
-        /// Since this is not a typed method, the general <see cref="Delegate" /> type is used.
-        /// </remarks>
-        public Delegate? Delegate { get; set; }
-
-        /// <summary>
-        /// Any exceptions related to the applicability of the case. If <see cref="Delegate" /> is
+        /// Any exceptions related to the applicability of the case. If <see cref="Expression" /> is
         /// not null, these exceptions should be interpreted as warnings.
         /// </summary>
         public ICollection<Exception> Exceptions { get; set; } = new List<Exception>();
+
+        /// <summary>
+        /// The result of applying the case. If null, the case was not applied successfully.
+        /// </summary>
+        public Expression? Expression { get; set; }
     }
 
     /// <summary>
@@ -292,20 +318,19 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
-        /// The schema to map to the type.
+        /// The schema to map to <paramref name="value" />.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache. If a delegate is cached for a specific type-schema pair, that same
-        /// delegate will be returned for all occurrences of the pair.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
-        /// <returns>
-        /// A build result.
-        /// </returns>
-        public abstract IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache);
+        public abstract IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context);
 
         /// <summary>
         /// Generates a conversion from the source type to the intermediate type.
@@ -326,8 +351,43 @@ namespace Chr.Avro.Serialization
             }
             catch (InvalidOperationException inner)
             {
-                throw new UnsupportedTypeException(intermediate, inner: inner);
+                throw new UnsupportedTypeException(intermediate, $"Failed to generate a conversion for {input.Type}.", inner);
             }
+        }
+    }
+
+    /// <summary>
+    /// A base <see cref="IBinarySerializerBuilderContext" /> implementation.
+    /// </summary>
+    public class BinarySerializerBuilderContext : IBinarySerializerBuilderContext
+    {
+        /// <summary>
+        /// A map of top-level variables to their values.
+        /// </summary>
+        public ConcurrentDictionary<ParameterExpression, Expression> Assignments { get; }
+
+        /// <summary>
+        /// A map of types to top-level variables.
+        /// </summary>
+        public ConcurrentDictionary<Type, ParameterExpression> References { get; }
+
+        /// <summary>
+        /// The output <see cref="System.IO.Stream" />.
+        /// </summary>
+        public ParameterExpression Stream { get; }
+
+        /// <summary>
+        /// Creates a new context.
+        /// </summary>
+        /// <param name="stream">
+        /// The output <see cref="System.IO.Stream" />. If an expression is not provided, one will
+        /// be created.
+        /// </param>
+        public BinarySerializerBuilderContext(ParameterExpression? stream = null)
+        {
+            Assignments = new ConcurrentDictionary<ParameterExpression, Expression>();
+            References = new ConcurrentDictionary<Type, ParameterExpression>();
+            Stream = stream ?? Expression.Parameter(typeof(Stream));
         }
     }
 
@@ -365,14 +425,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds an array serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the resolution is an <see cref="ArrayResolution" /> and the
@@ -381,7 +444,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type does not implement <see cref="IEnumerable{T}" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
@@ -389,47 +452,10 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is ArrayResolution arrayResolution)
                 {
-                    var source = arrayResolution.Type;
+                    var itemVariable = Expression.Variable(arrayResolution.ItemType);
+                    var itemSerializer = SerializerBuilder.BuildExpression(itemVariable, arraySchema.Item, context);
 
-                    var stream = Expression.Parameter(typeof(Stream));
-                    var value = Expression.Parameter(source);
-
-                    Expression expression = null!;
-
-                    try
-                    {
-                        var build = typeof(IBinarySerializerBuilder)
-                            .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
-                            .MakeGenericMethod(arrayResolution.ItemType);
-
-                        var itemVariable = Expression.Variable(arrayResolution.ItemType);
-
-                        expression = Codec.WriteArray(
-                            value,
-                            itemVariable,
-                            Expression.Invoke(
-                                Expression.Constant(
-                                    build.Invoke(SerializerBuilder, new object[] { arraySchema.Item, cache }),
-                                    typeof(Action<,>).MakeGenericType(arrayResolution.ItemType, typeof(Stream))),
-                                itemVariable,
-                                stream
-                            ),
-                            stream);
-                    }
-                    catch (TargetInvocationException indirect)
-                    {
-                        ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
-                    }
-
-                    var lambda = Expression.Lambda(expression, "array serializer", new[] { value, stream });
-                    var compiled = lambda.Compile();
-
-                    if (!cache.TryAdd((source, schema), compiled))
-                    {
-                        throw new InvalidOperationException();
-                    }
-
-                    result.Delegate = compiled;
+                    result.Expression = Codec.WriteArray(value, itemVariable, itemSerializer, context.Stream);
                 }
                 else
                 {
@@ -470,14 +496,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a boolean serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is a <see cref="BooleanSchema" />; an unsuccessful
@@ -486,27 +515,13 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="bool" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
             if (schema is BooleanSchema)
             {
-                var source = resolution.Type;
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
-
-                var expression = GenerateConversion(value, typeof(bool));
-                var lambda = Expression.Lambda(Codec.WriteBoolean(expression, stream), "boolean serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                result.Expression = Codec.WriteBoolean(GenerateConversion(value, typeof(bool)), context.Stream);
             }
             else
             {
@@ -542,14 +557,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a variable-length bytes serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is a <see cref="BytesSchema" />; an unsuccessful
@@ -558,36 +576,20 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="T:System.Byte[]" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
             if (schema is BytesSchema)
             {
-                var source = resolution.Type;
+                var bytes = Expression.Variable(typeof(byte[]));
 
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
-
-                var expression = GenerateConversion(value, typeof(byte[]));
-                var bytes = Expression.Variable(expression.Type);
-
-                expression = Expression.Block(
+                result.Expression = Expression.Block(
                     new[] { bytes },
-                    Expression.Assign(bytes, expression),
-                    Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), stream),
-                    Codec.Write(bytes, stream)
+                    Expression.Assign(bytes, GenerateConversion(value, bytes.Type)),
+                    Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), context.Stream),
+                    Codec.Write(bytes, context.Stream)
                 );
-
-                var lambda = Expression.Lambda(expression, "bytes serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
             }
             else
             {
@@ -641,14 +643,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a decimal serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema’s logical type is <see cref="DecimalLogicalType" />;
@@ -660,7 +665,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="decimal" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
@@ -668,10 +673,6 @@ namespace Chr.Avro.Serialization
             {
                 var precision = decimalLogicalType.Precision;
                 var scale = decimalLogicalType.Scale;
-                var source = resolution.Type;
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
 
                 var expression = GenerateConversion(value, typeof(decimal));
 
@@ -710,8 +711,8 @@ namespace Chr.Avro.Serialization
                     expression = Expression.Block(
                         new[] { bytes },
                         expression,
-                        Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), stream),
-                        Codec.Write(bytes, stream)
+                        Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), context.Stream),
+                        Codec.Write(bytes, context.Stream)
                     );
                 }
                 else if (schema is FixedSchema fixedSchema)
@@ -726,7 +727,7 @@ namespace Chr.Avro.Serialization
                             Expression.NotEqual(Expression.ArrayLength(bytes), Expression.Constant(fixedSchema.Size)),
                             Expression.Throw(Expression.New(exceptionConstructor, Expression.Constant($"Size mismatch between {fixedSchema.Name} (size {fixedSchema.Size}) and decimal with precision {precision} and scale {scale}.")))
                         ),
-                        Codec.Write(bytes, stream)
+                        Codec.Write(bytes, context.Stream)
                     );
                 }
                 else
@@ -734,15 +735,7 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                var lambda = Expression.Lambda(expression, "decimal serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                result.Expression = expression;
             }
             else
             {
@@ -778,14 +771,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a double serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is a <see cref="DoubleSchema" />; an unsuccessful
@@ -794,27 +790,13 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="double" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
             if (schema is DoubleSchema)
             {
-                var source = resolution.Type;
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
-
-                var expression = GenerateConversion(value, typeof(double));
-                var lambda = Expression.Lambda(Codec.WriteFloat(expression, stream), "double serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                result.Expression = Codec.WriteFloat(GenerateConversion(value, typeof(double)), context.Stream);
             }
             else
             {
@@ -850,14 +832,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a duration serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the resolution is a <see cref="DurationResolution" /> and the
@@ -871,7 +856,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="TimeSpan" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
@@ -882,42 +867,52 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                var source = resolution.Type;
-
-                if (!(source == typeof(TimeSpan)))
+                if (resolution.Type != typeof(TimeSpan))
                 {
                     throw new UnsupportedTypeException(resolution.Type);
                 }
 
-                void write(uint value, Stream stream)
+                Expression write(Expression value)
                 {
-                    var bytes = BitConverter.GetBytes(value);
+                    var getBytes = typeof(BitConverter)
+                        .GetMethod(nameof(BitConverter.GetBytes), new[] { value.Type });
+
+                    Expression bytes = Expression.Call(null, getBytes, value);
 
                     if (!BitConverter.IsLittleEndian)
                     {
-                        Array.Reverse(bytes);
+                        var buffer = Expression.Variable(bytes.Type);
+                        var reverse = typeof(Array)
+                            .GetMethod(nameof(Array.Reverse), new[] { bytes.Type });
+
+                        bytes = Expression.Block(
+                            new[] { buffer },
+                            Expression.Assign(buffer, bytes),
+                            Expression.Call(null, reverse, buffer),
+                            buffer);
                     }
 
-                    stream.Write(bytes, 0, bytes.Length);
+                    var write = typeof(Stream)
+                        .GetMethod(nameof(Stream.Write), new[] { bytes.Type, typeof(int), typeof(int) });
+
+                    return Expression.Call(context.Stream, write, bytes, Expression.Constant(0), Expression.ArrayLength(bytes));
                 }
 
-                Action<TimeSpan, Stream> serialize = (value, stream) =>
-                {
-                    var months = 0U;
-                    var days = Convert.ToUInt32(value.TotalDays);
-                    var milliseconds = Convert.ToUInt32((ulong)value.TotalMilliseconds - (days * 86400000UL));
+                var totalDays = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalDays));
+                var totalMs = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalMilliseconds));
 
-                    write(months, stream);
-                    write(days, stream);
-                    write(milliseconds, stream);
-                };
-
-                if (!cache.TryAdd((source, schema), serialize))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = serialize;
+                result.Expression = Expression.Block(
+                    write(Expression.Constant(0U)),
+                    write(
+                        Expression.ConvertChecked(Expression.Property(value, totalDays), typeof(uint))),
+                    write(
+                        Expression.ConvertChecked(
+                            Expression.Subtract(
+                                Expression.Convert(Expression.Property(value, totalMs), typeof(ulong)),
+                                Expression.Multiply(
+                                    Expression.Convert(Expression.Property(value, totalDays), typeof(ulong)),
+                                    Expression.Constant(86400000UL))),
+                        typeof(uint))));
             }
             else
             {
@@ -953,14 +948,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds an enum serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the resolution is an <see cref="EnumResolution" /> and the
@@ -969,7 +967,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the schema does not contain a matching symbol for each symbol in the type.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
@@ -979,9 +977,6 @@ namespace Chr.Avro.Serialization
                 {
                     var source = resolution.Type;
                     var symbols = enumSchema.Symbols.ToList();
-
-                    var stream = Expression.Parameter(typeof(Stream));
-                    var value = Expression.Parameter(source);
 
                     // find a match for each enum in the type:
                     var cases = enumResolution.Symbols.Select(symbol =>
@@ -998,19 +993,10 @@ namespace Chr.Avro.Serialization
                             throw new UnsupportedTypeException(source, $"{source.Name} has an ambiguous symbol ({symbol.Name}).");
                         }
 
-                        return Expression.SwitchCase(Codec.WriteInteger(Expression.Constant((long)index), stream), Expression.Constant(symbol.Value));
+                        return Expression.SwitchCase(Codec.WriteInteger(Expression.Constant((long)index), context.Stream), Expression.Constant(symbol.Value));
                     });
 
-                    var expression = Expression.Switch(value, cases.ToArray());
-                    var lambda = Expression.Lambda(expression, $"{enumSchema.Name} serializer", new[] { value, stream });
-                    var compiled = lambda.Compile();
-
-                    if (!cache.TryAdd((source, schema), compiled))
-                    {
-                        throw new InvalidOperationException();
-                    }
-
-                    result.Delegate = compiled;
+                    result.Expression = Expression.Switch(value, cases.ToArray());
                 }
                 else
                 {
@@ -1051,14 +1037,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a fixed-length bytes serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is a <see cref="FixedSchema" />; an unsuccessful
@@ -1067,39 +1056,23 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="T:System.Byte[]" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
             if (schema is FixedSchema fixedSchema)
             {
-                var source = resolution.Type;
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
-
                 var expression = GenerateConversion(value, typeof(byte[]));
 
                 var exceptionConstructor = typeof(OverflowException)
                     .GetConstructor(new[] { typeof(string) });
 
-                expression = Expression.Block(
+                result.Expression = Expression.Block(
                     Expression.IfThen(
                         Expression.NotEqual(Expression.ArrayLength(expression), Expression.Constant(fixedSchema.Size)),
                         Expression.Throw(Expression.New(exceptionConstructor, Expression.Constant($"Only arrays of size {fixedSchema.Size} can be serialized to {fixedSchema.Name}.")))
                     ),
-                    Codec.Write(expression, stream)
-                );
-
-                var lambda = Expression.Lambda(expression, $"{fixedSchema.Name} serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                    Codec.Write(expression, context.Stream));
             }
             else
             {
@@ -1153,14 +1126,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a float serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is a <see cref="FloatSchema" />; an unsuccessful
@@ -1169,27 +1145,13 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="float" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
             if (schema is FloatSchema)
             {
-                var source = resolution.Type;
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
-
-                var expression = GenerateConversion(value, typeof(float));
-                var lambda = Expression.Lambda(Codec.WriteFloat(expression, stream), "float serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                result.Expression = Codec.WriteFloat(GenerateConversion(value, typeof(float)), context.Stream);
             }
             else
             {
@@ -1225,14 +1187,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds an integer serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is an <see cref="IntSchema" /> or a <see cref="LongSchema" />;
@@ -1241,27 +1206,13 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="long" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
             if (schema is IntSchema || schema is LongSchema)
             {
-                var source = resolution.Type;
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
-
-                var expression = GenerateConversion(value, typeof(long));
-                var lambda = Expression.Lambda(Codec.WriteInteger(expression, stream), "integer serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                result.Expression = Codec.WriteInteger(GenerateConversion(value, typeof(long)), context.Stream);
             }
             else
             {
@@ -1306,14 +1257,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a map serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the resolution is a <see cref="MapResolution" /> and the schema
@@ -1322,7 +1276,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type does not implement <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
@@ -1330,56 +1284,13 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is MapResolution mapResolution)
                 {
-                    var source = mapResolution.Type;
+                    var keyVariable = Expression.Variable(mapResolution.KeyType);
+                    var keySerializer = SerializerBuilder.BuildExpression(keyVariable, new StringSchema(), context);
 
-                    var stream = Expression.Parameter(typeof(Stream));
-                    var value = Expression.Parameter(source);
+                    var valueVariable = Expression.Variable(mapResolution.ValueType);
+                    var valueSerializer = SerializerBuilder.BuildExpression(valueVariable, mapSchema.Value, context);
 
-                    Expression expression = value;
-
-                    try
-                    {
-                        var build = typeof(IBinarySerializerBuilder)
-                            .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate));
-
-                        var buildKey = build.MakeGenericMethod(mapResolution.KeyType);
-                        var buildValue = build.MakeGenericMethod(mapResolution.ValueType);
-
-                        var keyVariable = Expression.Variable(mapResolution.KeyType);
-                        var valueVariable = Expression.Variable(mapResolution.ValueType);
-
-                        expression = Codec.WriteMap(
-                            value,
-                            keyVariable,
-                            valueVariable,
-                            Expression.Invoke(
-                                Expression.Constant(
-                                    buildKey.Invoke(SerializerBuilder, new object[] { new StringSchema(), cache }),
-                                    typeof(Action<,>).MakeGenericType(mapResolution.KeyType, typeof(Stream))),
-                                keyVariable,
-                                stream),
-                            Expression.Invoke(
-                                Expression.Constant(
-                                    buildValue.Invoke(SerializerBuilder, new object[] { mapSchema.Value, cache }),
-                                    typeof(Action<,>).MakeGenericType(mapResolution.ValueType, typeof(Stream))),
-                                valueVariable,
-                                stream),
-                            stream);
-                    }
-                    catch (TargetInvocationException indirect)
-                    {
-                        ExceptionDispatchInfo.Capture(indirect.InnerException).Throw();
-                    }
-
-                    var lambda = Expression.Lambda(expression, "map serializer", new[] { value, stream });
-                    var compiled = lambda.Compile();
-
-                    if (!cache.TryAdd((source, schema), compiled))
-                    {
-                        throw new InvalidOperationException();
-                    }
-
-                    result.Delegate = compiled;
+                    result.Expression = Codec.WriteMap(value, keyVariable, valueVariable, keySerializer, valueSerializer, context.Stream);
                 }
                 else
                 {
@@ -1403,39 +1314,29 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a null serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is a <see cref="NullSchema" />; an unsuccessful
         /// result otherwise.
         /// </returns>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
             if (schema is NullSchema)
             {
-                var source = resolution.Type;
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
-
-                var lambda = Expression.Lambda(Expression.Empty(), "null serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                result.Expression = Expression.Empty();
             }
             else
             {
@@ -1471,14 +1372,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a record serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the resolution is a <see cref="RecordResolution" /> and the
@@ -1488,7 +1392,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when the resolved type does not have a matching member for each field on the
         /// schema.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
@@ -1496,75 +1400,39 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is RecordResolution recordResolution)
                 {
-                    var source = resolution.Type;
+                    var parameter = Expression.Parameter(typeof(Action<>).MakeGenericType(resolution.Type));
+                    var reference = context.References.GetOrAdd(resolution.Type, parameter);
+                    result.Expression = Expression.Invoke(reference, value);
 
-                    var stream = Expression.Parameter(typeof(Stream));
-                    var value = Expression.Parameter(source);
-
-                    // declare an action that writes the record fields in order:
-                    Delegate write = null!;
-
-                    // bind to this scope:
-                    Expression expression = Expression.Invoke(Expression.Constant((Func<Delegate>)(() => write)));
-
-                    // coerce Delegate to Action<TSource, Stream>:
-                    expression = Expression.ConvertChecked(expression, typeof(Action<,>).MakeGenericType(source, typeof(Stream)));
-
-                    // serialize the record:
-                    expression = Expression.Invoke(expression, value, stream);
-
-                    var lambda = Expression.Lambda(expression, $"{recordSchema.Name} serializer", new[] { value, stream });
-                    var compiled = lambda.Compile();
-
-                    if (!cache.TryAdd((source, schema), compiled))
+                    if (parameter == reference)
                     {
-                        throw new InvalidOperationException();
+                        var argument = Expression.Variable(resolution.Type);
+                        var writes = recordSchema.Fields
+                            .Select(field =>
+                            {
+                                var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
+
+                                if (match == null)
+                                {
+                                    throw new UnsupportedTypeException(resolution.Type, $"{resolution.Type.FullName} does not have a field or property that matches the {field.Name} field on {recordSchema.Name}.");
+                                }
+
+                                return SerializerBuilder.BuildExpression(Expression.PropertyOrField(argument, match.Member.Name), field.Type, context);
+                            })
+                            .ToList();
+
+                        // .NET Framework doesn’t permit empty block expressions:
+                        var expression = writes.Count > 0
+                            ? Expression.Block(writes)
+                            : Expression.Empty() as Expression;
+
+                        expression = Expression.Lambda(expression, $"{recordSchema.Name} serializer", new[] { argument });
+
+                        if (!context.Assignments.TryAdd(reference, expression))
+                        {
+                            throw new InvalidOperationException();
+                        };
                     }
-
-                    result.Delegate = compiled;
-
-                    // now that an infinite cycle won’t happen, build the write function:
-                    var writes = recordSchema.Fields.Select(field =>
-                    {
-                        var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-
-                        if (match == null)
-                        {
-                            throw new UnsupportedTypeException(source, $"{source.FullName} does not have a field or property that matches the {field.Name} field on {recordSchema.Name}.");
-                        }
-
-                        var type = match.Type;
-
-                        Expression action = null!;
-
-                        try
-                        {
-                            var build = typeof(IBinarySerializerBuilder)
-                                .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
-                                .MakeGenericMethod(type);
-
-                            // https://i.imgur.com/kZW9iiW.gif
-                            action = Expression.Constant(
-                                build.Invoke(SerializerBuilder, new object[] { field.Type, cache }),
-                                typeof(Action<,>).MakeGenericType(type, typeof(Stream))
-                            );
-                        }
-                        catch (TargetInvocationException exception)
-                        {
-                            ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
-                        }
-
-                        Expression getter = Expression.PropertyOrField(value, match.Member.Name);
-
-                        // do the write:
-                        action = Expression.Invoke(action, getter, stream);
-
-                        return action;
-                    }).ToList();
-
-                    expression = writes.Count > 0 ? Expression.Block(typeof(void), writes) : Expression.Empty() as Expression;
-                    lambda = Expression.Lambda(expression, $"{recordSchema.Name} field writer", new[] { value, stream });
-                    write = lambda.Compile();
                 }
                 else
                 {
@@ -1605,14 +1473,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a string serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is a <see cref="StringSchema" />; an unsuccessful
@@ -1621,18 +1492,12 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="string" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
             if (schema is StringSchema)
             {
-                var source = resolution.Type;
-                var target = typeof(string);
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
-
                 var expression = GenerateConversion(value, typeof(string));
 
                 var convertString = typeof(Encoding)
@@ -1645,19 +1510,11 @@ namespace Chr.Avro.Serialization
                 expression = Expression.Block(
                     new[] { bytes },
                     Expression.Assign(bytes, expression),
-                    Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), stream),
-                    Codec.Write(bytes, stream)
+                    Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), context.Stream),
+                    Codec.Write(bytes, context.Stream)
                 );
 
-                var lambda = Expression.Lambda(expression, "string serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                result.Expression = expression;
             }
             else
             {
@@ -1751,14 +1608,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a timestamp serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the resolution is a <see cref="TimestampResolution" /> and the
@@ -1772,7 +1632,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type cannot be converted to <see cref="DateTimeOffset" />.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
@@ -1784,11 +1644,6 @@ namespace Chr.Avro.Serialization
                     {
                         throw new UnsupportedSchemaException(schema);
                     }
-
-                    var source = resolution.Type;
-
-                    var stream = Expression.Parameter(typeof(Stream));
-                    var value = Expression.Parameter(source);
 
                     var expression = GenerateConversion(value, typeof(DateTimeOffset));
 
@@ -1812,17 +1667,7 @@ namespace Chr.Avro.Serialization
                         .GetProperty(nameof(DateTimeOffset.UtcTicks));
 
                     // result = (value.UtcTicks - epoch) / factor;
-                    expression = Codec.WriteInteger(Expression.Divide(Expression.Subtract(Expression.Property(expression, utcTicks), epoch), factor), stream);
-
-                    var lambda = Expression.Lambda(expression, "timestamp serializer", new[] { value, stream });
-                    var compiled = lambda.Compile();
-
-                    if (!cache.TryAdd((source, schema), compiled))
-                    {
-                        throw new InvalidOperationException();
-                    }
-
-                    result.Delegate = compiled;
+                    result.Expression = Codec.WriteInteger(Expression.Divide(Expression.Subtract(Expression.Property(expression, utcTicks), epoch), factor), context.Stream);
                 }
                 else
                 {
@@ -1872,14 +1717,17 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a union serializer for a type-schema pair.
         /// </summary>
+        /// <param name="value">
+        /// An expression that represents the value to be serialized.
+        /// </param>
         /// <param name="resolution">
         /// The resolution to obtain type information from.
         /// </param>
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        /// <param name="cache">
-        /// A delegate cache.
+        /// <param name="context">
+        /// Information describing top-level expressions.
         /// </param>
         /// <returns>
         /// A successful result if the schema is a <see cref="UnionSchema" />; an unsuccessful
@@ -1891,7 +1739,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type cannot be mapped to at least one schema in the union.
         /// </exception>
-        public override IBinarySerializerBuildResult BuildDelegate(TypeResolution resolution, Schema schema, ConcurrentDictionary<(Type, Schema), Delegate> cache)
+        public override IBinarySerializerBuildResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, IBinarySerializerBuilderContext context)
         {
             var result = new BinarySerializerBuildResult();
 
@@ -1905,14 +1753,10 @@ namespace Chr.Avro.Serialization
                 var schemas = unionSchema.Schemas.ToList();
                 var candidates = schemas.Where(s => !(s is NullSchema)).ToList();
                 var @null = schemas.Find(s => s is NullSchema);
-                var source = resolution.Type;
-
-                var stream = Expression.Parameter(typeof(Stream));
-                var value = Expression.Parameter(source);
 
                 Expression writeIndex(Schema child) => Codec.WriteInteger(
                     Expression.Constant((long)schemas.IndexOf(child)),
-                    stream);
+                    context.Stream);
 
                 Expression expression = null!;
 
@@ -1937,25 +1781,13 @@ namespace Chr.Avro.Serialization
 
                         try
                         {
-                            var build = typeof(IBinarySerializerBuilder)
-                                .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
-                                .MakeGenericMethod(underlying);
-
                             body = Expression.Block(
                                 writeIndex(candidate),
-                                Expression.Invoke(
-                                    Expression.Constant(
-                                        build.Invoke(SerializerBuilder, new object[] { candidate, cache }),
-                                        typeof(Action<,>).MakeGenericType(underlying, typeof(Stream))
-                                    ),
-                                    Expression.ConvertChecked(value, underlying),
-                                    stream
-                                )
-                            );
+                                SerializerBuilder.BuildExpression(Expression.ConvertChecked(value, underlying), candidate, context));
                         }
-                        catch (TargetInvocationException indirect)
+                        catch (Exception exception)
                         {
-                            exceptions.Add(indirect.InnerException);
+                            exceptions.Add(exception);
                             continue;
                         }
 
@@ -1974,8 +1806,8 @@ namespace Chr.Avro.Serialization
                     if (cases.Count == 0)
                     {
                         throw new UnsupportedTypeException(
-                            source,
-                            $"{source.Name} does not match any non-null members of the union [{string.Join(", ", schemas.Select(s => s.GetType().Name))}].",
+                            resolution.Type,
+                            $"{resolution.Type.Name} does not match any non-null members of the union [{string.Join(", ", schemas.Select(s => s.GetType().Name))}].",
                             new AggregateException(exceptions)
                         );
                     }
@@ -1991,7 +1823,7 @@ namespace Chr.Avro.Serialization
 
                         expression = Expression.Throw(Expression.New(
                             exceptionConstructor,
-                            Expression.Constant($"Unexpected type encountered serializing to {source.Name}.")));
+                            Expression.Constant($"Unexpected type encountered serializing to {resolution.Type.Name}.")));
 
                         foreach (var @case in cases)
                         {
@@ -2009,15 +1841,7 @@ namespace Chr.Avro.Serialization
                     expression = writeIndex(@null);
                 }
 
-                var lambda = Expression.Lambda(expression, "union serializer", new[] { value, stream });
-                var compiled = lambda.Compile();
-
-                if (!cache.TryAdd((source, schema), compiled))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                result.Delegate = compiled;
+                result.Expression = expression;
             }
             else
             {

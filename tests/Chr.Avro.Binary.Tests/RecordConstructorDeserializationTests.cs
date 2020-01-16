@@ -1,5 +1,4 @@
 using Chr.Avro.Abstract;
-using Chr.Avro.Resolution;
 using Chr.Avro.Serialization;
 using System.Collections.Generic;
 using Xunit;

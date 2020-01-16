@@ -1,4 +1,3 @@
-using System;
 using Chr.Avro.Abstract;
 using Xunit;
 
