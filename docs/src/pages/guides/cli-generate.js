@@ -40,16 +40,22 @@ Tool 'chr.avro.cli' (version '${latestRelease}') was successfully installed.`}</
 
       <h2>Using the CLI</h2>
       <p>To generate code for a schema, use the <Link to='/cli#generate'><Highlight inline language='shell'>generate</Highlight></Link> command:</p>
+      <p>Using the schema registry:</p>
       <Highlight language='shell'>{`$ dotnet avro generate --id 42 --registry-url http://registry:8081
 namespace ExampleNamespace
 {
-    public class ExampleClass
-    {
-        public long LongProperty { get; set; }
+  public class ExampleClass
+  {
+    public long LongProperty { get; set; }
 
-        public string StringProperty { get; set; }
-    }
+    public string StringProperty { get; set; }
+  }
 }`}</Highlight>
+      <p>Using powershell to pipe an .avsc file content to the cli, then to a .cs file:</p>
+      <Highlight language='shell'>{'PS C:\> Get-Content .\myschema.avsc | dotnet avro generate | Output-File .\myfilename.cs'}</Highlight>
+      <p>Using bash to pipe an .avsc file content to the cli, then to a .cs file:</p>
+      <Highlight language='shell'>{'$ < myschema.avsc > dotnet avro generate > myfilename.cs'}</Highlight>
+
       <p>Generated enums and classes are grouped by namespace. In the future, it may be possible to customize generated names and write out results to individual files.</p>
     </>
   )

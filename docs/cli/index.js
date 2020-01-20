@@ -76,6 +76,12 @@ namespace Example.Models
         public string Text { get; set; }
     }
 }`
+  }, {
+    title: 'Generate code for a schema in an .avsc file using powershell',
+    body: `C:\> Get-Content ./myschema.avsc | dotnet avro generate | Out-File ./myfilename.cs`
+  }, {
+    title: 'Generate code for a schema in an .avsc file using bash',
+    body: `$ < myschema.avsc > dotnet avro generate > myfilename.cs`
   }],
   options: [...schemaResolutionOptions]
 }, {
