@@ -83,6 +83,77 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Fact]
+        public void RecordWithCyclicDependenciesAndOptionalParameters()
+        {
+            var schema = new RecordSchema("Node");
+            schema.Fields.Add(new RecordField("Value", new IntSchema()));
+            schema.Fields.Add(new RecordField("Children", new ArraySchema(schema)));
+
+            var serializer = SerializerBuilder.BuildSerializer<Node>(schema);
+            var deserializer = DeserializerBuilder.BuildDeserializer<MappedNode>(schema);
+
+            var n5 = deserializer.Deserialize(serializer.Serialize(new Node()
+            {
+                Value = 5,
+                Children = new[]
+                {
+                    new Node()
+                    {
+                        Value = 9,
+                        Children = new Node[0]
+                    },
+                    new Node()
+                    {
+                        Value = 3,
+                        Children = new[]
+                        {
+                            new Node()
+                            {
+                                Value = 2,
+                                Children = new Node[0]
+                            },
+                            new Node()
+                            {
+                                Value = 10,
+                                Children = new Node[0]
+                            }
+                        }
+                    }
+                }
+            }));
+
+            Assert.Equal(5, n5.RequiredValue);
+            Assert.Equal(999, n5.OptionalValue);
+            Assert.Collection(n5.Children,
+                n9 =>
+                {
+                    Assert.Equal(9, n9.RequiredValue);
+                    Assert.Equal(999, n9.OptionalValue);
+                    Assert.Empty(n9.Children);
+                },
+                n3 =>
+                {
+                    Assert.Equal(3, n3.RequiredValue);
+                    Assert.Equal(999, n3.OptionalValue);
+                    Assert.Collection(n3.Children,
+                        n2 =>
+                        {
+                            Assert.Equal(2, n2.RequiredValue);
+                            Assert.Equal(999, n2.OptionalValue);
+                            Assert.Empty(n2.Children);
+                        },
+                        n10 =>
+                        {
+                            Assert.Equal(10, n10.RequiredValue);
+                            Assert.Equal(999, n10.OptionalValue);
+                            Assert.Empty(n10.Children);
+                        }
+                    );
+                }
+            );
+        }
+
+        [Fact]
         public void RecordWithMissingFields()
         {
             var boolean = new BooleanSchema();
@@ -149,6 +220,22 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Empty(root.Node.Children);
             Assert.Empty(root.RelatedNodes);
+        }
+
+        public class MappedNode
+        {
+            public int RequiredValue { get; set; }
+
+            public int OptionalValue { get; set; }
+
+            public IEnumerable<MappedNode> Children { get; set; }
+
+            public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999)
+            {
+                Children = children;
+                OptionalValue = optionalValue;
+                RequiredValue = value;
+            }
         }
 
         public class Node
