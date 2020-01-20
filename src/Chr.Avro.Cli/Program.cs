@@ -1,5 +1,6 @@
 using CommandLine;
 using System;
+using System.Threading.Tasks;
 
 namespace Chr.Avro.Cli
 {
@@ -11,7 +12,7 @@ namespace Chr.Avro.Cli
             settings.HelpWriter = Console.Error;
         });
 
-        public static int Main(string[] args)
+        public static Task Main(string[] args)
         {
             return _parser
                 .ParseArguments<CreateSchemaVerb, GenerateCodeVerb, GetSchemaVerb, TestSchemaVerb>(args)
@@ -20,7 +21,7 @@ namespace Chr.Avro.Cli
                     (GenerateCodeVerb generate) => generate.Execute(),
                     (GetSchemaVerb get) => get.Execute(),
                     (TestSchemaVerb verify) => verify.Execute(),
-                    errors => 1
+                    errors => Task.FromResult(1)
                 );
         }
     }
