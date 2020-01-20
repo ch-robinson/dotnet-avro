@@ -4,20 +4,21 @@ using Chr.Avro.Abstract;
 using Chr.Avro.Codegen;
 using Chr.Avro.Representation;
 using Chr.Avro.Resolution;
+using Chr.Avro.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using Chr.Avro.Serialization;
+using System.Threading.Tasks;
 
 namespace Chr.Avro.Cli
 {
     public abstract class Verb
     {
-        public int Execute()
+        public async Task<int> Execute()
         {
             try
             {
-                Run();
+                await Run();
             }
             catch (ProgramException e)
             {
@@ -32,7 +33,7 @@ namespace Chr.Avro.Cli
             return 0;
         }
 
-        protected abstract void Run();
+        protected abstract Task Run();
     }
 
     [Verb("create", HelpText = "Create an Avro schema for a .NET type.")]
@@ -67,12 +68,14 @@ namespace Chr.Avro.Cli
             }),
         };
 
-        protected override void Run()
+        protected override Task Run()
         {
             var schema = CreateSchema();
             var writer = new JsonSchemaWriter();
 
             Console.WriteLine(writer.Write(schema));
+
+            return Task.CompletedTask;
         }
 
         protected Schema CreateSchema()
@@ -97,7 +100,7 @@ namespace Chr.Avro.Cli
         }
     }
 
-    [Verb("generate", HelpText = "Generates C# code for a schema from the Schema Registry.")]
+    [Verb("generate", HelpText = "Generates C# code for a schema from the Schema Registry or stdin.")]
     public class GenerateCodeVerb : Verb, ISchemaResolutionOptions
     {
         [Usage(ApplicationAlias = "dotnet avro")]
@@ -114,26 +117,23 @@ namespace Chr.Avro.Cli
 
         private const string BySubjectSet = "BySubject";
 
-        [Option('r', "registry-url", Required = true, HelpText = "The URL of the schema registry.")]
+        [Option('r', "registry-url", HelpText = "The URL of the schema registry.")]
         public string RegistryUrl { get; set; }
 
-        [Option('i', "id", Required = true, SetName = ByIdSet, HelpText = "If a subject/version is not specified, the ID of the schema.")]
+        [Option('i', "id", SetName = ByIdSet, HelpText = "If a subject/version is not specified, the ID of the schema.")]
         public int? SchemaId { get; set; }
 
-        [Option('s', "subject", Required = true, SetName = BySubjectSet, HelpText = "If an ID is not specified, the subject of the schema.")]
+        [Option('s', "subject", SetName = BySubjectSet, HelpText = "If an ID is not specified, the subject of the schema.")]
         public string SchemaSubject { get; set; }
 
         [Option('v', "version", SetName = BySubjectSet, HelpText = "The version of the schema.")]
         public int? SchemaVersion { get; set; }
 
-        protected override void Run()
+        protected override async Task Run()
         {
-            var task = this.ResolveSchema();
-            task.Wait();
-
             var generator = new CSharpCodeGenerator();
             var reader = new JsonSchemaReader();
-            var schema = reader.Read(task.Result);
+            var schema = reader.Read(await this.ResolveSchema());
 
             try
             {
@@ -175,12 +175,9 @@ namespace Chr.Avro.Cli
         [Option('v', "version", SetName = BySubjectSet, HelpText = "The version of the schema.")]
         public int? SchemaVersion { get; set; }
 
-        protected override void Run()
+        protected override async Task Run()
         {
-            var task = this.ResolveSchema();
-            task.Wait();
-
-            Console.WriteLine(task.Result);
+            Console.WriteLine(await this.ResolveSchema());
         }
     }
 
@@ -221,15 +218,12 @@ namespace Chr.Avro.Cli
         [Option('v', "version", SetName = BySubjectSet, HelpText = "The version of the target schema.")]
         public int? SchemaVersion { get; set; }
 
-        protected override void Run()
+        protected override async Task Run()
         {
             var type = this.ResolveType();
 
-            var task = this.ResolveSchema();
-            task.Wait();
-
             var reader = new JsonSchemaReader();
-            var schema = reader.Read(task.Result);
+            var schema = reader.Read(await this.ResolveSchema());
 
             try
             {

@@ -50,6 +50,7 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
       const exampleNode = {
         id: createNodeId(example.title),
         body: example.body,
+        language: example.language || 'bash',
         title: example.title,
         verb___NODE: verbNode.id,
         internal: {

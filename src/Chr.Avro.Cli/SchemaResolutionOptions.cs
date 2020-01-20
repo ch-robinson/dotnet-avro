@@ -22,13 +22,27 @@ namespace Chr.Avro.Cli
     {
         public static async Task<string> ResolveSchema(this ISchemaResolutionOptions options)
         {
-            var configuration = new SchemaRegistryConfiguration
+            if (Console.IsInputRedirected)
             {
-                SchemaRegistryUrl = options.RegistryUrl
-            };
+                using var stream = Console.OpenStandardInput();
+                using var streamReader = new System.IO.StreamReader(stream);
 
-            using (var client = new SchemaRegistryClient(configuration))
+                return await streamReader.ReadToEndAsync();
+            }
+            else
             {
+                if (string.IsNullOrWhiteSpace(options.RegistryUrl))
+                {
+                    throw new ProgramException(message: "When not reading from stdin, you must provide --registry-url.");
+                }
+
+                var configuration = new SchemaRegistryConfiguration
+                {
+                    SchemaRegistryUrl = options.RegistryUrl
+                };
+
+                using var client = new SchemaRegistryClient(configuration);
+
                 try
                 {
                     if (options.SchemaId is int id)

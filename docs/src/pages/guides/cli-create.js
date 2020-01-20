@@ -36,13 +36,13 @@ export default () => {
 
       <h2>Getting started</h2>
       <p>If you haven’t already, install the {projectName} CLI:</p>
-      <Highlight language='shell'>{`$ dotnet tool install Chr.Avro.Cli --global
+      <Highlight language='bash'>{`$ dotnet tool install Chr.Avro.Cli --global
   Tool 'chr.avro.cli' (version '${latestRelease}') was successfully installed.`}</Highlight>
       <p>After the CLI tool has been installed, you can invoke it using <code>dotnet avro</code>. If the install command fails, make sure you have the latest version of the <ExternalLink to='https://dotnet.microsoft.com/download'>.NET Core SDK</ExternalLink> installed.</p>
 
       <h2>Using the CLI</h2>
-      <p>To create a schema for a type, use the <Link to='/cli#create'><Highlight inline language='shell'>create</Highlight></Link> command. You’ll need to provide the type’s full name as well as the path to a compiled assembly that contains it:</p>
-      <Highlight language='shell'>{`$ dotnet avro create --type ExampleNamespace.ExampleLibrary.ExampleClass --assembly bin/Debug/netstandard2.0/ExampleNamespace.ExampleLibrary.dll
+      <p>To create a schema for a type, use the <Link to='/cli#create'><Highlight inline language='bash'>create</Highlight></Link> command. You’ll need to provide the type’s full name as well as the path to a compiled assembly that contains it:</p>
+      <Highlight language='bash'>{`$ dotnet avro create --type ExampleNamespace.ExampleLibrary.ExampleClass --assembly bin/Debug/netstandard2.0/ExampleNamespace.ExampleLibrary.dll
 {"name":"ExampleNamespace.ExampleLibrary.ExampleClass","type":"record","fields":[{"name":"ExampleProperty","type":"int"}]}`}</Highlight>
 
       <h2>Customizing generated schemas</h2>
