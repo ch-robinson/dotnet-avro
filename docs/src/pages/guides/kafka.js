@@ -36,8 +36,8 @@ export default () => {
 
       <h2>Using Confluent’s client builders</h2>
       <p>First, add a reference to the Chr.Avro.Confluent package:</p>
-      <Highlight language='shell'>{`$ dotnet add package Chr.Avro.Confluent --version ${latestRelease}`}</Highlight>
-      <p>Chr.Avro.Confluent depends on <NugetPackageReference id='Confluent.Kafka' />, which contains <DotnetReference id='T:Confluent.Kafka.ProducerBuilder`2'>producer</DotnetReference> and <DotnetReference id='T:Confluent.Kafka.ConsumerBuilder`2'>consumer</DotnetReference> builders. To build a Schema Registry-integrated producer, use the producer builder in tandem with {projectName}’s Avro extension methods:</p>
+      <Highlight language='bash'>{`$ dotnet add package Chr.Avro.Confluent --version ${latestRelease}`}</Highlight>
+      <p>Chr.Avro.Confluent depends on <NugetPackageReference id='Confluent.Kafka' />, which contains <DotnetReference id='T:Confluent.Kafka.ProducerBuilder`2'>producer</DotnetReference> and <DotnetReference id='T:Confluent.Kafka.ConsumerBuilder`2'>consumer</DotnetReference> builders. To build a <ExternalLink to='https://www.confluent.io/confluent-schema-registry/'>Schema Registry</ExternalLink>-integrated producer, use the producer builder in tandem with {projectName}’s Avro extension methods:</p>
       <Highlight language='csharp'>{`using Chr.Avro.Confluent;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;

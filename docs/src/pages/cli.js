@@ -41,11 +41,11 @@ export default () => {
 
       <h1>{title}</h1>
       <p>The {projectName} CLI is a <ExternalLink to='https://docs.microsoft.com/en-us/dotnet/core/tools'>.NET Core CLI tool</ExternalLink> that automates schema creation, registry operations, and more. To install:</p>
-      <Highlight language='shell'>{`$ dotnet tool install Chr.Avro.Cli --global
+      <Highlight language='bash'>{`$ dotnet tool install Chr.Avro.Cli --global
 Tool 'chr.avro.cli' (version '${latestRelease}') was successfully installed.`}</Highlight>
 
       <p>Once the CLI is installed, use <code>help</code> to see available commands and options:</p>
-      <Highlight language='shell'>{`$ dotnet avro help
+      <Highlight language='bash'>{`$ dotnet avro help
 Chr.Avro.Cli ${latestRelease}
 Copyright (C) 2019 C.H. Robinson
 ...`}</Highlight>

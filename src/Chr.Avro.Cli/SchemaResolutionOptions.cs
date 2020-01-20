@@ -33,7 +33,7 @@ namespace Chr.Avro.Cli
             {
                 if (string.IsNullOrWhiteSpace(options.RegistryUrl))
                 {
-                    throw new ProgramException(message: "When not using stdin, you must use --registry-url");
+                    throw new ProgramException(message: "When not reading from stdin, you must provide --registry-url.");
                 }
 
                 var configuration = new SchemaRegistryConfiguration

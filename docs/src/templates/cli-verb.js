@@ -32,7 +32,7 @@ export default ({ data: { cliVerb } }) =>
         {cliVerb.examples.map(example =>
           <Fragment key={example.id}>
             <h5>{example.title}</h5>
-            <Highlight language='shell'>{example.body}</Highlight>
+            <Highlight language={example.language}>{example.body}</Highlight>
           </Fragment>
         )}
       </>
@@ -78,6 +78,7 @@ export const query = graphql`
       examples {
         id
         body
+        language
         title
       }
       options {
