@@ -48,9 +48,9 @@ class DefaultLayout extends Component {
 
           <Navigation className={styles.content} />
 
-          <div className={styles.toggle} onClick={() => this.toggleNavigation()}>
+          <button className={styles.toggle} onClick={() => this.toggleNavigation()} tabIndex='0'>
             <Hamburger active={isNavigationExpanded}>Toggle navigation</Hamburger>
-          </div>
+          </button>
         </div>
       </>
     )
