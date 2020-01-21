@@ -100,7 +100,7 @@ namespace Chr.Avro.Cli
         }
     }
 
-    [Verb("generate", HelpText = "Generates C# code for a schema from the Schema Registry or stdin.")]
+    [Verb("generate", HelpText = "Generate C# code for a schema from the Schema Registry or stdin.")]
     public class GenerateCodeVerb : Verb, ISchemaResolutionOptions
     {
         [Usage(ApplicationAlias = "dotnet avro")]
