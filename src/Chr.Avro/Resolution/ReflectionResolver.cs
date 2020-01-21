@@ -69,7 +69,7 @@ namespace Chr.Avro.Resolution
                     : new EnumResolverCase() as ITypeResolverCase,
 
                 // dictionaries:
-                resolver => new DictionaryResolverCase(),
+                resolver => new DictionaryResolverCase(memberVisibility),
 
                 // enumerables:
                 resolver => new EnumerableResolverCase(memberVisibility),
@@ -309,6 +309,22 @@ namespace Chr.Avro.Resolution
     public class DictionaryResolverCase : ReflectionResolverCase
     {
         /// <summary>
+        /// The binding flags that will be used to select constructors.
+        /// </summary>
+        public BindingFlags MemberVisibility { get; }
+
+        /// <summary>
+        /// Creates a new dictionary resolver case.
+        /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags that will be used to select constructors.
+        /// </param>
+        public DictionaryResolverCase(BindingFlags memberVisibility)
+        {
+            MemberVisibility = memberVisibility;
+        }
+
+        /// <summary>
         /// Resolves dictionary type information.
         /// </summary>
         /// <param name="type">
@@ -327,8 +343,14 @@ namespace Chr.Avro.Resolution
                 var arguments = pair.GetGenericArguments();
                 var key = arguments.ElementAt(0);
                 var value = arguments.ElementAt(1);
+                var constructors = GetConstructors(type, MemberVisibility)
+                    .Select(c => new ConstructorResolution(
+                        c.ConstructorInfo,
+                        c.Parameters.Select(p => new ParameterResolution(p, p.ParameterType, new IdentifierResolution(p.Name))).ToList()
+                    ))
+                    .ToList();
 
-                result.TypeResolution = new MapResolution(type, key, value);
+                result.TypeResolution = new MapResolution(type, key, value, constructors);
             }
             else
             {
@@ -489,7 +511,7 @@ namespace Chr.Avro.Resolution
         public BindingFlags MemberVisibility { get; }
 
         /// <summary>
-        /// Creates a new object resolver case.
+        /// Creates a new enumerable resolver case.
         /// </summary>
         /// <param name="memberVisibility">
         /// The binding flags that will be used to select constructors.

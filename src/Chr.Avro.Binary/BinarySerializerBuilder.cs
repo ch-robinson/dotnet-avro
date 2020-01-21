@@ -975,7 +975,6 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is EnumResolution enumResolution)
                 {
-                    var source = resolution.Type;
                     var symbols = enumSchema.Symbols.ToList();
 
                     // find a match for each enum in the type:
@@ -985,12 +984,12 @@ namespace Chr.Avro.Serialization
 
                         if (index < 0)
                         {
-                            throw new UnsupportedTypeException(source, $"{source.Name} has a symbol ({symbol.Name}) that cannot be serialized.");
+                            throw new UnsupportedTypeException(resolution.Type, $"{resolution.Type.Name} has a symbol ({symbol.Name}) that cannot be serialized.");
                         }
 
                         if (symbols.FindLastIndex(s => symbol.Name.IsMatch(s)) != index)
                         {
-                            throw new UnsupportedTypeException(source, $"{source.Name} has an ambiguous symbol ({symbol.Name}).");
+                            throw new UnsupportedTypeException(resolution.Type, $"{resolution.Type.Name} has an ambiguous symbol ({symbol.Name}).");
                         }
 
                         return Expression.SwitchCase(Codec.WriteInteger(Expression.Constant((long)index), context.Stream), Expression.Constant(symbol.Value));

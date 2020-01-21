@@ -403,9 +403,26 @@ namespace Chr.Avro.Resolution
     /// </summary>
     public class MapResolution : TypeResolution
     {
+        private ICollection<ConstructorResolution> constructors = null!;
+
         private Type keyType = null!;
 
         private Type valueType = null!;
+
+        /// <summary>
+        /// The map constructors.
+        /// </summary>
+        public virtual ICollection<ConstructorResolution> Constructors
+        {
+            get
+            {
+                return constructors ?? throw new InvalidOperationException();
+            }
+            set
+            {
+                constructors = value ?? throw new ArgumentNullException(nameof(value), "Resolved constructor collection cannot be null.");
+            }
+        }
 
         /// <summary>
         /// The map key type.
@@ -449,11 +466,15 @@ namespace Chr.Avro.Resolution
         /// <param name="valueType">
         /// The map value type.
         /// </param>
+        /// <param name="constructors">
+        /// The map constructors.
+        /// </param>
         /// <param name="isNullable">
         /// Whether the map type can have a null value.
         /// </param>
-        public MapResolution(Type type, Type keyType, Type valueType, bool isNullable = false) : base(type, isNullable)
+        public MapResolution(Type type, Type keyType, Type valueType, ICollection<ConstructorResolution>? constructors = null, bool isNullable = false) : base(type, isNullable)
         {
+            Constructors = constructors ?? new List<ConstructorResolution>();
             KeyType = keyType;
             ValueType = valueType;
         }

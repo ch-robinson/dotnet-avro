@@ -25,10 +25,10 @@ export default () =>
         <p>The type is a one-dimensional or jagged array. Multi-dimensional arrays are currently not supported because they can’t be deserialized reliably.</p>
       </li>
       <li>
-        <p>The type is assignable from <DotnetReference id='T:System.Collections.Generic.List`1' />. Other <DotnetReference id='T:System.Collections.Generic.IEnumerable`1' />s can also be serialized to <Highlight inline language='avro'>"array"</Highlight>, but they can’t be deserialized.</p>
+        <p>The type is a generic collection type from <DotnetReference id='N:System.Collections.Generic' /> or <DotnetReference id='N:System.Collections.Immutable' />.</p>
       </li>
       <li>
-        <p>The type has a constructor with an <DotnetReference id='T:System.Collections.Generic.IEnumerable`1' /> parameter.</p>
+        <p>The type implements <DotnetReference id='T:System.Collections.Generic.IEnumerable`1' /> (for serialization) and has a constructor with a single <DotnetReference id='T:System.Collections.Generic.IEnumerable`1' /> parameter (for deserialization).</p>
       </li>
     </ol>
     <p>Some examples:</p>
@@ -64,43 +64,37 @@ export default () =>
           <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Int32}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
           <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Int32}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.List{System.Int32}' />.</td>
-        </tr>
-        <tr valign='top'>
-          <td><DotnetReference id='T:System.Collections.Generic.ICollection{System.Int32}' /></td>
-          <td align='center'><span role="img" aria-label="serializable">✅</span></td>
-          <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.ICollection{System.Int32}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.List{System.Int32}' />.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Int32}' /> is a generic collection type.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.ISet{System.Int32}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
-          <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.ISet{System.Int32}' /> implements <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Int32}' /> but is not assignable from <DotnetReference id='T:System.Collections.Generic.List{System.Int32}' />.</td>
+          <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
+          <td><DotnetReference id='T:System.Collections.Generic.ISet{System.Int32}' /> is a generic collection type.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.List{System.Int32}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
           <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.List{System.Int32}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.List{System.Int32}' />.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.List{System.Int32}' /> is a generic collection type.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.List{System.Int32[]}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
           <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.List{System.Int32[]}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.List{System.Int32[]}' /> and <DotnetReference id='T:System.Int32[]' /> is an array type.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.List{System.Int32[]}' /> is a generic collection type and <DotnetReference id='T:System.Int32[]' /> is an array type.</td>
+        </tr>
+        <tr valign='top'>
+          <td><DotnetReference id='T:System.Collections.Immutable.ImmutableQueue{System.Int32}' /></td>
+          <td align='center'><span role="img" aria-label="serializable">✅</span></td>
+          <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
+          <td><DotnetReference id='T:System.Collections.Immutable.ImmutableQueue{System.Int32}' /> is a generic collection type.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Array' /></td>
           <td align='center'><span role="img" aria-label="not serializable">🚫</span></td>
           <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
-          <td><DotnetReference id='T:System.Array' /> isn’t generic, so Chr.Avro can’t determine its item type.</td>
-        </tr>
-        <tr valign='top'>
-          <td><DotnetReference id='T:System.Collections.Generic.HashSet{System.Int32}' /></td>
-          <td align='center'><span role='img' aria-label="serializable">✅</span></td>
-          <td align='center'><span role='img' aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.HashSet{System.Int32}' /> has a constructor with an <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Int32}' /> parameter.</td>
+          <td><DotnetReference id='T:System.Array' /> isn’t a generic type, so Chr.Avro can’t determine how to handle its items.</td>
         </tr>
       </tbody>
     </table>
@@ -173,7 +167,15 @@ deserializer.Deserialize(serializer.Serialize(epoch)); // 0L`}</Highlight>
     <p>Because enum types are able to be implicitly converted to and from integral types, Chr.Avro can map any integral type to <Highlight inline language='avro'>"enum"</Highlight> as well.</p>
 
     <h2 id='maps'>Maps</h2>
-    <p>Avro’s <Highlight inline language='avro'>"map"</Highlight> type represents a map of keys (assumed to be strings) to values. Chr.Avro can serialize a .NET type to <Highlight inline language='avro'>"map"</Highlight> if it implements <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}' />. However, Chr.Avro can only deserialize a type from <Highlight inline language='avro'>"map"</Highlight> if it’s assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary`2' />.</p>
+    <p>Avro’s <Highlight inline language='avro'>"map"</Highlight> type represents a map of keys (assumed to be strings) to values. Chr.Avro can map a .NET type to <Highlight inline language='avro'>"map"</Highlight> if any of the following is true:</p>
+    <ol>
+      <li>
+        <p>The type is a generic dictionary type from <DotnetReference id='N:System.Collections.Generic' /> or <DotnetReference id='N:System.Collections.Immutable' />.</p>
+      </li>
+      <li>
+        <p>The type implements <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}' /> (for serialization) and has a constructor with a single <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}' /> parameter (for deserialization).</p>
+      </li>
+    </ol>
     <p>Additionally, because Avro map keys are assumed to be strings, serializers and deserializers are built for key types by mapping to <Highlight inline language='avro'>"string"</Highlight> implicitly.</p>
     <p>Some examples of this behavior:</p>
     <table>
@@ -190,49 +192,49 @@ deserializer.Deserialize(serializer.Serialize(epoch)); // 0L`}</Highlight>
           <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.String,System.Int32}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
           <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.String,System.Int32}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' />.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.String,System.Int32}' /> is a generic dictionary type.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
           <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' />.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' /> is a generic dictionary type.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.Guid,System.Int32}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
           <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.Guid,System.Int32}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary{System.Guid,System.Int32}' />, and <DotnetReference id='T:System.Guid' /> can be mapped to <Highlight inline language='avro'>"string"</Highlight>.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.Guid,System.Int32}' /> is a generic dictionary type, and <DotnetReference id='T:System.Guid' /> can be mapped to <Highlight inline language='avro'>"string"</Highlight>.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.Byte[],System.Int32}' /></td>
           <td align='center'><span role="img" aria-label="not serializable">🚫</span></td>
           <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.Byte[],System.Int32}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary{System.Byte[],System.Int32}' />, but <DotnetReference id='T:System.Byte[]' /> cannot be mapped to <Highlight inline language='avro'>"string"</Highlight>.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.IDictionary{System.Byte[],System.Int32}' /> is a generic dictionary type, but <DotnetReference id='T:System.Byte[]' /> cannot be mapped to <Highlight inline language='avro'>"string"</Highlight>.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
           <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' />.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /> is recognized as a generic dictionary type.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.ICollection{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
           <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.ICollection{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /> is assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' />.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.ICollection{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /> is recognized as a generic dictionary type.</td>
         </tr>
         <tr valign='top'>
-          <td><DotnetReference id='T:System.Collections.Generic.IList{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /></td>
+          <td><DotnetReference id='T:System.Collections.Immutable.ImmutableSortedDictionary{System.String,System.Int32}' /></td>
           <td align='center'><span role="img" aria-label="serializable">✅</span></td>
-          <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.IList{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /> implements <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /> but is not assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' />.</td>
+          <td align='center'><span role="img" aria-label="deserializable">✅</span></td>
+          <td><DotnetReference id='T:System.Collections.Immutable.ImmutableSortedDictionary{System.String,System.Int32}' /> is a generic dictionary type.</td>
         </tr>
         <tr valign='top'>
           <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.ValueTuple{System.String,System.Int32}}' /></td>
           <td align='center'><span role="img" aria-label="not serializable">🚫</span></td>
           <td align='center'><span role="img" aria-label="not deserializable">🚫</span></td>
-          <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.ValueTuple{System.String,System.Int32}}' /> does not implement <DotnetReference id='T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{System.String,System.Int32}}' /> and is not assignable from <DotnetReference id='T:System.Collections.Generic.Dictionary{System.String,System.Int32}' />.</td>
+          <td><DotnetReference id='T:System.Collections.Generic.IEnumerable{System.ValueTuple{System.String,System.Int32}}' /> is not recognized as a generic dictionary type.</td>
         </tr>
       </tbody>
     </table>

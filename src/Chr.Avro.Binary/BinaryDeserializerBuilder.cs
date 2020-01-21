@@ -338,16 +338,16 @@ namespace Chr.Avro.Serialization
         /// <remarks>
         /// See the remarks for <see cref="Expression.ConvertChecked(Expression, Type)" />.
         /// </remarks>
-        protected virtual Expression GenerateConversion(Expression input, Type target)
+        protected virtual Expression GenerateConversion(Expression value, Type target)
         {
-            if (input.Type == target)
+            if (value.Type == target)
             {
-                return input;
+                return value;
             }
 
             try
             {
-                return Expression.ConvertChecked(input, target);
+                return Expression.ConvertChecked(value, target);
             }
             catch (InvalidOperationException inner)
             {
@@ -450,23 +450,18 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is ArrayResolution arrayResolution)
                 {
-                    var target = arrayResolution.Type;
-
                     var expression = Codec.ReadArray(
                         context.Stream,
+                        CreateIntermediateCollection(arrayResolution),
                         DeserializerBuilder.BuildExpression(arrayResolution.ItemType, arraySchema.Item, context)
                     );
 
-                    if (FindEnumerableConstructor(arrayResolution) is ConstructorResolution constructorResolution)
+                    if (!arrayResolution.Type.IsAssignableFrom(expression.Type) && FindEnumerableConstructor(arrayResolution) is ConstructorResolution constructorResolution)
                     {
-                        expression = Expression.New(constructorResolution.Constructor, new[] { expression });
-                    }
-                    else
-                    {
-                        expression = GenerateConversion(expression, target);
+                        expression = Expression.New(constructorResolution.Constructor, expression);
                     }
 
-                    result.Expression = expression;
+                    result.Expression = GenerateConversion(expression, arrayResolution.Type);
                 }
                 else
                 {
@@ -482,6 +477,60 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
+        /// Creates an expression that represents instantiating a collection.
+        /// </summary>
+        protected virtual Expression CreateIntermediateCollection(ArrayResolution resolution)
+        {
+            if (resolution.Type.IsArray || resolution.Type.IsAssignableFrom(typeof(ImmutableArray<>).MakeGenericType(resolution.ItemType)))
+            {
+                var createBuilder = typeof(ImmutableArray)
+                    .GetMethod(nameof(ImmutableArray.CreateBuilder), Type.EmptyTypes)
+                    .MakeGenericMethod(resolution.ItemType);
+
+                return Expression.Call(null, createBuilder);
+            }
+
+            if (resolution.Type.IsAssignableFrom(typeof(ImmutableHashSet<>).MakeGenericType(resolution.ItemType)))
+            {
+                var createBuilder = typeof(ImmutableHashSet)
+                    .GetMethod(nameof(ImmutableHashSet.CreateBuilder), Type.EmptyTypes)
+                    .MakeGenericMethod(resolution.ItemType);
+
+                return Expression.Call(null, createBuilder);
+            }
+
+            if (resolution.Type.IsAssignableFrom(typeof(ImmutableList<>).MakeGenericType(resolution.ItemType)))
+            {
+                var createBuilder = typeof(ImmutableList)
+                    .GetMethod(nameof(ImmutableList.CreateBuilder), Type.EmptyTypes)
+                    .MakeGenericMethod(resolution.ItemType);
+
+                return Expression.Call(null, createBuilder);
+            }
+
+            if (resolution.Type.IsAssignableFrom(typeof(ImmutableSortedSet<>).MakeGenericType(resolution.ItemType)))
+            {
+                var createBuilder = typeof(ImmutableSortedSet)
+                    .GetMethod(nameof(ImmutableSortedSet.CreateBuilder), Type.EmptyTypes)
+                    .MakeGenericMethod(resolution.ItemType);
+
+                return Expression.Call(null, createBuilder);
+            }
+
+            if (resolution.Type.IsAssignableFrom(typeof(HashSet<>).MakeGenericType(resolution.ItemType)))
+            {
+                return Expression.New(typeof(HashSet<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
+            }
+
+            if (resolution.Type.IsAssignableFrom(typeof(SortedSet<>).MakeGenericType(resolution.ItemType)))
+            {
+                return Expression.New(typeof(SortedSet<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
+            }
+
+            return Expression.New(typeof(List<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
+        }
+
+        /// <summary>
         /// Attempts to find a constructor that takes a single enumerable parameter.
         /// </summary>
         protected virtual ConstructorResolution? FindEnumerableConstructor(ArrayResolution resolution)
@@ -492,26 +541,45 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
-        /// Generates a conversion from the intermediate type to the target type. This override
-        /// will convert the intermediate type to an array or list (depending on the target) prior
-        /// to applying the base implementation.
+        /// Generates a conversion from the intermediate type to the target type.
         /// </summary>
-        protected override Expression GenerateConversion(Expression input, Type target)
+        protected override Expression GenerateConversion(Expression value, Type target)
         {
-            var convert = target.IsArray
-                ? typeof(Enumerable)
-                    .GetMethod(nameof(Enumerable.ToArray))
-                    .MakeGenericMethod(target.GetElementType())
-                : typeof(Enumerable)
-                    .GetMethod(nameof(Enumerable.ToList))
-                    .MakeGenericMethod(target.GetGenericArguments().Single());
-
-            if (!target.IsAssignableFrom(convert.ReturnType))
+            if (target.IsArray && !value.Type.IsArray)
             {
-                throw new UnsupportedTypeException(target);
+                var toArray = value.Type
+                    .GetMethod("ToArray", Type.EmptyTypes);
+
+                value = Expression.Call(value, toArray);
+            }
+            else if (target.Assembly == typeof(ImmutableInterlocked).Assembly)
+            {
+                if (target.IsAssignableFrom(typeof(ImmutableQueue<>).MakeGenericType(target.GenericTypeArguments)))
+                {
+                    var createRange = typeof(ImmutableQueue)
+                        .GetMethod(nameof(ImmutableQueue.CreateRange))
+                        .MakeGenericMethod(target.GenericTypeArguments);
+
+                    value = Expression.Call(null, createRange, value);
+                }
+                else if (target.IsAssignableFrom(typeof(ImmutableStack<>).MakeGenericType(target.GenericTypeArguments)))
+                {
+                    var createRange = typeof(ImmutableStack)
+                        .GetMethod(nameof(ImmutableStack.CreateRange))
+                        .MakeGenericMethod(target.GenericTypeArguments);
+
+                    value = Expression.Call(null, createRange, value);
+                }
+                else
+                {
+                    var toImmutable = value.Type
+                        .GetMethod("ToImmutable", Type.EmptyTypes);
+
+                    value = Expression.Call(value, toImmutable);
+                }
             }
 
-            return base.GenerateConversion(Expression.Call(null, convert, input), target);
+            return base.GenerateConversion(value, target);
         }
     }
 
@@ -562,11 +630,7 @@ namespace Chr.Avro.Serialization
 
             if (schema is BooleanSchema)
             {
-                var target = resolution.Type;
-
-                var expression = GenerateConversion(Codec.ReadBoolean(context.Stream), target);
-
-                result.Expression = expression;
+                result.Expression = GenerateConversion(Codec.ReadBoolean(context.Stream), resolution.Type);
             }
             else
             {
@@ -624,11 +688,7 @@ namespace Chr.Avro.Serialization
 
             if (schema is BytesSchema)
             {
-                var target = resolution.Type;
-
-                var expression = GenerateConversion(Codec.Read(context.Stream, Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int))), target);
-
-                result.Expression = expression;
+                result.Expression = GenerateConversion(Codec.Read(context.Stream, Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int))), resolution.Type);
             }
             else
             {
@@ -643,17 +703,17 @@ namespace Chr.Avro.Serialization
         /// will convert a bytes value to <see cref="Guid" /> prior to applying the base
         /// implementation.
         /// </summary>
-        protected override Expression GenerateConversion(Expression input, Type target)
+        protected override Expression GenerateConversion(Expression value, Type target)
         {
             if (target == typeof(Guid) || target == typeof(Guid?))
             {
                 var guidConstructor = typeof(Guid)
-                    .GetConstructor(new[] { input.Type });
+                    .GetConstructor(new[] { value.Type });
 
-                input = Expression.New(guidConstructor, input);
+                value = Expression.New(guidConstructor, value);
             }
 
-            return base.GenerateConversion(input, target);
+            return base.GenerateConversion(value, target);
         }
     }
 
@@ -709,7 +769,6 @@ namespace Chr.Avro.Serialization
             {
                 var precision = decimalLogicalType.Precision;
                 var scale = decimalLogicalType.Scale;
-                var target = resolution.Type;
 
                 Expression expression;
 
@@ -756,9 +815,7 @@ namespace Chr.Avro.Serialization
                         Expression.Constant((decimal)Math.Pow(10, scale)))
                 );
 
-                expression = GenerateConversion(expression, target);
-
-                result.Expression = expression;
+                result.Expression = GenerateConversion(expression, resolution.Type);
             }
             else
             {
@@ -816,11 +873,7 @@ namespace Chr.Avro.Serialization
 
             if (schema is DoubleSchema)
             {
-                var target = resolution.Type;
-
-                var expression = GenerateConversion(Codec.ReadDouble(context.Stream), target);
-
-                result.Expression = expression;
+                result.Expression = GenerateConversion(Codec.ReadDouble(context.Stream), resolution.Type);
             }
             else
             {
@@ -903,9 +956,7 @@ namespace Chr.Avro.Serialization
                         return BitConverter.ToUInt32(buffer, 0);
                     };
 
-                    var target = resolution.Type;
-
-                    var expression = GenerateConversion(Expression.Block(
+                    result.Expression = GenerateConversion(Expression.Block(
                         Expression.IfThen(
                             Expression.NotEqual(
                                 Expression.Invoke(Expression.Constant(read), context.Stream),
@@ -931,9 +982,7 @@ namespace Chr.Avro.Serialization
                                 )
                             )
                         )
-                    ), target);
-
-                    result.Expression = expression;
+                    ), resolution.Type);
                 }
                 else
                 {
@@ -999,8 +1048,6 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is EnumResolution enumResolution)
                 {
-                    var target = resolution.Type;
-
                     Expression expression = Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int));
 
                     // find a match for each enum in the schema:
@@ -1010,11 +1057,11 @@ namespace Chr.Avro.Serialization
 
                         if (match == null)
                         {
-                            throw new UnsupportedTypeException(target, $"{target.Name} has no value that matches {name}.");
+                            throw new UnsupportedTypeException(resolution.Type, $"{resolution.Type.Name} has no value that matches {name}.");
                         }
 
                         return Expression.SwitchCase(
-                            GenerateConversion(Expression.Constant(match.Value), target),
+                            GenerateConversion(Expression.Constant(match.Value), resolution.Type),
                             Expression.Constant(index)
                         );
                     });
@@ -1025,9 +1072,7 @@ namespace Chr.Avro.Serialization
                     var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum index out of range."));
 
                     // generate a switch on the index:
-                    expression = Expression.Switch(expression, Expression.Throw(exception, target), cases.ToArray());
-
-                    result.Expression = expression;
+                    result.Expression = Expression.Switch(expression, Expression.Throw(exception, resolution.Type), cases.ToArray());
                 }
                 else
                 {
@@ -1090,11 +1135,7 @@ namespace Chr.Avro.Serialization
 
             if (schema is FixedSchema fixedSchema)
             {
-                var target = resolution.Type;
-
-                var expression = GenerateConversion(Codec.Read(context.Stream, Expression.Constant(fixedSchema.Size)), target);
-
-                result.Expression = expression;
+                result.Expression = GenerateConversion(Codec.Read(context.Stream, Expression.Constant(fixedSchema.Size)), resolution.Type);
             }
             else
             {
@@ -1109,17 +1150,17 @@ namespace Chr.Avro.Serialization
         /// will convert a bytes value to <see cref="Guid" /> prior to applying the base
         /// implementation.
         /// </summary>
-        protected override Expression GenerateConversion(Expression input, Type target)
+        protected override Expression GenerateConversion(Expression value, Type target)
         {
             if (target == typeof(Guid) || target == typeof(Guid?))
             {
                 var guidConstructor = typeof(Guid)
-                    .GetConstructor(new[] { input.Type });
+                    .GetConstructor(new[] { value.Type });
 
-                input = Expression.New(guidConstructor, input);
+                value = Expression.New(guidConstructor, value);
             }
 
-            return base.GenerateConversion(input, target);
+            return base.GenerateConversion(value, target);
         }
     }
 
@@ -1170,11 +1211,7 @@ namespace Chr.Avro.Serialization
 
             if (schema is FloatSchema)
             {
-                var target = resolution.Type;
-
-                var expression = GenerateConversion(Codec.ReadSingle(context.Stream), target);
-
-                result.Expression = expression;
+                result.Expression = GenerateConversion(Codec.ReadSingle(context.Stream), resolution.Type);
             }
             else
             {
@@ -1232,11 +1269,7 @@ namespace Chr.Avro.Serialization
 
             if (schema is IntSchema || schema is LongSchema)
             {
-                var target = resolution.Type;
-
-                var expression = GenerateConversion(Codec.ReadInteger(context.Stream), target);
-
-                result.Expression = expression;
+                result.Expression = GenerateConversion(Codec.ReadInteger(context.Stream), resolution.Type);
             }
             else
             {
@@ -1305,17 +1338,19 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is MapResolution mapResolution)
                 {
-                    var target = mapResolution.Type;
-
                     var expression = Codec.ReadMap(
                         context.Stream,
+                        CreateIntermediateDictionary(mapResolution),
                         DeserializerBuilder.BuildExpression(mapResolution.KeyType, new StringSchema(), context),
                         DeserializerBuilder.BuildExpression(mapResolution.ValueType, mapSchema.Value, context)
                     );
 
-                    expression = GenerateConversion(expression, target);
+                    if (!mapResolution.Type.IsAssignableFrom(expression.Type) && FindDictionaryConstructor(mapResolution) is ConstructorResolution constructorResolution)
+                    {
+                        expression = Expression.New(constructorResolution.Constructor, new[] { expression });
+                    }
 
-                    result.Expression = expression;
+                    result.Expression = GenerateConversion(expression, mapResolution.Type);
                 }
                 else
                 {
@@ -1331,24 +1366,65 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
-        /// Generates a conversion from the intermediate type to the target type. This override
-        /// will create an intermediate dictionary for assigning to immutable dictionary types,
-        /// and otherwise it will call the standard conversion.
+        /// Creates an expression that represents instantiating a dictionary.
         /// </summary>
-        protected override Expression GenerateConversion(Expression input, Type target)
+        protected virtual Expression CreateIntermediateDictionary(MapResolution resolution)
         {
-            var genericImmutableDictionary = typeof(ImmutableDictionary<,>);
-
-            if (target.GetGenericTypeDefinition() == genericImmutableDictionary)
+            if (resolution.Type.IsAssignableFrom(typeof(ImmutableDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)))
             {
-                var immutableDictionary = genericImmutableDictionary
-                    .MakeGenericType(target.GenericTypeArguments[0], target.GenericTypeArguments[1]);
-                var emptyImmutableDictionary = Expression.Field(null, immutableDictionary.GetField("Empty"));
-                var addRange = immutableDictionary.GetMethod("AddRange");
-                return Expression.Call(emptyImmutableDictionary, addRange, new[] { input });
+                var createBuilder = typeof(ImmutableDictionary)
+                    .GetMethod(nameof(ImmutableDictionary.CreateBuilder), Type.EmptyTypes)
+                    .MakeGenericMethod(resolution.KeyType, resolution.ValueType);
+
+                return Expression.Call(null, createBuilder);
             }
 
-            return base.GenerateConversion(input, target);
+            if (resolution.Type.IsAssignableFrom(typeof(ImmutableSortedDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)))
+            {
+                var createBuilder = typeof(ImmutableSortedDictionary)
+                    .GetMethod(nameof(ImmutableSortedDictionary.CreateBuilder), Type.EmptyTypes)
+                    .MakeGenericMethod(resolution.KeyType, resolution.ValueType);
+
+                return Expression.Call(null, createBuilder);
+            }
+
+            if (resolution.Type.IsAssignableFrom(typeof(SortedDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)))
+            {
+                return Expression.New(typeof(SortedDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType).GetConstructor(Type.EmptyTypes));
+            }
+
+            if (resolution.Type.IsAssignableFrom(typeof(SortedList<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)))
+            {
+                return Expression.New(typeof(SortedList<,>).MakeGenericType(resolution.KeyType, resolution.ValueType).GetConstructor(Type.EmptyTypes));
+            }
+
+            return Expression.New(typeof(Dictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType).GetConstructor(Type.EmptyTypes));
+        }
+
+        /// <summary>
+        /// Attempts to find a constructor that takes a single dictionary parameter.
+        /// </summary>
+        protected virtual ConstructorResolution? FindDictionaryConstructor(MapResolution resolution)
+        {
+            return resolution.Constructors
+                .Where(c => c.Parameters.Count == 1)
+                .FirstOrDefault(c => c.Parameters.First().Type.IsAssignableFrom(typeof(IDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)));
+        }
+
+        /// <summary>
+        /// Generates a conversion from the intermediate type to the target type.
+        /// </summary>
+        protected override Expression GenerateConversion(Expression value, Type target)
+        {
+            if (target.Assembly == typeof(ImmutableInterlocked).Assembly)
+            {
+                var toImmutable = value.Type
+                    .GetMethod("ToImmutable", Type.EmptyTypes);
+
+                value = Expression.Call(value, toImmutable);
+            }
+
+            return base.GenerateConversion(value, target);
         }
     }
 
@@ -1379,11 +1455,7 @@ namespace Chr.Avro.Serialization
 
             if (schema is NullSchema)
             {
-                var target = resolution.Type;
-
-                var expression = Expression.Default(target);
-
-                result.Expression = expression;
+                result.Expression = Expression.Default(resolution.Type);
             }
             else
             {
@@ -1638,16 +1710,12 @@ namespace Chr.Avro.Serialization
 
             if (schema is StringSchema)
             {
-                var target = resolution.Type;
-
                 var expression = Codec.Read(context.Stream, Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int)));
 
                 var decodeValue = typeof(Encoding)
                     .GetMethod(nameof(Encoding.GetString), new[] { typeof(byte[]) });
 
-                expression = GenerateConversion(Expression.Call(Expression.Constant(Encoding.UTF8), decodeValue, expression), target);
-
-                result.Expression = expression;
+                result.Expression = GenerateConversion(Expression.Call(Expression.Constant(Encoding.UTF8), decodeValue, expression), resolution.Type);
             }
             else
             {
@@ -1663,23 +1731,23 @@ namespace Chr.Avro.Serialization
         /// <see cref="Guid" />, <see cref="TimeSpan" />, or <see cref="Uri" /> prior to applying
         /// the base implementation.
         /// </summary>
-        protected override Expression GenerateConversion(Expression input, Type target)
+        protected override Expression GenerateConversion(Expression value, Type target)
         {
             if (target == typeof(DateTime) || target == typeof(DateTime?))
             {
                 var parseDateTime = typeof(DateTime)
                     .GetMethod(nameof(DateTime.Parse), new[]
                     {
-                        input.Type,
+                        value.Type,
                         typeof(IFormatProvider),
                         typeof(DateTimeStyles)
                     });
 
-                input = Expression.ConvertChecked(
+                value = Expression.ConvertChecked(
                     Expression.Call(
                         null,
                         parseDateTime,
-                        input,
+                        value,
                         Expression.Constant(CultureInfo.InvariantCulture),
                         Expression.Constant(DateTimeStyles.RoundtripKind)
                     ),
@@ -1691,16 +1759,16 @@ namespace Chr.Avro.Serialization
                 var parseDateTimeOffset = typeof(DateTimeOffset)
                     .GetMethod(nameof(DateTimeOffset.Parse), new[]
                     {
-                        input.Type,
+                        value.Type,
                         typeof(IFormatProvider),
                         typeof(DateTimeStyles)
                     });
 
-                input = Expression.ConvertChecked(
+                value = Expression.ConvertChecked(
                     Expression.Call(
                         null,
                         parseDateTimeOffset,
-                        input,
+                        value,
                         Expression.Constant(CultureInfo.InvariantCulture),
                         Expression.Constant(DateTimeStyles.RoundtripKind)
                     ),
@@ -1710,26 +1778,26 @@ namespace Chr.Avro.Serialization
             else if (target == typeof(Guid) || target == typeof(Guid?))
             {
                 var guidConstructor = typeof(Guid)
-                    .GetConstructor(new[] { input.Type });
+                    .GetConstructor(new[] { value.Type });
 
-                input = Expression.New(guidConstructor, input);
+                value = Expression.New(guidConstructor, value);
             }
             else if (target == typeof(TimeSpan) || target == typeof(TimeSpan?))
             {
                 var parseTimeSpan = typeof(XmlConvert)
                     .GetMethod(nameof(XmlConvert.ToTimeSpan));
 
-                input = Expression.Call(null, parseTimeSpan, input);
+                value = Expression.Call(null, parseTimeSpan, value);
             }
             else if (target == typeof(Uri))
             {
                 var uriConstructor = typeof(Uri)
-                    .GetConstructor(new[] { input.Type });
+                    .GetConstructor(new[] { value.Type });
 
-                input = Expression.New(uriConstructor, input);
+                value = Expression.New(uriConstructor, value);
             }
 
-            return base.GenerateConversion(input, target);
+            return base.GenerateConversion(value, target);
         }
     }
 
@@ -1793,8 +1861,6 @@ namespace Chr.Avro.Serialization
                         throw new UnsupportedSchemaException(schema);
                     }
 
-                    var target = resolution.Type;
-
                     Expression epoch = Expression.Constant(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc));
                     Expression factor;
 
@@ -1817,12 +1883,10 @@ namespace Chr.Avro.Serialization
                         .GetMethod(nameof(DateTime.AddTicks));
 
                     // result = epoch.AddTicks(value * factor);
-                    expression = GenerateConversion(
+                    result.Expression = GenerateConversion(
                         Expression.Call(epoch, addTicks, Expression.Multiply(expression, factor)),
-                        target
+                        resolution.Type
                     );
-
-                    result.Expression = expression;
                 }
                 else
                 {
@@ -1902,8 +1966,6 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                var target = resolution.Type;
-
                 Expression expression = Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int));
 
                 // create a mapping for each schema in the union:
@@ -1914,7 +1976,7 @@ namespace Chr.Avro.Serialization
 
                     if (child is NullSchema && selected.Type.IsValueType && underlying == null)
                     {
-                        throw new UnsupportedTypeException(target, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {selected.Type.FullName}.");
+                        throw new UnsupportedTypeException(resolution.Type, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {selected.Type.FullName}.");
                     }
 
                     underlying = selected.Type;
@@ -1922,7 +1984,7 @@ namespace Chr.Avro.Serialization
                     var @case = DeserializerBuilder.BuildExpression(underlying, child, context);
 
                     return Expression.SwitchCase(
-                        GenerateConversion(@case, target),
+                        GenerateConversion(@case, resolution.Type),
                         Expression.Constant(index)
                     );
                 });
@@ -1933,9 +1995,7 @@ namespace Chr.Avro.Serialization
                 var exception = Expression.New(exceptionConstructor, Expression.Constant("Union index out of range."));
 
                 // generate a switch on the index:
-                expression = Expression.Switch(expression, Expression.Throw(exception, target), cases.ToArray());
-
-                result.Expression = expression;
+                result.Expression = Expression.Switch(expression, Expression.Throw(exception, resolution.Type), cases.ToArray());
             }
             else
             {

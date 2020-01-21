@@ -69,7 +69,7 @@ namespace Chr.Avro.Resolution
                     : new DataContractEnumResolverCase() as ITypeResolverCase,
 
                 // dictionaries:
-                resolver => new DictionaryResolverCase(),
+                resolver => new DictionaryResolverCase(memberVisibility),
 
                 // enumerables:
                 resolver => new EnumerableResolverCase(memberVisibility),

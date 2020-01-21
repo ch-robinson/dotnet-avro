@@ -20,7 +20,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Generates an expression that reads item blocks from a stream.
         /// </summary>
-        Expression ReadArray(Expression stream, Expression readItem);
+        Expression ReadArray(Expression stream, Expression createCollection, Expression readItem);
 
         /// <summary>
         /// Generates an expression that reads a boolean.
@@ -40,7 +40,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Generates an expression that reads key-value blocks from a stream.
         /// </summary>
-        Expression ReadMap(Expression stream, Expression readKey, Expression readValue);
+        Expression ReadMap(Expression stream, Expression createDictionary, Expression readKey, Expression readValue);
 
         /// <summary>
         /// Generates an expression that reads a single-precision floating-point number.
@@ -106,25 +106,18 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Generates an expression that reads item blocks from a stream.
         /// </summary>
-        public virtual Expression ReadArray(Expression stream, Expression readItem)
+        public virtual Expression ReadArray(Expression stream, Expression createCollection, Expression readItem)
         {
-            var constructor = typeof(List<>)
-                .MakeGenericType(readItem.Type)
-                .GetConstructor(Type.EmptyTypes);
-
-            var list = Expression.Variable(constructor.DeclaringType);
-
-            var add = typeof(ICollection<>)
-                .MakeGenericType(readItem.Type)
-                .GetMethod("Add", new[] { readItem.Type });
+            var collection = Expression.Variable(createCollection.Type);
+            var add = collection.Type.GetMethod("Add", new[] { readItem.Type });
 
             return Expression.Block(
-                new[] { list },
-                Expression.Assign(list, Expression.New(constructor)),
+                new[] { collection },
+                Expression.Assign(collection, createCollection),
                 ReadBlocks(
                     stream,
-                    Expression.Call(list, add, readItem)),
-                list);
+                    Expression.Call(collection, add, readItem)),
+                collection);
         }
 
         /// <summary>
@@ -252,21 +245,14 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Generates an expression that reads key-value blocks from a stream.
         /// </summary>
-        public virtual Expression ReadMap(Expression stream, Expression readKey, Expression readValue)
+        public virtual Expression ReadMap(Expression stream, Expression createDictionary, Expression readKey, Expression readValue)
         {
-            var constructor = typeof(Dictionary<,>)
-                .MakeGenericType(readKey.Type, readValue.Type)
-                .GetConstructor(Type.EmptyTypes);
-
-            var dictionary = Expression.Variable(constructor.DeclaringType);
-
-            var add = typeof(IDictionary<,>)
-                .MakeGenericType(readKey.Type, readValue.Type)
-                .GetMethod("Add", new[] { readKey.Type, readValue.Type });
+            var dictionary = Expression.Variable(createDictionary.Type);
+            var add = dictionary.Type.GetMethod("Add", new[] { readKey.Type, readValue.Type });
 
             return Expression.Block(
                 new[] { dictionary },
-                Expression.Assign(dictionary, Expression.New(constructor)),
+                Expression.Assign(dictionary, createDictionary),
                 ReadBlocks(
                     stream,
                     Expression.Call(dictionary, add, readKey, readValue)),
@@ -318,6 +304,7 @@ namespace Chr.Avro.Serialization
         public Expression WriteArray(Expression items, ParameterExpression item, Expression writeItem, Expression stream)
         {
             var collection = Expression.Variable(typeof(ICollection<>).MakeGenericType(item.Type));
+            var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(item.Type));
             var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(item.Type));
 
             var loop = Expression.Label();
@@ -351,7 +338,7 @@ namespace Chr.Avro.Serialization
                     Expression.Condition(
                         Expression.TypeIs(items, collection.Type),
                         Expression.Convert(items, collection.Type),
-                        Expression.Convert(Expression.Call(null, toList, items), collection.Type))),
+                        Expression.Convert(Expression.Call(null, toList, Expression.Convert(items, enumerable.Type)), collection.Type))),
                 Expression.IfThen(
                     Expression.GreaterThan(Expression.Property(collection, getCount), Expression.Constant(0)),
                     Expression.Block(

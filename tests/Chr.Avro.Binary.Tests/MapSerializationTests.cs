@@ -53,6 +53,28 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(StringKeyData))]
+        public void IImmutableDictionaryValues(Dictionary<string, double> value)
+        {
+            var schema = new MapSchema(new DoubleSchema());
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<IImmutableDictionary<string, double>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<IImmutableDictionary<string, double>>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value.ToImmutableDictionary())));
+        }
+
+        [Theory]
+        [MemberData(nameof(StringKeyData))]
+        public void IReadOnlyDictionaryValues(Dictionary<string, double> value)
+        {
+            var schema = new MapSchema(new DoubleSchema());
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<IReadOnlyDictionary<string, double>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<IReadOnlyDictionary<string, double>>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
+        [MemberData(nameof(StringKeyData))]
         public void ImmutableDictionaryValues(Dictionary<string, double> value)
         {
             var schema = new MapSchema(new DoubleSchema());
@@ -60,6 +82,39 @@ namespace Chr.Avro.Serialization.Tests
             var deserializer = DeserializerBuilder.BuildDeserializer<ImmutableDictionary<string, double>>(schema);
             var serializer = SerializerBuilder.BuildSerializer<ImmutableDictionary<string, double>>(schema);
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value.ToImmutableDictionary())));
+        }
+
+        [Theory]
+        [MemberData(nameof(StringKeyData))]
+        public void ImmutableSortedDictionaryValues(Dictionary<string, double> value)
+        {
+            var schema = new MapSchema(new DoubleSchema());
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<ImmutableSortedDictionary<string, double>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<ImmutableSortedDictionary<string, double>>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value.ToImmutableSortedDictionary())));
+        }
+
+        [Theory]
+        [MemberData(nameof(StringKeyData))]
+        public void SortedDictionaryValues(Dictionary<string, double> value)
+        {
+            var schema = new MapSchema(new DoubleSchema());
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<SortedDictionary<string, double>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<SortedDictionary<string, double>>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(new SortedDictionary<string, double>(value))));
+        }
+
+        [Theory]
+        [MemberData(nameof(StringKeyData))]
+        public void SortedListValues(Dictionary<string, double> value)
+        {
+            var schema = new MapSchema(new DoubleSchema());
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<SortedList<string, double>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<SortedList<string, double>>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(new SortedList<string, double>(value))));
         }
 
         public static IEnumerable<object[]> DateTimeKeyData => new List<object[]>
