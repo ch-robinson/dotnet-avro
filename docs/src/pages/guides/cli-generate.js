@@ -53,7 +53,7 @@ namespace ExampleNamespace
       <p>The CLI writes generated code to the <ExternalLink to='https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)'>console</ExternalLink>. Use your shell’s capabilities to read from and write to files. In Bash, that looks like this:</p>
       <Highlight language='bash'>{'$ dotnet avro generate < example-class.avsc > ExampleClass.cs'}</Highlight>
       <p>And in PowerShell:</p>
-      <Highlight language='powershell'>{'PS C:\\> Get-Content .\\example-class.avsc | dotnet avro generate | Output-File .\\ExampleClass.cs'}</Highlight>
+      <Highlight language='powershell'>{'PS C:\\> Get-Content .\\example-class.avsc | dotnet avro generate | Out-File .\\ExampleClass.cs'}</Highlight>
 
       <p>Generated enums and classes are grouped by namespace.</p>
     </>
