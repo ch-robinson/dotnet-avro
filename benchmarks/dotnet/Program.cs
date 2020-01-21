@@ -3,6 +3,7 @@ using CsvHelper.Configuration.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -22,7 +23,7 @@ namespace Chr.Avro.Benchmarks
                 writer = File.CreateText(output);
             }
 
-            using (var csv = new CsvWriter(writer))
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
                 // primitives:
                 csv.WriteRecords(Run<Apache.BooleanRunner>());
