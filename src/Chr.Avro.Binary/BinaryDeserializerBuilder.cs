@@ -481,7 +481,7 @@ namespace Chr.Avro.Serialization
         /// </summary>
         protected virtual Expression CreateIntermediateCollection(ArrayResolution resolution)
         {
-            if (resolution.Type.IsArray || resolution.Type.IsAssignableFrom(typeof(ImmutableArray<>).MakeGenericType(resolution.ItemType)))
+            if (resolution.Type.IsArray || resolution.Type.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(resolution.ItemType)) || resolution.Type.IsAssignableFrom(typeof(ImmutableArray<>).MakeGenericType(resolution.ItemType)))
             {
                 var createBuilder = typeof(ImmutableArray)
                     .GetMethod(nameof(ImmutableArray.CreateBuilder), Type.EmptyTypes)
@@ -545,7 +545,7 @@ namespace Chr.Avro.Serialization
         /// </summary>
         protected override Expression GenerateConversion(Expression value, Type target)
         {
-            if (target.IsArray && !value.Type.IsArray)
+            if (!value.Type.IsArray && (target.IsArray || target.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(target.GenericTypeArguments))))
             {
                 var toArray = value.Type
                     .GetMethod("ToArray", Type.EmptyTypes);

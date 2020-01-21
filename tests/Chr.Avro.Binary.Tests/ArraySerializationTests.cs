@@ -1,4 +1,5 @@
 using Chr.Avro.Abstract;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -26,6 +27,17 @@ namespace Chr.Avro.Serialization.Tests
 
             var deserializer = DeserializerBuilder.BuildDeserializer<int[]>(schema);
             var serializer = SerializerBuilder.BuildSerializer<int[]>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArrayData))]
+        public void ArraySegmentValues(int[] value)
+        {
+            var schema = new ArraySchema(new IntSchema());
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<ArraySegment<int>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<ArraySegment<int>>(schema);
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
         }
 
