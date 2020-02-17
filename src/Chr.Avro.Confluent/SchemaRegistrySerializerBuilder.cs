@@ -135,7 +135,7 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public async Task<ISerializer<T>> Build<T>(int id)
         {
-            return Build<T>(id, await RegistryClient.GetSchemaAsync(id));
+            return Build<T>(id, await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -157,7 +157,7 @@ namespace Chr.Avro.Confluent
         {
             try
             {
-                var schema = await RegistryClient.GetLatestSchemaAsync(subject);
+                var schema = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
 
                 return Build<T>(schema.Id, schema.SchemaString);
             }
@@ -172,7 +172,7 @@ namespace Chr.Avro.Confluent
                 var schema = SchemaBuilder.BuildSchema<T>();
                 var json = SchemaWriter.Write(schema);
 
-                var id = await RegistryClient.RegisterSchemaAsync(subject, json);
+                var id = await RegistryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
 
                 return Build<T>(id, json);
             }
@@ -192,8 +192,8 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public virtual async Task<ISerializer<T>> Build<T>(string subject, int version)
         {
-            var schema = await RegistryClient.GetSchemaAsync(subject, version);
-            var id = await RegistryClient.GetSchemaIdAsync(subject, schema);
+            var schema = await RegistryClient.GetSchemaAsync(subject, version).ConfigureAwait(false);
+            var id = await RegistryClient.GetSchemaIdAsync(subject, schema).ConfigureAwait(false);
 
             return Build<T>(id, schema);
         }

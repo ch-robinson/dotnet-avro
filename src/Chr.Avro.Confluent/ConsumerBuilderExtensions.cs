@@ -66,7 +66,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, id);
+                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -90,7 +90,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, id);
+                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -110,7 +110,7 @@ namespace Chr.Avro.Confluent
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             int id
-        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(id));
+        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key deserializer.
@@ -132,7 +132,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject);
+                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject).ConfigureAwait(false);
             }
         }
 
@@ -157,7 +157,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject);
+                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject).ConfigureAwait(false);
             }
         }
 
@@ -178,7 +178,7 @@ namespace Chr.Avro.Confluent
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject
-        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(subject));
+        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(subject).ConfigureAwait(false));
 
 
         /// <summary>
@@ -204,7 +204,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject, version);
+                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -232,7 +232,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject, version);
+                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -256,7 +256,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject,
             int version
-        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(subject, version));
+        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value deserializer.
@@ -312,7 +312,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, id);
+                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -336,7 +336,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, id);
+                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -356,7 +356,7 @@ namespace Chr.Avro.Confluent
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             int id
-        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(id));
+        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value deserializer.
@@ -378,7 +378,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject);
+                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject).ConfigureAwait(false);
             }
         }
 
@@ -403,7 +403,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject);
+                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject).ConfigureAwait(false);
             }
         }
 
@@ -424,7 +424,7 @@ namespace Chr.Avro.Confluent
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject
-        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(subject));
+        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(subject).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value deserializer.
@@ -449,7 +449,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject, version);
+                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -477,7 +477,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject, version);
+                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -501,6 +501,6 @@ namespace Chr.Avro.Confluent
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject,
             int version
-        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(subject, version));
+        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(subject, version).ConfigureAwait(false));
     }
 }

@@ -151,7 +151,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -174,7 +174,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -198,7 +198,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -222,7 +222,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -242,7 +242,7 @@ namespace Chr.Avro.Confluent
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             int id
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(id));
+        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -260,7 +260,7 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             int id
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(id));
+        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -287,7 +287,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
             }
         }
 
@@ -316,7 +316,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
             }
         }
 
@@ -346,7 +346,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
             }
         }
 
@@ -376,7 +376,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
             }
         }
 
@@ -402,7 +402,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             bool registerAutomatically = false
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, registerAutomatically));
+        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, registerAutomatically).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -426,7 +426,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             bool registerAutomatically = false
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, registerAutomatically));
+        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, registerAutomatically).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -451,7 +451,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -478,7 +478,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -506,7 +506,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -534,7 +534,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version);
+                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -558,7 +558,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, version));
+        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -580,7 +580,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, version));
+        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
 
         #endregion
 
@@ -723,7 +723,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -746,7 +746,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -770,7 +770,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -794,7 +794,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id).ConfigureAwait(false);
             }
         }
 
@@ -814,7 +814,7 @@ namespace Chr.Avro.Confluent
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             int id
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(id));
+        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -832,7 +832,7 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             int id
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(id));
+        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -859,7 +859,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
             }
         }
 
@@ -888,7 +888,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
             }
         }
 
@@ -918,7 +918,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
             }
         }
 
@@ -948,7 +948,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
             }
         }
 
@@ -974,7 +974,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             bool registerAutomatically = false
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, registerAutomatically));
+        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, registerAutomatically).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -998,7 +998,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             bool registerAutomatically = false
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, registerAutomatically));
+        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, registerAutomatically).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -1023,7 +1023,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -1050,7 +1050,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -1078,7 +1078,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -1106,7 +1106,7 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version);
+                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version).ConfigureAwait(false);
             }
         }
 
@@ -1130,7 +1130,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, version));
+        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, version).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -1152,7 +1152,7 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, version));
+        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, version).ConfigureAwait(false));
     }
 
     #endregion
