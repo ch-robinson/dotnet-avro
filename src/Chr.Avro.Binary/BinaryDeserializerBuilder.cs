@@ -1507,7 +1507,7 @@ namespace Chr.Avro.Serialization
             {
                 throw new UnsupportedSchemaException(schema, "A record constructor deserializer can only be built for a record schema.");
             }
-            
+
             var schemaFields = recordSchema.Fields.ToList();
 
             // attempt to find a constructor with arguments fully inclusive of all schema fields by name allowing for extra optional arguments
@@ -1541,7 +1541,7 @@ namespace Chr.Avro.Serialization
             var compiled = cache.GetOrAdd((target, schema), lambda.Compile());
 
             var constructorArguments = new List<(ParameterResolution, ParameterExpression)>();
-            // now that an infinite loop won't happen, build the expressions to extract the parameters from the serialized data            
+            // now that an infinite loop won't happen, build the expressions to extract the parameters from the serialized data
             var extractParameters = recordSchema.Fields.Select(field =>
             {
                 // there will be a match or we wouldn't have made it this far.
@@ -1602,7 +1602,7 @@ namespace Chr.Avro.Serialization
 
             return compiled;
         }
-               
+
         /// <summary>
         /// Whether the resolved constructor matches a record schema's fields.
         /// </summary>
@@ -1610,7 +1610,7 @@ namespace Chr.Avro.Serialization
         /// The constructor resolution to check for a match.
         /// </param>
         /// <param name="recordFields">
-        /// The record schema fields to match against the constructor parameters. 
+        /// The record schema fields to match against the constructor parameters.
         /// </param>
         /// <returns></returns>
         protected bool IsMatch(ConstructorResolution constructor, ICollection<RecordField> recordFields)
@@ -1726,7 +1726,13 @@ namespace Chr.Avro.Serialization
             var assignments = recordSchema.Fields.Select(field =>
             {
                 var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-                var type = match?.Type ?? CreateSurrogateType(field.Type);
+
+                // ensure that an integer is used as the surrogate for enum fields:
+                var fieldSchema = match == null && field.Type is EnumSchema
+                    ? new LongSchema()
+                    : field.Type;
+
+                var type = match?.Type ?? CreateSurrogateType(fieldSchema);
 
                 Expression action = null;
 
@@ -1738,7 +1744,7 @@ namespace Chr.Avro.Serialization
 
                     // https://i.imgur.com/PBLYIc2.gifv
                     action = Expression.Constant(
-                        build.Invoke(DeserializerBuilder, new object[] { field.Type, cache }),
+                        build.Invoke(DeserializerBuilder, new object[] { fieldSchema, cache }),
                         typeof(Func<,>).MakeGenericType(typeof(Stream), type)
                     );
                 }
