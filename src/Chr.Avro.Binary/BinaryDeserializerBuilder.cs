@@ -1565,13 +1565,8 @@ namespace Chr.Avro.Serialization
                                     .Concat(recordSchema.Fields.Select(field =>
                                     {
                                         var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-
-                                        // ensure that an integer is used as the surrogate for enum fields:
-                                        var schema = match == null && field.Type is EnumSchema
-                                            ? new LongSchema()
-                                            : field.Type;
-
-                                        var type = match?.Type ?? CreateSurrogateType(schema);
+                                        var schema = match == null ? CreateSurrogateSchema(field.Type) : field.Type;
+                                        var type = match == null ? CreateSurrogateType(schema) : match.Type;
 
                                         // always read to advance the stream:
                                         var expression = DeserializerBuilder.BuildExpression(type, schema, context);
@@ -1610,16 +1605,38 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
+        /// Creates a schema that can be used to deserialize missing record fields.
+        /// </summary>
+        /// <param name="schema">
+        /// The schema to alter.
+        /// </param>
+        /// <returns>
+        /// A schema that can be mapped to a surrogate type.
+        /// </returns>
+        protected virtual Schema CreateSurrogateSchema(Schema schema)
+        {
+            return schema switch
+            {
+                ArraySchema array => new ArraySchema(CreateSurrogateSchema(array.Item)),
+                EnumSchema _ => new LongSchema(),
+                MapSchema map => new MapSchema(CreateSurrogateSchema(map.Value)),
+                UnionSchema union => new UnionSchema(union.Schemas.Select(CreateSurrogateSchema).ToList()),
+                _ => schema
+            };
+        }
+
+        /// <summary>
         /// Creates a type that can be used to deserialize missing record fields.
         /// </summary>
         /// <param name="schema">
-        /// The schema to generate a compatible type for.
+        /// The schema to select a compatible type for.
         /// </param>
         /// <returns>
         /// <see cref="IEnumerable{T}" /> if the schema is an array schema (or a union schema
         /// containing only array/null schemas), <see cref="IDictionary{TKey, TValue}" /> if the
         /// schema is a map schema (or a union schema containing only map/null schemas), and
-        /// <see cref="Object" /> otherwise.</returns>
+        /// <see cref="Object" /> otherwise.
+        /// </returns>
         protected virtual Type CreateSurrogateType(Schema schema)
         {
             var schemas = schema is UnionSchema union
