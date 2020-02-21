@@ -1805,7 +1805,13 @@ namespace Chr.Avro.Serialization
             var assignments = recordSchema.Fields.Select(field =>
             {
                 var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-                var type = match?.Type ?? CreateSurrogateType(field.Type);
+
+                // ensure that an integer is used as the surrogate for enum fields:
+                var fieldSchema = match == null && field.Type is EnumSchema
+                    ? new LongSchema()
+                    : field.Type;
+
+                var type = match?.Type ?? CreateSurrogateType(fieldSchema);
 
                 Expression action = null;
 
@@ -1817,7 +1823,7 @@ namespace Chr.Avro.Serialization
 
                     // https://i.imgur.com/PBLYIc2.gifv
                     action = Expression.Constant(
-                        build.Invoke(DeserializerBuilder, new object[] { field.Type, cache }),
+                        build.Invoke(DeserializerBuilder, new object[] { fieldSchema, cache }),
                         typeof(Func<,>).MakeGenericType(typeof(Stream), type)
                     );
                 }
