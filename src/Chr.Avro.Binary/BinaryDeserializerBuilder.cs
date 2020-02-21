@@ -1805,13 +1805,8 @@ namespace Chr.Avro.Serialization
             var assignments = recordSchema.Fields.Select(field =>
             {
                 var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-
-                // ensure that an integer is used as the surrogate for enum fields:
-                var fieldSchema = match == null && field.Type is EnumSchema
-                    ? new LongSchema()
-                    : field.Type;
-
-                var type = match?.Type ?? CreateSurrogateType(fieldSchema);
+                var fieldSchema = match == null ? CreateSurrogateSchema(field.Type) : field.Type;
+                var type = match == null ? CreateSurrogateType(fieldSchema) : match.Type;
 
                 Expression action = null;
 
@@ -1874,16 +1869,47 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
+        /// Creates a schema that can be used to deserialize missing record fields.
+        /// </summary>
+        /// <param name="schema">
+        /// The schema to alter.
+        /// </param>
+        /// <returns>
+        /// A schema that can be mapped to a surrogate type.
+        /// </returns>
+        protected virtual Schema CreateSurrogateSchema(Schema schema)
+        {
+            switch (schema)
+            {
+                case ArraySchema array:
+                    return new ArraySchema(CreateSurrogateSchema(array.Item));
+
+                case EnumSchema _:
+                    return new LongSchema();
+
+                case MapSchema map:
+                    return new MapSchema(CreateSurrogateSchema(map.Value));
+
+                case UnionSchema union:
+                    return new UnionSchema(union.Schemas.Select(CreateSurrogateSchema).ToList());
+
+                default:
+                    return schema;
+            }
+        }
+
+        /// <summary>
         /// Creates a type that can be used to deserialize missing record fields.
         /// </summary>
         /// <param name="schema">
-        /// The schema to generate a compatible type for.
+        /// The schema to select a compatible type for.
         /// </param>
         /// <returns>
         /// <see cref="IEnumerable{T}" /> if the schema is an array schema (or a union schema
         /// containing only array/null schemas), <see cref="IDictionary{TKey, TValue}" /> if the
         /// schema is a map schema (or a union schema containing only map/null schemas), and
-        /// <see cref="Object" /> otherwise.</returns>
+        /// <see cref="Object" /> otherwise.
+        /// </returns>
         protected virtual Type CreateSurrogateType(Schema schema)
         {
             var schemas = schema is UnionSchema union
