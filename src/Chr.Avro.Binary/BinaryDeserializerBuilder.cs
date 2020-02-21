@@ -1565,10 +1565,16 @@ namespace Chr.Avro.Serialization
                                     .Concat(recordSchema.Fields.Select(field =>
                                     {
                                         var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-                                        var type = match?.Type ?? CreateSurrogateType(field.Type);
+
+                                        // ensure that an integer is used as the surrogate for enum fields:
+                                        var schema = match == null && field.Type is EnumSchema
+                                            ? new LongSchema()
+                                            : field.Type;
+
+                                        var type = match?.Type ?? CreateSurrogateType(schema);
 
                                         // always read to advance the stream:
-                                        var expression = DeserializerBuilder.BuildExpression(type, field.Type, context);
+                                        var expression = DeserializerBuilder.BuildExpression(type, schema, context);
 
                                         if (match != null)
                                         {

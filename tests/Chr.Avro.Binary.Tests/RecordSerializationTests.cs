@@ -158,7 +158,8 @@ namespace Chr.Avro.Serialization.Tests
         {
             var boolean = new BooleanSchema();
             var array = new ArraySchema(boolean);
-            var map = new MapSchema(boolean);
+            var map = new MapSchema(new IntSchema());
+            var @enum = new EnumSchema("Position", new[] { "First", "Last" });
             var union = new UnionSchema(new Schema[]
             {
                 new NullSchema(),
@@ -173,8 +174,8 @@ namespace Chr.Avro.Serialization.Tests
                 new RecordField("Fourth", array),
                 new RecordField("Fifth", map),
                 new RecordField("Sixth", map),
-                new RecordField("Seventh", boolean),
-                new RecordField("Eighth", boolean)
+                new RecordField("Seventh", @enum),
+                new RecordField("Eighth", @enum)
             });
 
             var deserializer = DeserializerBuilder.BuildDeserializer<WithoutEvenFields>(schema);
@@ -186,13 +187,13 @@ namespace Chr.Avro.Serialization.Tests
                 Second = new List<bool>() { false, false },
                 Third = new List<bool>() { false, false, false },
                 Fourth = new List<bool>() { false },
-                Fifth = new Dictionary<string, bool>() { { "first", false } },
-                Sixth = new Dictionary<string, bool>() { { "first", false }, { "second", false } },
-                Seventh = true,
-                Eighth = false
+                Fifth = new Dictionary<string, int>() { { "first", 1 } },
+                Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
+                Seventh = Position.Last,
+                Eighth = Position.First
             };
 
-            Assert.True(deserializer.Deserialize(serializer.Serialize(value)).Seventh);
+            Assert.Equal(value.Seventh, deserializer.Deserialize(serializer.Serialize(value)).Seventh);
         }
 
         [Fact]
@@ -262,13 +263,13 @@ namespace Chr.Avro.Serialization.Tests
 
             public IEnumerable<bool> Fourth { get; set; }
 
-            public IDictionary<string, bool> Fifth { get; set; }
+            public IDictionary<string, int> Fifth { get; set; }
 
-            public IDictionary<string, bool> Sixth { get; set; }
+            public IDictionary<string, int> Sixth { get; set; }
 
-            public bool Seventh { get; set; }
+            public Position Seventh { get; set; }
 
-            public bool Eighth { get; set; }
+            public Position Eighth { get; set; }
         }
 
         public class WithoutEvenFields
@@ -277,9 +278,15 @@ namespace Chr.Avro.Serialization.Tests
 
             public IEnumerable<bool> Third { get; set; }
 
-            public IDictionary<string, bool> Fifth { get; set; }
+            public IDictionary<string, int> Fifth { get; set; }
 
-            public bool Seventh { get; set; }
+            public Position Seventh { get; set; }
+        }
+
+        public enum Position
+        {
+            First,
+            Last
         }
     }
 }
