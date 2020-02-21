@@ -12,7 +12,7 @@
     <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
     <SignAssembly>true</SignAssembly>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Version>3.2.0</Version>
+    <Version>3.2.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
