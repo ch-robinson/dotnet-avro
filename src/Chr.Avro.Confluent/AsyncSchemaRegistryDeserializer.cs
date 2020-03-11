@@ -115,6 +115,10 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public virtual async Task<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, SerializationContext context)
         {
+            if (isNull)
+            {
+                return default(T);
+            }
             using (var stream = new MemoryStream(data.ToArray(), false))
             {
                 var bytes = new byte[4];

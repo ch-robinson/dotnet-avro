@@ -1,3 +1,4 @@
+using System;
 using Chr.Avro.Abstract;
 using Chr.Avro.Representation;
 using Chr.Avro.Serialization;
@@ -60,6 +61,22 @@ namespace Chr.Avro.Confluent.Tests
 
             Assert.Equal(data,
                 await deserializer.DeserializeAsync(encoding, false, context)
+            );
+        }
+
+        [Fact]
+        public async Task ReturnsDefaultObjectWhenValueIsNull()
+        {
+            var deserializer = new AsyncSchemaRegistryDeserializer<Object>(
+                RegistryClientMock.Object
+            );
+
+            Object data = null;
+            var encoding = new byte[] { };
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+
+            Assert.Equal(data,
+                await deserializer.DeserializeAsync(encoding, true, context)
             );
         }
 
