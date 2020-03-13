@@ -84,56 +84,6 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
-        public async Task SerializesWithAutoRegistrationIncompatible()
-        {
-            var serializer = new AsyncSchemaRegistrySerializer<int>(
-                RegistryClientMock.Object,
-                registerAutomatically: AutomaticRegistrationBehavior.WhenIncompatible
-            );
-
-            var data = 6;
-            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0a, 0x0c };
-            var metadata = new MessageMetadata();
-            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
-            var subject = $"{context.Topic}-value";
-
-            RegistryClientMock
-                .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 1, 9, "\"string\""));
-
-            RegistryClientMock
-                .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
-                .ReturnsAsync(10);
-
-            Assert.Equal(encoding, await serializer.SerializeAsync(data, context));
-        }
-
-        [Fact]
-        public async Task SerializesWithAutoRegistrationMissing()
-        {
-            var serializer = new AsyncSchemaRegistrySerializer<int>(
-                RegistryClientMock.Object,
-                registerAutomatically: AutomaticRegistrationBehavior.WhenIncompatible
-            );
-
-            var data = 6;
-            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x08, 0x0c };
-            var metadata = new MessageMetadata();
-            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
-            var subject = $"{context.Topic}-value";
-
-            RegistryClientMock
-                .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ThrowsAsync(new SchemaRegistryException("Subject not found", HttpStatusCode.NotFound, 40401));
-
-            RegistryClientMock
-                .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
-                .ReturnsAsync(8);
-
-            Assert.Equal(encoding, await serializer.SerializeAsync(data, context));
-        }
-
-        [Fact]
         public async Task SerializesWithAutoRegistrationNever()
         {
             var serializer = new AsyncSchemaRegistrySerializer<int>(

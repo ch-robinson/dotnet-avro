@@ -203,31 +203,21 @@ namespace Chr.Avro.Confluent
         {
             var serialize = await (_cache.GetOrAdd(SubjectNameBuilder(context), async subject =>
             {
-                if (RegisterAutomatically == AutomaticRegistrationBehavior.Always)
+                switch (RegisterAutomatically)
                 {
-                    var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
-                    var id = await _register(subject, json).ConfigureAwait(false);
-
-                    return Build(id, json);
-                }
-                else
-                {
-                    try
-                    {
-                        var existing = await _resolve(subject).ConfigureAwait(false);
-
-                        return Build(existing.Id, existing.SchemaString);
-                    }
-                    catch (Exception e) when (RegisterAutomatically == AutomaticRegistrationBehavior.WhenIncompatible && (
-                        (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                        (e is UnsupportedSchemaException || e is UnsupportedTypeException)
-                    ))
-                    {
+                    case AutomaticRegistrationBehavior.Always:
                         var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
                         var id = await _register(subject, json).ConfigureAwait(false);
 
                         return Build(id, json);
-                    }
+
+                    case AutomaticRegistrationBehavior.Never:
+                        var existing = await _resolve(subject).ConfigureAwait(false);
+
+                        return Build(existing.Id, existing.SchemaString);
+
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(RegisterAutomatically));
                 }
             })).ConfigureAwait(false);
 

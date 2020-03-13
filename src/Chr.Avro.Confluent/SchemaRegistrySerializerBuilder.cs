@@ -3,7 +3,6 @@ using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Confluent
@@ -192,31 +191,21 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public async Task<ISerializer<T>> Build<T>(string subject, AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never)
         {
-            if (registerAutomatically == AutomaticRegistrationBehavior.Always)
+            switch (registerAutomatically)
             {
-                var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
-                var id = await RegistryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
-
-                return Build<T>(id, json);
-            }
-            else
-            {
-                try
-                {
-                    var existing = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
-
-                    return Build<T>(existing.Id, existing.SchemaString);
-                }
-                catch (Exception e) when (registerAutomatically == AutomaticRegistrationBehavior.WhenIncompatible && (
-                    (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                    (e is UnsupportedSchemaException || e is UnsupportedTypeException)
-                ))
-                {
+                case AutomaticRegistrationBehavior.Always:
                     var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
                     var id = await RegistryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
 
                     return Build<T>(id, json);
-                }
+
+                case AutomaticRegistrationBehavior.Never:
+                    var existing = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
+
+                    return Build<T>(existing.Id, existing.SchemaString);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(registerAutomatically));
             }
         }
 

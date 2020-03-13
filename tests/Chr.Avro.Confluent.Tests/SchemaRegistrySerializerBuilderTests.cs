@@ -114,58 +114,6 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
-        public async Task SerializesWithAutoRegistrationIncompatible()
-        {
-            var subject = "new_subject";
-            var id = 40;
-
-            RegistryMock.Setup(r => r.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 1, 38, "\"int\""))
-                .Verifiable();
-
-            RegistryMock.Setup(r => r.RegisterSchemaAsync(subject, It.IsAny<string>()))
-                .ReturnsAsync(id)
-                .Verifiable();
-
-            using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
-            {
-                await builder.Build<string>(subject, registerAutomatically: AutomaticRegistrationBehavior.WhenIncompatible);
-
-                RegistryMock.Verify(r => r.GetLatestSchemaAsync(subject), Times.Once());
-                RegistryMock.Verify(r => r.RegisterSchemaAsync(subject, It.IsAny<string>()), Times.Once());
-                RegistryMock.VerifyNoOtherCalls();
-            }
-        }
-
-        [Fact]
-        public async Task SerializesWithAutoRegistrationMissing()
-        {
-            var subject = "new_subject";
-            var id = 40;
-
-            RegistryMock.Setup(r => r.GetLatestSchemaAsync(subject))
-                .ThrowsAsync(new SchemaRegistryException(
-                    "Subject not found.",
-                    HttpStatusCode.NotFound,
-                    40401
-                ))
-                .Verifiable();
-
-            RegistryMock.Setup(r => r.RegisterSchemaAsync(subject, It.IsAny<string>()))
-                .ReturnsAsync(id)
-                .Verifiable();
-
-            using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
-            {
-                await builder.Build<string>(subject, registerAutomatically: AutomaticRegistrationBehavior.WhenIncompatible);
-
-                RegistryMock.Verify(r => r.GetLatestSchemaAsync(subject), Times.Once());
-                RegistryMock.Verify(r => r.RegisterSchemaAsync(subject, It.IsAny<string>()), Times.Once());
-                RegistryMock.VerifyNoOtherCalls();
-            }
-        }
-
-        [Fact]
         public async Task SerializesWithAutoRegistrationNever()
         {
             var subject = "new_subject";
