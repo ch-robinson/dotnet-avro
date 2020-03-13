@@ -9,10 +9,49 @@ using System.Threading.Tasks;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// Builds <see cref="T:ISerializer{T}" />s that are locked into specific schemas from a Schema
-    /// Registry instance.
+    /// Builds <see cref="T:ISerializer{T}" />s based on specific schemas from a Schema Registry
+    /// instance.
     /// </summary>
-    public class SchemaRegistrySerializerBuilder : IDisposable
+    public interface ISchemaRegistrySerializerBuilder
+    {
+        /// <summary>
+        /// Builds a serializer for a specific schema.
+        /// </summary>
+        /// <param name="id">
+        /// The ID of the schema that should be used to serialize data.
+        /// </param>
+        Task<ISerializer<T>> Build<T>(int id);
+
+        /// <summary>
+        /// Builds a serializer for a specific schema.
+        /// </summary>
+        /// <param name="subject">
+        /// The subject of the schema that should be used to serialize data. The latest version of
+        /// the subject will be resolved.
+        /// </param>
+        /// <param name="registerAutomatically">
+        /// Whether to automatically register a schema that matches <typeparamref name="T" /> if
+        /// one does not already exist.
+        /// </param>
+        Task<ISerializer<T>> Build<T>(string subject, bool registerAutomatically = false);
+
+        /// <summary>
+        /// Builds a serializer for a specific schema.
+        /// </summary>
+        /// <param name="subject">
+        /// The subject of the schema that should be used to serialize data.
+        /// </param>
+        /// <param name="version">
+        /// The version of the subject to be resolved.
+        /// </param>
+        Task<ISerializer<T>> Build<T>(string subject, int version);
+    }
+
+    /// <summary>
+    /// Builds <see cref="T:ISerializer{T}" />s based on specific schemas from a Schema Registry
+    /// instance.
+    /// </summary>
+    public class SchemaRegistrySerializerBuilder : ISchemaRegistrySerializerBuilder, IDisposable
     {
         /// <summary>
         /// The client to use for Schema Registry operations.

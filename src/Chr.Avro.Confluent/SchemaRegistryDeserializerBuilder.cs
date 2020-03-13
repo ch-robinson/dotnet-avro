@@ -9,10 +9,46 @@ using System.Threading.Tasks;
 namespace Chr.Avro.Confluent
 {
     /// <summary>
-    /// Builds <see cref="T:IDeserializer{T}" />s that are locked into specific schemas from a
-    /// Schema Registry instance.
+    /// Builds <see cref="T:IDeserializer{T}" />s based on specific schemas from a Schema Registry
+    /// instance.
     /// </summary>
-    public class SchemaRegistryDeserializerBuilder : IDisposable
+    public interface ISchemaRegistryDeserializerBuilder
+    {
+
+        /// <summary>
+        /// Builds a deserializer for a specific schema.
+        /// </summary>
+        /// <param name="id">
+        /// The ID of the schema that should be used to deserialize data.
+        /// </param>
+        Task<IDeserializer<T>> Build<T>(int id);
+
+        /// <summary>
+        /// Builds a deserializer for a specific schema.
+        /// </summary>
+        /// <param name="subject">
+        /// The subject of the schema that should be used to deserialize data. The latest version
+        /// of the subject will be resolved.
+        /// </param>
+        Task<IDeserializer<T>> Build<T>(string subject);
+
+        /// <summary>
+        /// Builds a deserializer for a specific schema.
+        /// </summary>
+        /// <param name="subject">
+        /// The subject of the schema that should be used to deserialize data.
+        /// </param>
+        /// <param name="version">
+        /// The version of the subject to be resolved.
+        /// </param>
+        Task<IDeserializer<T>> Build<T>(string subject, int version);
+    }
+
+    /// <summary>
+    /// Builds <see cref="T:IDeserializer{T}" />s based on specific schemas from a Schema Registry
+    /// instance.
+    /// </summary>
+    public class SchemaRegistryDeserializerBuilder : ISchemaRegistryDeserializerBuilder, IDisposable
     {
         /// <summary>
         /// The deserializer builder used to generate deserialization functions for C# types.
