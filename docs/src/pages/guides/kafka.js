@@ -68,7 +68,7 @@ namespace Chr.Avro.Examples.KafkaProducer
             using (var registry = new CachedSchemaRegistryClient(registryConfig))
             {
                 var builder = new ProducerBuilder<Ignore, ExampleValue>(producerConfig)
-                    .SetAvroValueSerializer(registry, registerAutomatically: false)
+                    .SetAvroValueSerializer(registry, registerAutomatically: AutomaticRegistrationBehavior.Always)
                     .SetErrorHandler((_, error) => Console.Error.WriteLine(error.ToString()));
 
                 using (var producer = builder.Build())

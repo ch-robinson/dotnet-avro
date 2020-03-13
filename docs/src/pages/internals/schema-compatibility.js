@@ -68,8 +68,8 @@ namespace Chr.Avro.Examples.ConfluentProducer
             using (var registry = new CachedSchemaRegistryClient(registryConfig))
             {
                 await Task.WhenAll(
-                    builder.SetAvroKeySerializer(registry, "person-key", registerAutomatically: true),
-                    builder.SetAvroValueSerializer(registry, "person-value", registerAutomatically: true)
+                    builder.SetAvroKeySerializer(registry, "person-key", registerAutomatically: AutomaticRegistrationBehavior.Always),
+                    builder.SetAvroValueSerializer(registry, "person-value", registerAutomatically: AutomaticRegistrationBehavior.Always)
                 );
             }
 

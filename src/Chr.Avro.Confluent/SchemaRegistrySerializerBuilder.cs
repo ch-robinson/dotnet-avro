@@ -30,10 +30,9 @@ namespace Chr.Avro.Confluent
         /// the subject will be resolved.
         /// </param>
         /// <param name="registerAutomatically">
-        /// Whether to automatically register a schema that matches <typeparamref name="T" /> if
-        /// one does not already exist.
+        /// When to automatically register a schema that matches <typeparamref name="T" />.
         /// </param>
-        Task<ISerializer<T>> Build<T>(string subject, bool registerAutomatically = false);
+        Task<ISerializer<T>> Build<T>(string subject, AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never);
 
         /// <summary>
         /// Builds a serializer for a specific schema.
@@ -185,35 +184,39 @@ namespace Chr.Avro.Confluent
         /// the subject will be resolved.
         /// </param>
         /// <param name="registerAutomatically">
-        /// Whether to automatically register a schema that matches <typeparamref name="T" /> if
-        /// one does not already exist.
+        /// When to automatically register a schema that matches <typeparamref name="T" />.
         /// </param>
         /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema or a matching schema
         /// cannot be generated.
         /// </exception>
-        public async Task<ISerializer<T>> Build<T>(string subject, bool registerAutomatically = false)
+        public async Task<ISerializer<T>> Build<T>(string subject, AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never)
         {
-            try
+            if (registerAutomatically == AutomaticRegistrationBehavior.Always)
             {
-                var schema = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
-
-                return Build<T>(schema.Id, schema.SchemaString);
-            }
-            catch (Exception e) when (registerAutomatically && (
-                (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                (e is AggregateException a && a.InnerExceptions.All(i =>
-                    i is UnsupportedSchemaException ||
-                    i is UnsupportedTypeException
-                ))
-            ))
-            {
-                var schema = SchemaBuilder.BuildSchema<T>();
-                var json = SchemaWriter.Write(schema);
-
+                var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
                 var id = await RegistryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
 
                 return Build<T>(id, json);
+            }
+            else
+            {
+                try
+                {
+                    var existing = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
+
+                    return Build<T>(existing.Id, existing.SchemaString);
+                }
+                catch (Exception e) when (registerAutomatically == AutomaticRegistrationBehavior.WhenIncompatible && (
+                    (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
+                    (e is UnsupportedSchemaException || e is UnsupportedTypeException)
+                ))
+                {
+                    var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
+                    var id = await RegistryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
+
+                    return Build<T>(id, json);
+                }
             }
         }
 

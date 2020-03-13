@@ -1,6 +1,3 @@
-using Chr.Avro.Abstract;
-using Chr.Avro.Representation;
-using Chr.Avro.Serialization;
 using Confluent.Kafka;
 using Moq;
 using System.IO;

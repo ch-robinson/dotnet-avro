@@ -6,7 +6,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Confluent
@@ -26,7 +25,7 @@ namespace Chr.Avro.Confluent
         /// <summary>
         /// Whether to automatically register schemas that match the type being serialized.
         /// </summary>
-        public bool RegisterAutomatically { get; }
+        public AutomaticRegistrationBehavior RegisterAutomatically { get; }
 
         /// <summary>
         /// The schema builder used to create a schema for a C# type when registering automatically.
@@ -70,7 +69,7 @@ namespace Chr.Avro.Confluent
         /// highly recommended.
         /// </param>
         /// <param name="registerAutomatically">
-        /// Whether to automatically register schemas that match the type being serialized.
+        /// When to automatically register schemas that match the type being serialized.
         /// </param>
         /// <param name="schemaBuilder">
         /// The schema builder to use to create a schema for a C# type when registering automatically.
@@ -98,7 +97,7 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public AsyncSchemaRegistrySerializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            bool registerAutomatically = false,
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
             Abstract.ISchemaBuilder? schemaBuilder = null,
             IJsonSchemaReader? schemaReader = null,
             IJsonSchemaWriter? schemaWriter = null,
@@ -144,7 +143,7 @@ namespace Chr.Avro.Confluent
         /// The client to use for Schema Registry operations. (The client will not be disposed.)
         /// </param>
         /// <param name="registerAutomatically">
-        /// Whether to automatically register schemas that match the type being serialized.
+        /// When to automatically register schemas that match the type being serialized.
         /// </param>
         /// <param name="schemaBuilder">
         /// The schema builder to use to create a schema for a C# type when registering automatically.
@@ -172,7 +171,7 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public AsyncSchemaRegistrySerializer(
             ISchemaRegistryClient registryClient,
-            bool registerAutomatically = false,
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
             Abstract.ISchemaBuilder? schemaBuilder = null,
             IJsonSchemaReader? schemaReader = null,
             IJsonSchemaWriter? schemaWriter = null,
@@ -204,53 +203,71 @@ namespace Chr.Avro.Confluent
         {
             var serialize = await (_cache.GetOrAdd(SubjectNameBuilder(context), async subject =>
             {
-                int id;
-                Action<T, Stream> @delegate;
-
-                try
+                if (RegisterAutomatically == AutomaticRegistrationBehavior.Always)
                 {
-                    var existing = await _resolve(subject).ConfigureAwait(false);
-                    var schema = SchemaReader.Read(existing.SchemaString);
+                    var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
+                    var id = await _register(subject, json).ConfigureAwait(false);
 
-                    @delegate = SerializerBuilder.BuildDelegate<T>(schema);
-                    id = existing.Id;
+                    return Build(id, json);
                 }
-                catch (Exception e) when (RegisterAutomatically && (
-                    (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                    (e is UnsupportedSchemaException || e is UnsupportedTypeException)
-                ))
+                else
                 {
-                    var schema = SchemaBuilder.BuildSchema<T>();
-                    var json = SchemaWriter.Write(schema);
-
-                    @delegate = SerializerBuilder.BuildDelegate<T>(schema);
-                    id = await _register(subject, json).ConfigureAwait(false);
-                }
-
-                var bytes = BitConverter.GetBytes(id);
-
-                if (BitConverter.IsLittleEndian)
-                {
-                    Array.Reverse(bytes);
-                }
-
-                return value =>
-                {
-                    var stream = new MemoryStream();
-
-                    using (stream)
+                    try
                     {
-                        stream.WriteByte(0x00);
-                        stream.Write(bytes, 0, bytes.Length);
+                        var existing = await _resolve(subject).ConfigureAwait(false);
 
-                        @delegate(value, stream);
+                        return Build(existing.Id, existing.SchemaString);
                     }
+                    catch (Exception e) when (RegisterAutomatically == AutomaticRegistrationBehavior.WhenIncompatible && (
+                        (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
+                        (e is UnsupportedSchemaException || e is UnsupportedTypeException)
+                    ))
+                    {
+                        var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
+                        var id = await _register(subject, json).ConfigureAwait(false);
 
-                    return stream.ToArray();
-                };
+                        return Build(id, json);
+                    }
+                }
             })).ConfigureAwait(false);
 
             return serialize(data);
+        }
+
+        /// <summary>
+        /// Builds a serializer for the Confluent wire format.
+        /// </summary>
+        /// <param name="id">
+        /// A schema ID to include in each serialized payload.
+        /// </param>
+        /// <param name="schema">
+        /// The schema to build the Avro serializer from.
+        /// </param>
+        protected virtual Func<T, byte[]> Build(int id, string schema)
+        {
+            var bytes = BitConverter.GetBytes(id);
+
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+
+            var serialize = SerializerBuilder.BuildDelegate<T>(SchemaReader.Read(schema));
+
+            return value =>
+            {
+                var stream = new MemoryStream();
+
+                using (stream)
+                {
+                    stream.WriteByte(0x00);
+                    stream.Write(bytes, 0, bytes.Length);
+
+                    serialize(value, stream);
+                }
+
+                return stream.ToArray();
+            };
         }
     }
 }

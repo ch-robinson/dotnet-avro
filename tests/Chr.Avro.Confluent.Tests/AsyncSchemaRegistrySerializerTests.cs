@@ -1,13 +1,10 @@
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Moq;
-using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Xunit;
-
-using ISchemaRegistryClient = Confluent.SchemaRegistry.ISchemaRegistryClient;
 
 namespace Chr.Avro.Confluent.Tests
 {
@@ -66,11 +63,32 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
-        public async Task RegistersWhenSchemaIncompatible()
+        public async Task SerializesWithAutoRegistrationAlways()
         {
             var serializer = new AsyncSchemaRegistrySerializer<int>(
                 RegistryClientMock.Object,
-                registerAutomatically: true
+                registerAutomatically: AutomaticRegistrationBehavior.Always
+            );
+
+            var data = 6;
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x09, 0x0c };
+            var metadata = new MessageMetadata();
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var subject = $"{context.Topic}-value";
+
+            RegistryClientMock
+                .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
+                .ReturnsAsync(9);
+
+            Assert.Equal(encoding, await serializer.SerializeAsync(data, context));
+        }
+
+        [Fact]
+        public async Task SerializesWithAutoRegistrationIncompatible()
+        {
+            var serializer = new AsyncSchemaRegistrySerializer<int>(
+                RegistryClientMock.Object,
+                registerAutomatically: AutomaticRegistrationBehavior.WhenIncompatible
             );
 
             var data = 6;
@@ -87,17 +105,15 @@ namespace Chr.Avro.Confluent.Tests
                 .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
                 .ReturnsAsync(10);
 
-            Assert.Equal(encoding,
-                await serializer.SerializeAsync(data, context)
-            );
+            Assert.Equal(encoding, await serializer.SerializeAsync(data, context));
         }
 
         [Fact]
-        public async Task RegistersWhenSubjectMissing()
+        public async Task SerializesWithAutoRegistrationMissing()
         {
             var serializer = new AsyncSchemaRegistrySerializer<int>(
                 RegistryClientMock.Object,
-                registerAutomatically: true
+                registerAutomatically: AutomaticRegistrationBehavior.WhenIncompatible
             );
 
             var data = 6;
@@ -114,9 +130,27 @@ namespace Chr.Avro.Confluent.Tests
                 .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
                 .ReturnsAsync(8);
 
-            Assert.Equal(encoding,
-                await serializer.SerializeAsync(data, context)
+            Assert.Equal(encoding, await serializer.SerializeAsync(data, context));
+        }
+
+        [Fact]
+        public async Task SerializesWithAutoRegistrationNever()
+        {
+            var serializer = new AsyncSchemaRegistrySerializer<int>(
+                RegistryClientMock.Object,
+                registerAutomatically: AutomaticRegistrationBehavior.Never
             );
+
+            var data = 6;
+            var metadata = new MessageMetadata();
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var subject = $"{context.Topic}-value";
+
+            RegistryClientMock
+                .Setup(c => c.GetLatestSchemaAsync(subject))
+                .ReturnsAsync(new Schema(subject, 1, 9, "\"string\""));
+
+            await Assert.ThrowsAsync<UnsupportedTypeException>(() => serializer.SerializeAsync(data, context));
         }
 
         [Fact]
