@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
+#nullable disable
+
 namespace Chr.Avro.Confluent
 {
     /// <summary>
@@ -67,8 +69,8 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public AsyncSchemaRegistryDeserializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            IBinaryDeserializerBuilder? deserializerBuilder = null,
-            IJsonSchemaReader? schemaReader = null,
+            IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             if (registryConfiguration == null)
@@ -78,7 +80,7 @@ namespace Chr.Avro.Confluent
 
             if (tombstoneBehavior != TombstoneBehavior.None && default(T) != null)
             {
-                throw new ArgumentException($"{typeof(T)} cannot represent tombstone values.", nameof(tombstoneBehavior));
+                throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
             }
 
             DeserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
@@ -112,8 +114,8 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public AsyncSchemaRegistryDeserializer(
             ISchemaRegistryClient registryClient,
-            IBinaryDeserializerBuilder? deserializerBuilder = null,
-            IJsonSchemaReader? schemaReader = null,
+            IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             if (registryClient == null)
@@ -123,7 +125,7 @@ namespace Chr.Avro.Confluent
 
             if (tombstoneBehavior != TombstoneBehavior.None && default(T) != null)
             {
-                throw new ArgumentException($"{typeof(T)} cannot represent tombstone values.", nameof(tombstoneBehavior));
+                throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
             }
 
             DeserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
@@ -134,8 +136,6 @@ namespace Chr.Avro.Confluent
             _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
             _disposeRegistryClient = false;
         }
-
-        #nullable disable annotations
 
         /// <summary>
         /// Deserialize a message. (See <see cref="IAsyncDeserializer{T}.DeserializeAsync(ReadOnlyMemory{byte}, bool, SerializationContext)" />.)
@@ -176,7 +176,7 @@ namespace Chr.Avro.Confluent
             }
         }
 
-        #nullable restore annotations
+        #nullable restore
 
         /// <summary>
         /// Disposes the deserializer, freeing up any resources.

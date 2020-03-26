@@ -1,10 +1,14 @@
+using Chr.Avro.Abstract;
 using Chr.Avro.Representation;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+
+#nullable disable
 
 namespace Chr.Avro.Confluent
 {
@@ -49,8 +53,8 @@ namespace Chr.Avro.Confluent
         /// </param>
         public SchemaRegistryDeserializerBuilder(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            Serialization.IBinaryDeserializerBuilder? deserializerBuilder = null,
-            IJsonSchemaReader? schemaReader = null
+            Serialization.IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null
         ) : this(
             new CachedSchemaRegistryClient(registryConfiguration),
             deserializerBuilder,
@@ -78,8 +82,8 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public SchemaRegistryDeserializerBuilder(
             ISchemaRegistryClient registryClient,
-            Serialization.IBinaryDeserializerBuilder? deserializerBuilder = null,
-            IJsonSchemaReader? schemaReader = null
+            Serialization.IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null
         ) {
             _disposeRegistryClient = false;
 
@@ -94,12 +98,17 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to deserialize data.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public virtual async Task<IDeserializer<T>> Build<T>(int id)
-        {
-            return Build<T>(id, await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false));
+        public virtual async Task<IDeserializer<T>> Build<T>(
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) {
+            return Build<T>(id, await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false), tombstoneBehavior);
         }
 
         /// <summary>
@@ -109,14 +118,19 @@ namespace Chr.Avro.Confluent
         /// The subject of the schema that should be used to deserialize data. The latest version
         /// of the subject will be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public virtual async Task<IDeserializer<T>> Build<T>(string subject)
-        {
+        public virtual async Task<IDeserializer<T>> Build<T>(
+            string subject,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) {
             var schema = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
 
-            return Build<T>(schema.Id, schema.SchemaString);
+            return Build<T>(schema.Id, schema.SchemaString, tombstoneBehavior);
         }
 
         /// <summary>
@@ -128,15 +142,21 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public virtual async Task<IDeserializer<T>> Build<T>(string subject, int version)
-        {
+        public virtual async Task<IDeserializer<T>> Build<T>(
+            string subject,
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) {
             var schema = await RegistryClient.GetSchemaAsync(subject, version).ConfigureAwait(false);
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema).ConfigureAwait(false);
 
-            return Build<T>(id, schema);
+            return Build<T>(id, schema, tombstoneBehavior);
         }
 
         /// <summary>
@@ -169,35 +189,70 @@ namespace Chr.Avro.Confluent
         /// A schema ID that all payloads must be serialized with. If a received schema ID does not
         /// match this ID, <see cref="InvalidDataException" /> will be thrown.
         /// </param>
-        /// <param name="schema">
+        /// <param name="json">
         /// The schema to build the Avro deserializer from.
         /// </param>
-        protected virtual IDeserializer<T> Build<T>(int id, string schema)
-        {
-            var deserialize = DeserializerBuilder.BuildDelegate<T>(SchemaReader.Read(schema));
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
+        protected virtual IDeserializer<T> Build<T>(
+            int id,
+            string json,
+            TombstoneBehavior tombstoneBehavior
+        ) {
+            var schema = SchemaReader.Read(json);
 
-            return new DelegateDeserializer<T>(stream =>
+            if (tombstoneBehavior != TombstoneBehavior.None)
             {
-                var bytes = new byte[4];
-
-                if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
+                if (default(T) != null)
                 {
-                    throw new InvalidDataException("Data does not conform to the Confluent wire format.");
+                    throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
                 }
 
-                if (BitConverter.IsLittleEndian)
+                var hasNull = schema is NullSchema
+                    || (schema is UnionSchema union && union.Schemas.Any(s => s is NullSchema));
+
+                if (tombstoneBehavior == TombstoneBehavior.Strict && hasNull)
                 {
-                    Array.Reverse(bytes);
+                    throw new UnsupportedSchemaException(schema, "Tombstone deserialization is not supported for schemas that can represent null values.");
+                }
+            }
+
+            var deserialize = DeserializerBuilder.BuildDelegate<T>(schema);
+
+            return new DelegateDeserializer<T>((data, isNull, context) =>
+            {
+                if (isNull && tombstoneBehavior != TombstoneBehavior.None)
+                {
+                    if (context.Component == MessageComponentType.Value || tombstoneBehavior != TombstoneBehavior.Strict)
+                    {
+                        return default;
+                    }
                 }
 
-                var received = BitConverter.ToInt32(bytes, 0);
-
-                if (received != id)
+                using (var stream = new MemoryStream(data, false))
                 {
-                    throw new InvalidDataException($"The received schema ({received}) does not match the specified schema ({id}).");
-                }
+                    var bytes = new byte[4];
 
-                return deserialize(stream);
+                    if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
+                    {
+                        throw new InvalidDataException("Data does not conform to the Confluent wire format.");
+                    }
+
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        Array.Reverse(bytes);
+                    }
+
+                    var received = BitConverter.ToInt32(bytes, 0);
+
+                    if (received != id)
+                    {
+                        throw new InvalidDataException($"The received schema ({received}) does not match the specified schema ({id}).");
+                    }
+
+                    return deserialize(stream);
+                }
             });
         }
     }

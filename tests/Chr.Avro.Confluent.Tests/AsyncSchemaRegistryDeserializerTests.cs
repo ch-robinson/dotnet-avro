@@ -94,7 +94,7 @@ namespace Chr.Avro.Confluent.Tests
         [Fact]
         public void ThrowsOnInvalidTombstoneType()
         {
-            Assert.Throws<ArgumentException>(() => new AsyncSchemaRegistryDeserializer<int>(
+            Assert.Throws<UnsupportedTypeException>(() => new AsyncSchemaRegistryDeserializer<int>(
                 RegistryClientMock.Object,
                 tombstoneBehavior: TombstoneBehavior.Strict
             ));
