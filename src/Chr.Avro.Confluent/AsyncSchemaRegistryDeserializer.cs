@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
+#nullable disable
+
 namespace Chr.Avro.Confluent
 {
     /// <summary>
@@ -35,6 +37,11 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public IJsonSchemaReader SchemaReader { get; }
 
+        /// <summary>
+        /// The behavior of the deserializer on tombstone records.
+        /// </summary>
+        public TombstoneBehavior TombstoneBehavior { get; }
+
         private readonly ConcurrentDictionary<int, Task<Func<Stream, T>>> _cache;
 
         private readonly bool _disposeRegistryClient;
@@ -54,22 +61,32 @@ namespace Chr.Avro.Confluent
         /// The JSON schema reader to use to convert schemas received from the registry into abstract
         /// representations. If none is provided, the default schema reader will be used.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the registry configuration is null.
         /// </exception>
         public AsyncSchemaRegistryDeserializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            IBinaryDeserializerBuilder? deserializerBuilder = null,
-            IJsonSchemaReader? schemaReader = null
+            IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             if (registryConfiguration == null)
             {
                 throw new ArgumentNullException(nameof(registryConfiguration));
             }
 
+            if (tombstoneBehavior != TombstoneBehavior.None && default(T) != null)
+            {
+                throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
+            }
+
             DeserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
             RegistryClient = new CachedSchemaRegistryClient(registryConfiguration);
             SchemaReader = schemaReader ?? new JsonSchemaReader();
+            TombstoneBehavior = tombstoneBehavior;
 
             _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
             _disposeRegistryClient = true;
@@ -89,22 +106,32 @@ namespace Chr.Avro.Confluent
         /// The JSON schema reader used to convert schemas received from the registry into abstract
         /// representations. If none is provided, the default schema reader will be used.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the registry client is null.
         /// </exception>
         public AsyncSchemaRegistryDeserializer(
             ISchemaRegistryClient registryClient,
-            IBinaryDeserializerBuilder? deserializerBuilder = null,
-            IJsonSchemaReader? schemaReader = null
+            IBinaryDeserializerBuilder deserializerBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             if (registryClient == null)
             {
                 throw new ArgumentNullException(nameof(registryClient));
             }
 
+            if (tombstoneBehavior != TombstoneBehavior.None && default(T) != null)
+            {
+                throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
+            }
+
             DeserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
             RegistryClient = registryClient;
             SchemaReader = schemaReader ?? new JsonSchemaReader();
+            TombstoneBehavior = tombstoneBehavior;
 
             _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
             _disposeRegistryClient = false;
@@ -115,6 +142,14 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public virtual async Task<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, SerializationContext context)
         {
+            if (isNull && TombstoneBehavior != TombstoneBehavior.None)
+            {
+                if (context.Component == MessageComponentType.Value || TombstoneBehavior != TombstoneBehavior.Strict)
+                {
+                    return default;
+                }
+            }
+
             using (var stream = new MemoryStream(data.ToArray(), false))
             {
                 var bytes = new byte[4];
@@ -140,6 +175,8 @@ namespace Chr.Avro.Confluent
                 return @delegate(stream);
             }
         }
+
+        #nullable restore
 
         /// <summary>
         /// Disposes the deserializer, freeing up any resources.
