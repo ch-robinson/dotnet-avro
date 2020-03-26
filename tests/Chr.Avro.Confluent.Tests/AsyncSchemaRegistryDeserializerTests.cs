@@ -62,7 +62,7 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
-        public async Task ReturnsNull()
+        public async Task ReturnsTombstone()
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<object>(
                 RegistryClientMock.Object,

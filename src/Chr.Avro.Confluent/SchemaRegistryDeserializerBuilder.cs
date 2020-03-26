@@ -8,8 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-#nullable disable
-
 namespace Chr.Avro.Confluent
 {
     /// <summary>
@@ -25,7 +23,13 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to deserialize data.
         /// </param>
-        Task<IDeserializer<T>> Build<T>(int id);
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
+        Task<IDeserializer<T>> Build<T>(
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        );
 
         /// <summary>
         /// Builds a deserializer for a specific schema.
@@ -34,7 +38,13 @@ namespace Chr.Avro.Confluent
         /// The subject of the schema that should be used to deserialize data. The latest version
         /// of the subject will be resolved.
         /// </param>
-        Task<IDeserializer<T>> Build<T>(string subject);
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
+        Task<IDeserializer<T>> Build<T>(
+            string subject,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        );
 
         /// <summary>
         /// Builds a deserializer for a specific schema.
@@ -45,7 +55,14 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
-        Task<IDeserializer<T>> Build<T>(string subject, int version);
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
+        Task<IDeserializer<T>> Build<T>(
+            string subject,
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        );
     }
 
     /// <summary>

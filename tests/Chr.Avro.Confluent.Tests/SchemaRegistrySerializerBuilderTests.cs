@@ -1,7 +1,6 @@
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Moq;
-using System.Net;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -9,46 +8,28 @@ namespace Chr.Avro.Confluent.Tests
 {
     public class SchemaRegistrySerializerBuilderTests
     {
-        protected const string TestSubject = "test_subject";
-
-        protected const int TestSubjectLatestId = 12;
-
-        protected const string TestSubjectLatestString = @"""string""";
-
-        protected const int TestSubjectLatestVersion = 4;
-
         protected readonly Mock<ISchemaRegistryClient> RegistryMock;
 
         public SchemaRegistrySerializerBuilderTests()
         {
             RegistryMock = new Mock<ISchemaRegistryClient>(MockBehavior.Strict);
-
-            RegistryMock.Setup(r => r.GetLatestSchemaAsync(TestSubject))
-                .ReturnsAsync(new Schema(
-                    TestSubject,
-                    TestSubjectLatestVersion,
-                    TestSubjectLatestId,
-                    TestSubjectLatestString
-                ));
-
-            RegistryMock.Setup(r => r.GetSchemaAsync(TestSubject, TestSubjectLatestVersion))
-                .ReturnsAsync(TestSubjectLatestString);
-
-            RegistryMock.Setup(r => r.GetSchemaAsync(TestSubjectLatestId))
-                .ReturnsAsync(TestSubjectLatestString);
-
-            RegistryMock.Setup(r => r.GetSchemaIdAsync(TestSubject, TestSubjectLatestString))
-                .ReturnsAsync(TestSubjectLatestId);
         }
 
         [Fact]
         public async Task BuildsSerializerWithSchemaId()
         {
+            var id = 6;
+            var json = @"[""null"",""int""]";
+
+            RegistryMock.Setup(r => r.GetSchemaAsync(id))
+                .ReturnsAsync(json)
+                .Verifiable();
+
             using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
             {
-                await builder.Build<string>(TestSubjectLatestId);
+                await builder.Build<int?>(id);
 
-                RegistryMock.Verify(r => r.GetSchemaAsync(TestSubjectLatestId), Times.Once());
+                RegistryMock.Verify();
                 RegistryMock.VerifyNoOtherCalls();
             }
         }
@@ -56,11 +37,20 @@ namespace Chr.Avro.Confluent.Tests
         [Fact]
         public async Task BuildsSerializerWithSchemaSubject()
         {
+            var id = 12;
+            var json = @"""string""";
+            var subject = "test-subject";
+            var version = 4;
+
+            RegistryMock.Setup(r => r.GetLatestSchemaAsync(subject))
+                .ReturnsAsync(new Schema(subject, version, id, json))
+                .Verifiable();
+
             using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
             {
-                await builder.Build<string>(TestSubject);
+                await builder.Build<string>(subject);
 
-                RegistryMock.Verify(r => r.GetLatestSchemaAsync(TestSubject), Times.Once());
+                RegistryMock.Verify();
                 RegistryMock.VerifyNoOtherCalls();
             }
         }
@@ -68,12 +58,24 @@ namespace Chr.Avro.Confluent.Tests
         [Fact]
         public async Task BuildsSerializerWithSchemaSubjectAndVersion()
         {
+            var id = 12;
+            var json = @"""string""";
+            var subject = "test-subject";
+            var version = 4;
+
+            RegistryMock.Setup(r => r.GetSchemaAsync(subject, version))
+                .ReturnsAsync(json)
+                .Verifiable();
+
+            RegistryMock.Setup(r => r.GetSchemaIdAsync(subject, json))
+                .ReturnsAsync(id)
+                .Verifiable();
+
             using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
             {
-                await builder.Build<string>(TestSubject, TestSubjectLatestVersion);
+                await builder.Build<string>(subject, version);
 
-                RegistryMock.Verify(r => r.GetSchemaAsync(TestSubject, TestSubjectLatestVersion), Times.Once());
-                RegistryMock.Verify(r => r.GetSchemaIdAsync(TestSubject, TestSubjectLatestString), Times.Once());
+                RegistryMock.Verify();
                 RegistryMock.VerifyNoOtherCalls();
             }
         }
@@ -83,11 +85,18 @@ namespace Chr.Avro.Confluent.Tests
         [InlineData(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x0c, 0x06, 0x73, 0x75, 0x70 }, "sup")]
         public async Task SerializesUsingConfluentWireFormat(byte[] encoding, string data)
         {
-            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var id = 12;
+            var json = @"""string""";
+
+            RegistryMock.Setup(r => r.GetSchemaAsync(id))
+                .ReturnsAsync(json)
+                .Verifiable();
+
+            var context = new SerializationContext(MessageComponentType.Value, "test-topic");
 
             using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
             {
-                var serializer = await builder.Build<string>(TestSubjectLatestId);
+                var serializer = await builder.Build<string>(id);
 
                 Assert.Equal(encoding, serializer.Serialize(data, context));
             }
@@ -96,8 +105,8 @@ namespace Chr.Avro.Confluent.Tests
         [Fact]
         public async Task SerializesWithAutoRegistrationAlways()
         {
-            var subject = "new_subject";
             var id = 40;
+            var subject = "new_subject";
 
             RegistryMock.Setup(r => r.RegisterSchemaAsync(subject, It.IsAny<string>()))
                 .ReturnsAsync(id)
@@ -116,7 +125,7 @@ namespace Chr.Avro.Confluent.Tests
         [Fact]
         public async Task SerializesWithAutoRegistrationNever()
         {
-            var subject = "new_subject";
+            var subject = "test-subject";
 
             RegistryMock.Setup(r => r.GetLatestSchemaAsync(subject))
                 .ReturnsAsync(new Schema(subject, 1, 38, "\"int\""))
@@ -126,9 +135,59 @@ namespace Chr.Avro.Confluent.Tests
             {
                 await Assert.ThrowsAsync<UnsupportedTypeException>(() => builder.Build<string>(subject, registerAutomatically: AutomaticRegistrationBehavior.Never));
 
-                RegistryMock.Verify(r => r.GetLatestSchemaAsync(subject), Times.Once());
-                RegistryMock.Verify(r => r.RegisterSchemaAsync(subject, It.IsAny<string>()), Times.Never());
+                RegistryMock.Verify();
                 RegistryMock.VerifyNoOtherCalls();
+            }
+        }
+
+        [Fact]
+        public async Task ThrowsOnInvalidTombstoneType()
+        {
+            var id = 4;
+            var json = @"""int""";
+
+            RegistryMock.Setup(r => r.GetSchemaAsync(id))
+                .ReturnsAsync(json)
+                .Verifiable();
+
+            using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
+            {
+                await Assert.ThrowsAsync<UnsupportedTypeException>(
+                    () => builder.Build<int>(id, TombstoneBehavior.Strict));
+            }
+        }
+
+        [Fact]
+        public async Task ThrowsOnNullTombstoneSchema()
+        {
+            var id = 1;
+            var json = @"""null""";
+
+            RegistryMock.Setup(r => r.GetSchemaAsync(id))
+                .ReturnsAsync(json)
+                .Verifiable();
+
+            using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
+            {
+                await Assert.ThrowsAsync<UnsupportedSchemaException>(
+                    () => builder.Build<int?>(id, TombstoneBehavior.Strict));
+            }
+        }
+
+        [Fact]
+        public async Task ThrowsOnNullableTombstoneSchema()
+        {
+            var id = 6;
+            var json = @"[""null"",""int""]";
+
+            RegistryMock.Setup(r => r.GetSchemaAsync(id))
+                .ReturnsAsync(json)
+                .Verifiable();
+
+            using (var builder = new SchemaRegistrySerializerBuilder(RegistryMock.Object))
+            {
+                await Assert.ThrowsAsync<UnsupportedSchemaException>(
+                    () => builder.Build<int?>(id, TombstoneBehavior.Strict));
             }
         }
     }

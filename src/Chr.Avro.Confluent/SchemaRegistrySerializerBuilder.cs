@@ -1,8 +1,11 @@
+using Chr.Avro.Abstract;
 using Chr.Avro.Representation;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Confluent
@@ -19,7 +22,13 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize data.
         /// </param>
-        Task<ISerializer<T>> Build<T>(int id);
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
+        Task<ISerializer<T>> Build<T>(
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        );
 
         /// <summary>
         /// Builds a serializer for a specific schema.
@@ -31,7 +40,14 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// When to automatically register a schema that matches <typeparamref name="T" />.
         /// </param>
-        Task<ISerializer<T>> Build<T>(string subject, AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never);
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
+        Task<ISerializer<T>> Build<T>(
+            string subject,
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        );
 
         /// <summary>
         /// Builds a serializer for a specific schema.
@@ -42,7 +58,14 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
-        Task<ISerializer<T>> Build<T>(string subject, int version);
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
+        Task<ISerializer<T>> Build<T>(
+            string subject,
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        );
     }
 
     /// <summary>
@@ -105,10 +128,10 @@ namespace Chr.Avro.Confluent
         /// </param>
         public SchemaRegistrySerializerBuilder(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            Abstract.ISchemaBuilder? schemaBuilder = null,
-            IJsonSchemaReader? schemaReader = null,
-            IJsonSchemaWriter? schemaWriter = null,
-            Serialization.IBinarySerializerBuilder? serializerBuilder = null
+            Abstract.ISchemaBuilder schemaBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            IJsonSchemaWriter schemaWriter = null,
+            Serialization.IBinarySerializerBuilder serializerBuilder = null
         ) : this(
             new CachedSchemaRegistryClient(registryConfiguration),
             schemaBuilder,
@@ -146,10 +169,10 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public SchemaRegistrySerializerBuilder(
             ISchemaRegistryClient registryClient,
-            Abstract.ISchemaBuilder? schemaBuilder = null,
-            IJsonSchemaReader? schemaReader = null,
-            IJsonSchemaWriter? schemaWriter = null,
-            Serialization.IBinarySerializerBuilder? serializerBuilder = null
+            Abstract.ISchemaBuilder schemaBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            IJsonSchemaWriter schemaWriter = null,
+            Serialization.IBinarySerializerBuilder serializerBuilder = null
         ) {
 
             _disposeRegistryClient = false;
@@ -167,12 +190,19 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize data.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public async Task<ISerializer<T>> Build<T>(int id)
-        {
-            return Build<T>(id, await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false));
+        public async Task<ISerializer<T>> Build<T>(
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) {
+            var schema = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
+
+            return Build<T>(id, schema, tombstoneBehavior);
         }
 
         /// <summary>
@@ -185,24 +215,30 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// When to automatically register a schema that matches <typeparamref name="T" />.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema or a matching schema
         /// cannot be generated.
         /// </exception>
-        public async Task<ISerializer<T>> Build<T>(string subject, AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never)
-        {
+        public async Task<ISerializer<T>> Build<T>(
+            string subject,
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) {
             switch (registerAutomatically)
             {
                 case AutomaticRegistrationBehavior.Always:
                     var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
                     var id = await RegistryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
 
-                    return Build<T>(id, json);
+                    return Build<T>(id, json, tombstoneBehavior);
 
                 case AutomaticRegistrationBehavior.Never:
                     var existing = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
 
-                    return Build<T>(existing.Id, existing.SchemaString);
+                    return Build<T>(existing.Id, existing.SchemaString, tombstoneBehavior);
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(registerAutomatically));
@@ -218,15 +254,21 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         /// <exception cref="AggregateException">
         /// Thrown when the type is incompatible with the retrieved schema.
         /// </exception>
-        public virtual async Task<ISerializer<T>> Build<T>(string subject, int version)
-        {
+        public virtual async Task<ISerializer<T>> Build<T>(
+            string subject,
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) {
             var schema = await RegistryClient.GetSchemaAsync(subject, version).ConfigureAwait(false);
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema).ConfigureAwait(false);
 
-            return Build<T>(id, schema);
+            return Build<T>(id, schema, tombstoneBehavior);
         }
 
         /// <summary>
@@ -258,11 +300,35 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// A schema ID to include in each serialized payload.
         /// </param>
-        /// <param name="schema">
+        /// <param name="json">
         /// The schema to build the Avro serializer from.
         /// </param>
-        protected virtual ISerializer<T> Build<T>(int id, string schema)
-        {
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
+        protected virtual ISerializer<T> Build<T>(
+            int id,
+            string json,
+            TombstoneBehavior tombstoneBehavior
+        ) {
+            var schema = SchemaReader.Read(json);
+
+            if (tombstoneBehavior != TombstoneBehavior.None)
+            {
+                if (default(T) != null)
+                {
+                    throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
+                }
+
+                var hasNull = schema is NullSchema
+                    || (schema is UnionSchema union && union.Schemas.Any(s => s is NullSchema));
+
+                if (tombstoneBehavior == TombstoneBehavior.Strict && hasNull)
+                {
+                    throw new UnsupportedSchemaException(schema, "Tombstone serialization is not supported for schemas that can represent null values.");
+                }
+            }
+
             var bytes = BitConverter.GetBytes(id);
 
             if (BitConverter.IsLittleEndian)
@@ -270,14 +336,29 @@ namespace Chr.Avro.Confluent
                 Array.Reverse(bytes);
             }
 
-            var serialize = SerializerBuilder.BuildDelegate<T>(SchemaReader.Read(schema));
+            var serialize = SerializerBuilder.BuildDelegate<T>(schema);
 
-            return new DelegateSerializer<T>((data, stream) =>
+            return new DelegateSerializer<T>((data, context) =>
             {
-                stream.WriteByte(0x00);
-                stream.Write(bytes, 0, bytes.Length);
+                if (data == null && tombstoneBehavior != TombstoneBehavior.None)
+                {
+                    if (context.Component == MessageComponentType.Value || tombstoneBehavior != TombstoneBehavior.Strict)
+                    {
+                        return null;
+                    }
+                }
 
-                serialize(data, stream);
+                var stream = new MemoryStream();
+
+                using (stream)
+                {
+                    stream.WriteByte(0x00);
+                    stream.Write(bytes, 0, bytes.Length);
+
+                    serialize(data, stream);
+                }
+
+                return stream.ToArray();
             });
         }
     }

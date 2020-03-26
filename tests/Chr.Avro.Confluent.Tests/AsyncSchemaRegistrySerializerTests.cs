@@ -1,8 +1,8 @@
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Moq;
+using System;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -63,6 +63,25 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
+        public async Task SerializesTombstone()
+        {
+            var serializer = new AsyncSchemaRegistrySerializer<object>(
+                RegistryClientMock.Object,
+                tombstoneBehavior: TombstoneBehavior.Strict
+            );
+
+            var data = (int?)null;
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var subject = $"{context.Topic}-value";
+
+            RegistryClientMock
+                .Setup(c => c.GetLatestSchemaAsync(subject))
+                .ReturnsAsync(new Schema(subject, 1, 4, "\"int\""));
+
+            Assert.Null(await serializer.SerializeAsync(data, context));
+        }
+
+        [Fact]
         public async Task SerializesWithAutoRegistrationAlways()
         {
             var serializer = new AsyncSchemaRegistrySerializer<int>(
@@ -101,6 +120,36 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync(new Schema(subject, 1, 9, "\"string\""));
 
             await Assert.ThrowsAsync<UnsupportedTypeException>(() => serializer.SerializeAsync(data, context));
+        }
+
+        [Fact]
+        public async Task ThrowsOnInvalidTombstoneComponent()
+        {
+            var serializer = new AsyncSchemaRegistrySerializer<int?>(
+                RegistryClientMock.Object,
+                tombstoneBehavior: TombstoneBehavior.Strict
+            );
+
+            var data = (int?)null;
+            var context = new SerializationContext(MessageComponentType.Key, "test_topic");
+            var subject = $"{context.Topic}-key";
+
+            RegistryClientMock
+                .Setup(c => c.GetLatestSchemaAsync(subject))
+                .ReturnsAsync(new Schema(subject, 1, 4, "\"int\""));
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                serializer.SerializeAsync(data, context)
+            );
+        }
+
+        [Fact]
+        public void ThrowsOnInvalidTombstoneType()
+        {
+            Assert.Throws<UnsupportedTypeException>(() => new AsyncSchemaRegistrySerializer<int>(
+                RegistryClientMock.Object,
+                tombstoneBehavior: TombstoneBehavior.Strict
+            ));
         }
 
         [Fact]

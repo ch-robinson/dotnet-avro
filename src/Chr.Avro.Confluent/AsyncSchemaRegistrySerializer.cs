@@ -55,6 +55,11 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public Func<SerializationContext, string> SubjectNameBuilder { get; }
 
+        /// <summary>
+        /// The behavior of the serializer on tombstone records.
+        /// </summary>
+        public TombstoneBehavior TombstoneBehavior { get; }
+
         private readonly ConcurrentDictionary<string, Task<Func<T, byte[]>>> _cache;
 
         private readonly Func<string, string, Task<int>> _register;
@@ -92,21 +97,30 @@ namespace Chr.Avro.Confluent
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
         /// convention will be used.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the registry configuration is null.
         /// </exception>
         public AsyncSchemaRegistrySerializer(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
-            Abstract.ISchemaBuilder? schemaBuilder = null,
-            IJsonSchemaReader? schemaReader = null,
-            IJsonSchemaWriter? schemaWriter = null,
-            IBinarySerializerBuilder? serializerBuilder = null,
-            Func<SerializationContext, string>? subjectNameBuilder = null
+            Abstract.ISchemaBuilder schemaBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            IJsonSchemaWriter schemaWriter = null,
+            IBinarySerializerBuilder serializerBuilder = null,
+            Func<SerializationContext, string> subjectNameBuilder = null,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             if (registryConfiguration == null)
             {
                 throw new ArgumentNullException(nameof(registryConfiguration));
+            }
+
+            if (tombstoneBehavior != TombstoneBehavior.None && default(T) != null)
+            {
+                throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
             }
 
             RegisterAutomatically = registerAutomatically;
@@ -116,6 +130,7 @@ namespace Chr.Avro.Confluent
             SerializerBuilder = serializerBuilder ?? new BinarySerializerBuilder();
             SubjectNameBuilder = subjectNameBuilder ??
                 (c => $"{c.Topic}-{(c.Component == MessageComponentType.Key ? "key" : "value")}");
+            TombstoneBehavior = tombstoneBehavior;
 
             _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
 
@@ -166,21 +181,30 @@ namespace Chr.Avro.Confluent
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
         /// convention will be used.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when the registry client is null.
         /// </exception>
         public AsyncSchemaRegistrySerializer(
             ISchemaRegistryClient registryClient,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
-            Abstract.ISchemaBuilder? schemaBuilder = null,
-            IJsonSchemaReader? schemaReader = null,
-            IJsonSchemaWriter? schemaWriter = null,
-            IBinarySerializerBuilder? serializerBuilder = null,
-            Func<SerializationContext, string>? subjectNameBuilder = null
+            Abstract.ISchemaBuilder schemaBuilder = null,
+            IJsonSchemaReader schemaReader = null,
+            IJsonSchemaWriter schemaWriter = null,
+            IBinarySerializerBuilder serializerBuilder = null,
+            Func<SerializationContext, string> subjectNameBuilder = null,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             if (registryClient == null)
             {
                 throw new ArgumentNullException(nameof(registryClient));
+            }
+
+            if (tombstoneBehavior != TombstoneBehavior.None && default(T) != null)
+            {
+                throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
             }
 
             RegisterAutomatically = registerAutomatically;
@@ -190,6 +214,7 @@ namespace Chr.Avro.Confluent
             SerializerBuilder = serializerBuilder ?? new BinarySerializerBuilder();
             SubjectNameBuilder = subjectNameBuilder ??
                 (c => $"{c.Topic}-{(c.Component == MessageComponentType.Key ? "key" : "value")}");
+            TombstoneBehavior = tombstoneBehavior;
 
             _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
             _register = (subject, json) => registryClient.RegisterSchemaAsync(subject, json);
@@ -220,6 +245,14 @@ namespace Chr.Avro.Confluent
                         throw new ArgumentOutOfRangeException(nameof(RegisterAutomatically));
                 }
             })).ConfigureAwait(false);
+
+            if (data == null && TombstoneBehavior != TombstoneBehavior.None)
+            {
+                if (context.Component == MessageComponentType.Value || TombstoneBehavior != TombstoneBehavior.Strict)
+                {
+                    return null;
+                }
+            }
 
             return serialize(data);
         }

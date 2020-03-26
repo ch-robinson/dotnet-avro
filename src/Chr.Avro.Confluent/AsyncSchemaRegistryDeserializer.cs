@@ -8,8 +8,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-#nullable disable
-
 namespace Chr.Avro.Confluent
 {
     /// <summary>
@@ -175,8 +173,6 @@ namespace Chr.Avro.Confluent
                 return @delegate(stream);
             }
         }
-
-        #nullable restore
 
         /// <summary>
         /// Disposes the deserializer, freeing up any resources.
