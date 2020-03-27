@@ -38,11 +38,12 @@ namespace Chr.Avro.Confluent
             ISchemaRegistryClient registryClient,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
             Func<SerializationContext, string> subjectNameBuilder = null
-        ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
-            registryClient,
-            registerAutomatically: registerAutomatically,
-            subjectNameBuilder: subjectNameBuilder
-        ));
+        ) => producerBuilder.SetKeySerializer(
+            new AsyncSchemaRegistrySerializer<TKey>(
+                registryClient,
+                registerAutomatically: registerAutomatically,
+                subjectNameBuilder: subjectNameBuilder
+            ));
 
         /// <summary>
         /// Set the message key serializer.
@@ -68,11 +69,12 @@ namespace Chr.Avro.Confluent
             ISchemaRegistryClient registryClient,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
             Func<SerializationContext, string> subjectNameBuilder = null
-        ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
-            registryClient,
-            registerAutomatically: registerAutomatically,
-            subjectNameBuilder: subjectNameBuilder
-        ));
+        ) => producerBuilder.SetKeySerializer(
+            new AsyncSchemaRegistrySerializer<TKey>(
+                registryClient,
+                registerAutomatically: registerAutomatically,
+                subjectNameBuilder: subjectNameBuilder
+            ));
 
         /// <summary>
         /// Set the message key serializer.
@@ -97,11 +99,12 @@ namespace Chr.Avro.Confluent
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
             Func<SerializationContext, string> subjectNameBuilder = null
-        ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
-            registryConfiguration,
-            registerAutomatically: registerAutomatically,
-            subjectNameBuilder: subjectNameBuilder
-        ));
+        ) => producerBuilder.SetKeySerializer(
+            new AsyncSchemaRegistrySerializer<TKey>(
+                registryConfiguration,
+                registerAutomatically: registerAutomatically,
+                subjectNameBuilder: subjectNameBuilder
+            ));
 
         /// <summary>
         /// Set the message key serializer.
@@ -126,11 +129,12 @@ namespace Chr.Avro.Confluent
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
             Func<SerializationContext, string> subjectNameBuilder = null
-        ) => producerBuilder.SetKeySerializer(new AsyncSchemaRegistrySerializer<TKey>(
-            registryConfiguration,
-            registerAutomatically: registerAutomatically,
-            subjectNameBuilder: subjectNameBuilder
-        ));
+        ) => producerBuilder.SetKeySerializer(
+            new AsyncSchemaRegistrySerializer<TKey>(
+                registryConfiguration,
+                registerAutomatically: registerAutomatically,
+                subjectNameBuilder: subjectNameBuilder
+            ));
 
         /// <summary>
         /// Set the message key serializer.
@@ -151,7 +155,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, id)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -174,7 +180,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, id)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -198,7 +206,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, id)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -222,7 +232,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, id).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, id)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -242,7 +254,8 @@ namespace Chr.Avro.Confluent
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             int id
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(id).ConfigureAwait(false));
+        ) => producerBuilder.SetKeySerializer(
+            await serializerBuilder.Build<TKey>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -260,7 +273,8 @@ namespace Chr.Avro.Confluent
             this ProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             int id
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(id).ConfigureAwait(false));
+        ) => producerBuilder.SetKeySerializer(
+            await serializerBuilder.Build<TKey>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -286,7 +300,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -314,7 +330,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -343,7 +361,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -372,7 +392,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, subject, registerAutomatically)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -397,7 +419,8 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, registerAutomatically).ConfigureAwait(false));
+        ) => producerBuilder.SetKeySerializer(
+            await serializerBuilder.Build<TKey>(subject, registerAutomatically).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -420,7 +443,8 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, registerAutomatically).ConfigureAwait(false));
+        ) => producerBuilder.SetKeySerializer(
+            await serializerBuilder.Build<TKey>(subject, registerAutomatically).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -445,7 +469,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, subject, version)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -472,7 +498,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, subject, version)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -500,7 +528,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, subject, version)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -528,7 +558,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroKeySerializer(serializerBuilder, subject, version).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroKeySerializer(serializerBuilder, subject, version)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -552,7 +584,8 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
+        ) => producerBuilder.SetKeySerializer(
+            await serializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key serializer.
@@ -574,7 +607,8 @@ namespace Chr.Avro.Confluent
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version
-        ) => producerBuilder.SetKeySerializer(await serializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
+        ) => producerBuilder.SetKeySerializer(
+            await serializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
 
         #endregion
 
@@ -599,16 +633,22 @@ namespace Chr.Avro.Confluent
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
         /// convention will be used.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static DependentProducerBuilder<TKey, TValue> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
-            Func<SerializationContext, string> subjectNameBuilder = null
-        ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
-            registryClient,
-            registerAutomatically: registerAutomatically,
-            subjectNameBuilder: subjectNameBuilder
-        ));
+            Func<SerializationContext, string> subjectNameBuilder = null,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            new AsyncSchemaRegistrySerializer<TValue>(
+                registryClient,
+                registerAutomatically: registerAutomatically,
+                subjectNameBuilder: subjectNameBuilder,
+                tombstoneBehavior: tombstoneBehavior
+            ));
 
         /// <summary>
         /// Set the message value serializer.
@@ -629,16 +669,22 @@ namespace Chr.Avro.Confluent
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
         /// convention will be used.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static ProducerBuilder<TKey, TValue> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
-            Func<SerializationContext, string> subjectNameBuilder = null
-        ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
-            registryClient,
-            registerAutomatically: registerAutomatically,
-            subjectNameBuilder: subjectNameBuilder
-        ));
+            Func<SerializationContext, string> subjectNameBuilder = null,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            new AsyncSchemaRegistrySerializer<TValue>(
+                registryClient,
+                registerAutomatically: registerAutomatically,
+                subjectNameBuilder: subjectNameBuilder,
+                tombstoneBehavior: tombstoneBehavior
+            ));
 
         /// <summary>
         /// Set the message value serializer.
@@ -657,17 +703,23 @@ namespace Chr.Avro.Confluent
         /// A function that determines the subject name given the topic name and a component type
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
         /// convention will be used.
+        /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
         /// </param>
         public static DependentProducerBuilder<TKey, TValue> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
-            Func<SerializationContext, string> subjectNameBuilder = null
-        ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
-            registryConfiguration,
-            registerAutomatically: registerAutomatically,
-            subjectNameBuilder: subjectNameBuilder
-        ));
+            Func<SerializationContext, string> subjectNameBuilder = null,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            new AsyncSchemaRegistrySerializer<TValue>(
+                registryConfiguration,
+                registerAutomatically: registerAutomatically,
+                subjectNameBuilder: subjectNameBuilder,
+                tombstoneBehavior: tombstoneBehavior
+            ));
 
         /// <summary>
         /// Set the message value serializer.
@@ -687,16 +739,22 @@ namespace Chr.Avro.Confluent
         /// (key or value). If none is provided, the default "{topic name}-{component}" naming
         /// convention will be used.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static ProducerBuilder<TKey, TValue> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
-            Func<SerializationContext, string> subjectNameBuilder = null
-        ) => producerBuilder.SetValueSerializer(new AsyncSchemaRegistrySerializer<TValue>(
-            registryConfiguration,
-            registerAutomatically: registerAutomatically,
-            subjectNameBuilder: subjectNameBuilder
-        ));
+            Func<SerializationContext, string> subjectNameBuilder = null,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            new AsyncSchemaRegistrySerializer<TValue>(
+                registryConfiguration,
+                registerAutomatically: registerAutomatically,
+                subjectNameBuilder: subjectNameBuilder,
+                tombstoneBehavior: tombstoneBehavior
+            ));
 
         /// <summary>
         /// Set the message value serializer.
@@ -710,14 +768,20 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
-            int id
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, id, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -733,14 +797,20 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
-            int id
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, id, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -757,14 +827,20 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            int id
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, id, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -781,14 +857,20 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            int id
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, id).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, id, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -804,11 +886,16 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
-            int id
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(id).ConfigureAwait(false));
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            await serializerBuilder.Build<TValue>(id, tombstoneBehavior).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -822,11 +909,16 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to serialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
-            int id
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(id).ConfigureAwait(false));
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            await serializerBuilder.Build<TValue>(id, tombstoneBehavior).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -844,15 +936,21 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// When to automatically register a schema that matches <typeparamref name="TValue" />.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             string subject,
-            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -872,15 +970,21 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// When to automatically register a schema that matches <typeparamref name="TValue" />.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             string subject,
-            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -901,15 +1005,21 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// When to automatically register a schema that matches <typeparamref name="TValue" />.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             string subject,
-            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -930,15 +1040,21 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// When to automatically register a schema that matches <typeparamref name="TValue" />.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             string subject,
-            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, subject, registerAutomatically, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -958,12 +1074,17 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// When to automatically register a schema that matches <typeparamref name="TValue" />.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
-            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, registerAutomatically).ConfigureAwait(false));
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            await serializerBuilder.Build<TValue>(subject, registerAutomatically, tombstoneBehavior).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -981,12 +1102,17 @@ namespace Chr.Avro.Confluent
         /// <param name="registerAutomatically">
         /// When to automatically register a schema that matches <typeparamref name="TValue" />.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
-            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, registerAutomatically).ConfigureAwait(false));
+            AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            await serializerBuilder.Build<TValue>(subject, registerAutomatically, tombstoneBehavior).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -1003,15 +1129,21 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             string subject,
-            int version
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, subject, version, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -1030,15 +1162,21 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             ISchemaRegistryClient registryClient,
             string subject,
-            int version
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryClient))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, subject, version, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -1058,15 +1196,21 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             string subject,
-            int version
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, subject, version, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -1086,15 +1230,21 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             string subject,
-            int version
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var serializerBuilder = new SchemaRegistrySerializerBuilder(registryConfiguration))
             {
-                return await producerBuilder.SetAvroValueSerializer(serializerBuilder, subject, version).ConfigureAwait(false);
+                return await producerBuilder
+                    .SetAvroValueSerializer(serializerBuilder, subject, version, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -1113,12 +1263,17 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
-            int version
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, version).ConfigureAwait(false));
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            await serializerBuilder.Build<TValue>(subject, version, tombstoneBehavior).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value serializer.
@@ -1135,12 +1290,17 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the serializer on tombstone records.
+        /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
             SchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
-            int version
-        ) => producerBuilder.SetValueSerializer(await serializerBuilder.Build<TValue>(subject, version).ConfigureAwait(false));
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => producerBuilder.SetValueSerializer(
+            await serializerBuilder.Build<TValue>(subject, version, tombstoneBehavior).ConfigureAwait(false));
     }
 
     #endregion

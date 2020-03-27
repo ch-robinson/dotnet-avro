@@ -27,8 +27,9 @@ namespace Chr.Avro.Confluent
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             ISchemaRegistryClient registryClient
         ) => consumerBuilder.SetKeyDeserializer(
-            new AsyncSchemaRegistryDeserializer<TKey>(registryClient).AsSyncOverAsync()
-        );
+            new AsyncSchemaRegistryDeserializer<TKey>(
+                registryClient
+            ).AsSyncOverAsync());
 
         /// <summary>
         /// Set the message key deserializer.
@@ -44,8 +45,9 @@ namespace Chr.Avro.Confluent
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration
         ) => consumerBuilder.SetKeyDeserializer(
-            new AsyncSchemaRegistryDeserializer<TKey>(registryConfiguration).AsSyncOverAsync()
-        );
+            new AsyncSchemaRegistryDeserializer<TKey>(
+                registryConfiguration
+            ).AsSyncOverAsync());
 
         /// <summary>
         /// Set the message key deserializer.
@@ -66,7 +68,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, id).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroKeyDeserializer(deserializerBuilder, id)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -90,7 +94,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, id).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroKeyDeserializer(deserializerBuilder, id)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -110,7 +116,8 @@ namespace Chr.Avro.Confluent
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             int id
-        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(id).ConfigureAwait(false));
+        ) => consumerBuilder.SetKeyDeserializer(
+            await deserializerBuilder.Build<TKey>(id).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key deserializer.
@@ -132,7 +139,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroKeyDeserializer(deserializerBuilder, subject)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -157,7 +166,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroKeyDeserializer(deserializerBuilder, subject)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -178,8 +189,8 @@ namespace Chr.Avro.Confluent
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject
-        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(subject).ConfigureAwait(false));
-
+        ) => consumerBuilder.SetKeyDeserializer(
+            await deserializerBuilder.Build<TKey>(subject).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message key deserializer.
@@ -204,7 +215,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject, version).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroKeyDeserializer(deserializerBuilder, subject, version)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -232,7 +245,9 @@ namespace Chr.Avro.Confluent
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroKeyDeserializer(deserializerBuilder, subject, version).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroKeyDeserializer(deserializerBuilder, subject, version)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -256,7 +271,8 @@ namespace Chr.Avro.Confluent
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject,
             int version
-        ) => consumerBuilder.SetKeyDeserializer(await deserializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
+        ) => consumerBuilder.SetKeyDeserializer(
+            await deserializerBuilder.Build<TKey>(subject, version).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value deserializer.
@@ -269,29 +285,41 @@ namespace Chr.Avro.Confluent
         /// after the consumer; the deserializer will use it to request schemas as messages are
         /// being consumed.
         /// </param>
-        public static ConsumerBuilder<TKey, TValue> SetAvroValueDeserializer<TKey, TValue>(
-            this ConsumerBuilder<TKey, TValue> consumerBuilder,
-            ISchemaRegistryClient registryClient
-        ) => consumerBuilder.SetValueDeserializer(
-            new AsyncSchemaRegistryDeserializer<TValue>(registryClient).AsSyncOverAsync()
-        );
-
-        /// <summary>
-        /// Set the message value deserializer.
-        /// </summary>
-        /// <param name="consumerBuilder">
-        /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
-        /// </param>
-        /// <param name="registryConfiguration">
-        /// Schema Registry configuration. Using the <see cref="SchemaRegistryConfig" /> class is
-        /// highly recommended.
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
         /// </param>
         public static ConsumerBuilder<TKey, TValue> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
-            IEnumerable<KeyValuePair<string, string>> registryConfiguration
+            ISchemaRegistryClient registryClient,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) => consumerBuilder.SetValueDeserializer(
-            new AsyncSchemaRegistryDeserializer<TValue>(registryConfiguration).AsSyncOverAsync()
-        );
+            new AsyncSchemaRegistryDeserializer<TValue>(
+                registryClient,
+                tombstoneBehavior: tombstoneBehavior
+            ).AsSyncOverAsync());
+
+        /// <summary>
+        /// Set the message value deserializer.
+        /// </summary>
+        /// <param name="consumerBuilder">
+        /// The <see cref="ConsumerBuilder{TKey, TValue}" /> instance to be configured.
+        /// </param>
+        /// <param name="registryConfiguration">
+        /// Schema Registry configuration. Using the <see cref="SchemaRegistryConfig" /> class is
+        /// highly recommended.
+        /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
+        public static ConsumerBuilder<TKey, TValue> SetAvroValueDeserializer<TKey, TValue>(
+            this ConsumerBuilder<TKey, TValue> consumerBuilder,
+            IEnumerable<KeyValuePair<string, string>> registryConfiguration,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => consumerBuilder.SetValueDeserializer(
+            new AsyncSchemaRegistryDeserializer<TValue>(
+                registryConfiguration,
+                tombstoneBehavior: tombstoneBehavior
+            ).AsSyncOverAsync());
 
         /// <summary>
         /// Set the message value deserializer.
@@ -305,14 +333,20 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to deserialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             ISchemaRegistryClient registryClient,
-            int id
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, id).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroValueDeserializer(deserializerBuilder, id, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -329,14 +363,20 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to deserialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            int id
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, id).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroValueDeserializer(deserializerBuilder, id, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -352,11 +392,16 @@ namespace Chr.Avro.Confluent
         /// <param name="id">
         /// The ID of the schema that should be used to deserialize values.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
-            int id
-        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(id).ConfigureAwait(false));
+            int id,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => consumerBuilder.SetValueDeserializer(
+            await deserializerBuilder.Build<TValue>(id, tombstoneBehavior).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value deserializer.
@@ -371,14 +416,20 @@ namespace Chr.Avro.Confluent
         /// The subject of the schema that should be used to deserialize values. The latest version
         /// of the subject will be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             ISchemaRegistryClient registryClient,
-            string subject
+            string subject,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroValueDeserializer(deserializerBuilder, subject, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -396,14 +447,20 @@ namespace Chr.Avro.Confluent
         /// The subject of the schema that should be used to deserialize values. The latest version
         /// of the subject will be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            string subject
+            string subject,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroValueDeserializer(deserializerBuilder, subject, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -420,11 +477,16 @@ namespace Chr.Avro.Confluent
         /// The subject of the schema that should be used to deserialize values. The latest version
         /// of the subject will be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
-            string subject
-        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(subject).ConfigureAwait(false));
+            string subject,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => consumerBuilder.SetValueDeserializer(
+            await deserializerBuilder.Build<TValue>(subject, tombstoneBehavior).ConfigureAwait(false));
 
         /// <summary>
         /// Set the message value deserializer.
@@ -441,15 +503,21 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             ISchemaRegistryClient registryClient,
             string subject,
-            int version
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryClient))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject, version).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroValueDeserializer(deserializerBuilder, subject, version, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -469,15 +537,21 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
             string subject,
-            int version
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             using (var deserializerBuilder = new SchemaRegistryDeserializerBuilder(registryConfiguration))
             {
-                return await consumerBuilder.SetAvroValueDeserializer(deserializerBuilder, subject, version).ConfigureAwait(false);
+                return await consumerBuilder
+                    .SetAvroValueDeserializer(deserializerBuilder, subject, version, tombstoneBehavior)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -496,11 +570,16 @@ namespace Chr.Avro.Confluent
         /// <param name="version">
         /// The version of the subject to be resolved.
         /// </param>
+        /// <param name="tombstoneBehavior">
+        /// The behavior of the deserializer on tombstone records.
+        /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
             SchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject,
-            int version
-        ) => consumerBuilder.SetValueDeserializer(await deserializerBuilder.Build<TValue>(subject, version).ConfigureAwait(false));
+            int version,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
+        ) => consumerBuilder.SetValueDeserializer(
+            await deserializerBuilder.Build<TValue>(subject, version, tombstoneBehavior).ConfigureAwait(false));
     }
 }
