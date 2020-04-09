@@ -22,7 +22,7 @@ namespace Chr.Avro.Confluent
     /// </remarks>
     public class AsyncSchemaRegistrySerializer<T> : IAsyncSerializer<T>
     {
-        private readonly ConcurrentDictionary<string, Task<Func<T, byte[]>>> _cache;
+        private readonly IDictionary<string, Task<Func<T, byte[]>>> _cache;
 
         private readonly Func<string, string, Task<int>> _register;
 
@@ -178,7 +178,7 @@ namespace Chr.Avro.Confluent
             IBinarySerializerBuilder serializerBuilder = null,
             Func<SerializationContext, string> subjectNameBuilder = null
         ) {
-            _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
+            _cache = new Dictionary<string, Task<Func<T, byte[]>>>();
             _registerAutomatically = registerAutomatically;
             _schemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
             _schemaReader = schemaReader ?? new JsonSchemaReader();
@@ -193,53 +193,65 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public virtual async Task<byte[]> SerializeAsync(T data, SerializationContext context)
         {
-            var serialize = await (_cache.GetOrAdd(_subjectNameBuilder(context), async subject =>
+            var subject = _subjectNameBuilder(context);
+
+            Task<Func<T, byte[]>> task;
+
+            lock (_cache)
             {
-                int id;
-                Action<T, Stream> @delegate;
-
-                try
+                if (!_cache.TryGetValue(subject, out task) || task.IsFaulted)
                 {
-                    var existing = await _resolve(subject).ConfigureAwait(false);
-                    var schema = _schemaReader.Read(existing.SchemaString);
-
-                    @delegate = _serializerBuilder.BuildDelegate<T>(schema);
-                    id = existing.Id;
-                }
-                catch (Exception e) when (_registerAutomatically && (
-                    (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
-                    (e is UnsupportedTypeException)
-                ))
-                {
-                    var schema = _schemaBuilder.BuildSchema<T>();
-                    var json = _schemaWriter.Write(schema);
-
-                    @delegate = _serializerBuilder.BuildDelegate<T>(schema);
-                    id = await _register(subject, json).ConfigureAwait(false);
-                }
-
-                var bytes = BitConverter.GetBytes(id);
-
-                if (BitConverter.IsLittleEndian)
-                {
-                    Array.Reverse(bytes);
-                }
-
-                return value =>
-                {
-                    var stream = new MemoryStream();
-
-                    using (stream)
+                    _cache[subject] = task = ((Func<string, Task<Func<T, byte[]>>>)(async key =>
                     {
-                        stream.WriteByte(0x00);
-                        stream.Write(bytes, 0, bytes.Length);
+                        int id;
+                        Action<T, Stream> @delegate;
 
-                        @delegate(value, stream);
-                    }
+                        try
+                        {
+                            var existing = await _resolve(key).ConfigureAwait(false);
+                            var schema = _schemaReader.Read(existing.SchemaString);
 
-                    return stream.ToArray();
-                };
-            })).ConfigureAwait(false);
+                            @delegate = _serializerBuilder.BuildDelegate<T>(schema);
+                            id = existing.Id;
+                        }
+                        catch (Exception e) when (_registerAutomatically && (
+                            (e is SchemaRegistryException sre && sre.ErrorCode == 40401) ||
+                            (e is UnsupportedTypeException)
+                        ))
+                        {
+                            var schema = _schemaBuilder.BuildSchema<T>();
+                            var json = _schemaWriter.Write(schema);
+
+                            @delegate = _serializerBuilder.BuildDelegate<T>(schema);
+                            id = await _register(key, json).ConfigureAwait(false);
+                        }
+
+                        var bytes = BitConverter.GetBytes(id);
+
+                        if (BitConverter.IsLittleEndian)
+                        {
+                            Array.Reverse(bytes);
+                        }
+
+                        return value =>
+                        {
+                            var stream = new MemoryStream();
+
+                            using (stream)
+                            {
+                                stream.WriteByte(0x00);
+                                stream.Write(bytes, 0, bytes.Length);
+
+                                @delegate(value, stream);
+                            }
+
+                            return stream.ToArray();
+                        };
+                    }))(subject);
+                }
+            }
+
+            var serialize = await task.ConfigureAwait(false);
 
             return serialize(data);
         }

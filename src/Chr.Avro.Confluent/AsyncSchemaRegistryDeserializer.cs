@@ -19,7 +19,7 @@ namespace Chr.Avro.Confluent
     /// </summary>
     public class AsyncSchemaRegistryDeserializer<T> : IAsyncDeserializer<T>
     {
-        private readonly ConcurrentDictionary<int, Task<Func<Stream, T>>> _cache;
+        private readonly IDictionary<int, Task<Func<Stream, T>>> _cache;
 
         private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
@@ -104,7 +104,7 @@ namespace Chr.Avro.Confluent
             IBinaryDeserializerBuilder deserializerBuilder = null,
             IJsonSchemaReader schemaReader = null
         ) {
-            _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
+            _cache = new Dictionary<int, Task<Func<Stream, T>>>();
             _deserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
             _schemaReader = schemaReader ?? new JsonSchemaReader();
         }
@@ -128,15 +128,27 @@ namespace Chr.Avro.Confluent
                     Array.Reverse(bytes);
                 }
 
-                var @delegate = await (_cache.GetOrAdd(BitConverter.ToInt32(bytes, 0), async id =>
+                var id = BitConverter.ToInt32(bytes, 0);
+
+                Task<Func<Stream, T>> task;
+
+                lock (_cache)
                 {
-                    var json = await _resolve(id).ConfigureAwait(false);
-                    var schema = _schemaReader.Read(json);
+                    if (!_cache.TryGetValue(id, out task) || task.IsFaulted)
+                    {
+                        _cache[id] = task = ((Func<int, Task<Func<Stream, T>>>)(async key =>
+                        {
+                            var json = await _resolve(key).ConfigureAwait(false);
+                            var schema = _schemaReader.Read(json);
 
-                    return _deserializerBuilder.BuildDelegate<T>(schema);
-                })).ConfigureAwait(false);
+                            return _deserializerBuilder.BuildDelegate<T>(schema);
+                        }))(id);
+                    }
+                }
 
-                return @delegate(stream);
+                var deserialize = await task.ConfigureAwait(false);
+
+                return deserialize(stream);
             }
         }
     }
