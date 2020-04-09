@@ -3,6 +3,7 @@ using Confluent.SchemaRegistry;
 using Moq;
 using System;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -38,6 +39,32 @@ namespace Chr.Avro.Confluent.Tests
 
             RegistryClientMock
                 .Verify(c => c.GetLatestSchemaAsync(subject), Times.Once());
+        }
+
+        [Fact]
+        public async Task DoesNotCacheSchemaRegistryFailures()
+        {
+            var serializer = new AsyncSchemaRegistrySerializer<object>(
+                RegistryClientMock.Object
+            );
+
+            var metadata = new MessageMetadata();
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var subject = $"{context.Topic}-value";
+
+            RegistryClientMock
+                .Setup(c => c.GetLatestSchemaAsync(subject))
+                .ThrowsAsync(new HttpRequestException());
+
+            await Assert.ThrowsAsync<HttpRequestException>(() =>
+                serializer.SerializeAsync(null, context)
+            );
+
+            RegistryClientMock
+                .Setup(c => c.GetLatestSchemaAsync(subject))
+                .ReturnsAsync(new Schema(subject, 1, 12, "\"null\""));
+
+            await serializer.SerializeAsync(null, context);
         }
 
         [Fact]

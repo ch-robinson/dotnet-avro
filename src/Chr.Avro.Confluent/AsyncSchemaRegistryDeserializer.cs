@@ -40,7 +40,7 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public TombstoneBehavior TombstoneBehavior { get; }
 
-        private readonly ConcurrentDictionary<int, Task<Func<Stream, T>>> _cache;
+        private readonly IDictionary<int, Task<Func<Stream, T>>> _cache;
 
         private readonly bool _disposeRegistryClient;
 
@@ -86,7 +86,7 @@ namespace Chr.Avro.Confluent
             SchemaReader = schemaReader ?? new JsonSchemaReader();
             TombstoneBehavior = tombstoneBehavior;
 
-            _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
+            _cache = new Dictionary<int, Task<Func<Stream, T>>>();
             _disposeRegistryClient = true;
         }
 
@@ -131,7 +131,7 @@ namespace Chr.Avro.Confluent
             SchemaReader = schemaReader ?? new JsonSchemaReader();
             TombstoneBehavior = tombstoneBehavior;
 
-            _cache = new ConcurrentDictionary<int, Task<Func<Stream, T>>>();
+            _cache = new Dictionary<int, Task<Func<Stream, T>>>();
             _disposeRegistryClient = false;
         }
 
@@ -162,15 +162,27 @@ namespace Chr.Avro.Confluent
                     Array.Reverse(bytes);
                 }
 
-                var @delegate = await (_cache.GetOrAdd(BitConverter.ToInt32(bytes, 0), async id =>
+                var id = BitConverter.ToInt32(bytes, 0);
+
+                Task<Func<Stream, T>> task;
+
+                lock (_cache)
                 {
-                    var json = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
-                    var schema = SchemaReader.Read(json);
+                    if (!_cache.TryGetValue(id, out task) || task.IsFaulted)
+                    {
+                        _cache[id] = task = ((Func<int, Task<Func<Stream, T>>>)(async id =>
+                        {
+                            var json = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
+                            var schema = SchemaReader.Read(json);
 
-                    return DeserializerBuilder.BuildDelegate<T>(schema);
-                })).ConfigureAwait(false);
+                            return DeserializerBuilder.BuildDelegate<T>(schema);
+                        }))(id);
+                    }
+                }
 
-                return @delegate(stream);
+                var deserialize = await task.ConfigureAwait(false);
+
+                return deserialize(stream);
             }
         }
 

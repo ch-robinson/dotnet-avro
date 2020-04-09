@@ -60,7 +60,7 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public TombstoneBehavior TombstoneBehavior { get; }
 
-        private readonly ConcurrentDictionary<string, Task<Func<T, byte[]>>> _cache;
+        private readonly IDictionary<string, Task<Func<T, byte[]>>> _cache;
 
         private readonly Func<string, string, Task<int>> _register;
 
@@ -132,7 +132,7 @@ namespace Chr.Avro.Confluent
                 (c => $"{c.Topic}-{(c.Component == MessageComponentType.Key ? "key" : "value")}");
             TombstoneBehavior = tombstoneBehavior;
 
-            _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
+            _cache = new Dictionary<string, Task<Func<T, byte[]>>>();
 
             _register = async (subject, json) =>
             {
@@ -216,7 +216,7 @@ namespace Chr.Avro.Confluent
                 (c => $"{c.Topic}-{(c.Component == MessageComponentType.Key ? "key" : "value")}");
             TombstoneBehavior = tombstoneBehavior;
 
-            _cache = new ConcurrentDictionary<string, Task<Func<T, byte[]>>>();
+            _cache = new Dictionary<string, Task<Func<T, byte[]>>>();
             _register = (subject, json) => registryClient.RegisterSchemaAsync(subject, json);
             _resolve = subject => registryClient.GetLatestSchemaAsync(subject);
         }
@@ -226,25 +226,37 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public virtual async Task<byte[]> SerializeAsync(T data, SerializationContext context)
         {
-            var serialize = await (_cache.GetOrAdd(SubjectNameBuilder(context), async subject =>
+            var subject = SubjectNameBuilder(context);
+
+            Task<Func<T, byte[]>> task;
+
+            lock (_cache)
             {
-                switch (RegisterAutomatically)
+                if (!_cache.TryGetValue(subject, out task) || task.IsFaulted)
                 {
-                    case AutomaticRegistrationBehavior.Always:
-                        var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
-                        var id = await _register(subject, json).ConfigureAwait(false);
+                    _cache[subject] = task = ((Func<string, Task<Func<T, byte[]>>>)(async subject =>
+                    {
+                        switch (RegisterAutomatically)
+                        {
+                            case AutomaticRegistrationBehavior.Always:
+                                var schema = SchemaBuilder.BuildSchema<T>();
+                                var id = await _register(subject, SchemaWriter.Write(schema)).ConfigureAwait(false);
 
-                        return Build(id, json);
+                                return Build(id, schema);
 
-                    case AutomaticRegistrationBehavior.Never:
-                        var existing = await _resolve(subject).ConfigureAwait(false);
+                            case AutomaticRegistrationBehavior.Never:
+                                var existing = await _resolve(subject).ConfigureAwait(false);
 
-                        return Build(existing.Id, existing.SchemaString);
+                                return Build(existing.Id, SchemaReader.Read(existing.SchemaString));
 
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(RegisterAutomatically));
+                            default:
+                                throw new ArgumentOutOfRangeException(nameof(RegisterAutomatically));
+                        }
+                    }))(subject);
                 }
-            })).ConfigureAwait(false);
+            }
+
+            var serialize = await task.ConfigureAwait(false);
 
             if (data == null && TombstoneBehavior != TombstoneBehavior.None)
             {
@@ -266,7 +278,7 @@ namespace Chr.Avro.Confluent
         /// <param name="schema">
         /// The schema to build the Avro serializer from.
         /// </param>
-        protected virtual Func<T, byte[]> Build(int id, string schema)
+        protected virtual Func<T, byte[]> Build(int id, Abstract.Schema schema)
         {
             var bytes = BitConverter.GetBytes(id);
 
@@ -275,7 +287,7 @@ namespace Chr.Avro.Confluent
                 Array.Reverse(bytes);
             }
 
-            var serialize = SerializerBuilder.BuildDelegate<T>(SchemaReader.Read(schema));
+            var serialize = SerializerBuilder.BuildDelegate<T>(schema);
 
             return value =>
             {
