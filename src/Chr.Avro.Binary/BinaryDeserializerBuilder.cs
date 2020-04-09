@@ -786,11 +786,14 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                // read the bytes:
                 expression = Codec.Read(context.Stream, expression);
 
-                // declare some variables for in-place transformation:
+                // declare variables for in-place transformation:
                 var bytes = Expression.Variable(typeof(byte[]));
+                var remainder = Expression.Variable(typeof(BigInteger));
+
+                var divide = typeof(BigInteger)
+                    .GetMethod(nameof(BigInteger.DivRem), new[] { typeof(BigInteger), typeof(BigInteger), typeof(BigInteger).MakeByRefType() });
 
                 var integerConstructor = typeof(BigInteger)
                     .GetConstructor(new[] { typeof(byte[]) });
@@ -799,20 +802,26 @@ namespace Chr.Avro.Serialization
                     .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
 
                 expression = Expression.Block(
-                    new[] { bytes },
+                    new[] { bytes, remainder },
 
-                    // store the bytes in a variable:
+                    // store the bytes:
                     Expression.Assign(bytes, expression),
 
                     // BigInteger is little-endian, so reverse before creating:
                     Expression.Call(null, reverse, bytes),
 
-                    // return (decimal)new BigInteger(bytes) / (decimal)Math.Pow(10, scale);
-                    Expression.Divide(
+                    Expression.Add(
                         Expression.ConvertChecked(
-                            Expression.New(integerConstructor, bytes),
+                            Expression.Call(
+                                null,
+                                divide,
+                                Expression.New(integerConstructor, bytes),
+                                Expression.Constant(BigInteger.Pow(10, scale)),
+                                remainder),
                             typeof(decimal)),
-                        Expression.Constant((decimal)Math.Pow(10, scale)))
+                        Expression.Divide(
+                            Expression.ConvertChecked(remainder, typeof(decimal)),
+                            Expression.Constant((decimal)Math.Pow(10, scale))))
                 );
 
                 result.Expression = GenerateConversion(expression, resolution.Type);

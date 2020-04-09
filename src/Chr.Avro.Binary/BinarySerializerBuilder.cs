@@ -676,7 +676,7 @@ namespace Chr.Avro.Serialization
 
                 var expression = GenerateConversion(value, typeof(decimal));
 
-                // buffer:
+                // declare variables for in-place transformation:
                 var bytes = Expression.Variable(typeof(byte[]));
 
                 var integerConstructor = typeof(BigInteger)
@@ -689,13 +689,19 @@ namespace Chr.Avro.Serialization
                     .GetMethod(nameof(BigInteger.ToByteArray), Type.EmptyTypes);
 
                 expression = Expression.Block(
-                    // bytes = new BigInteger(result * (decimal)Math.Pow(10, scale)).ToByteArray();
                     Expression.Assign(bytes,
                         Expression.Call(
-                            Expression.New(integerConstructor,
+                            Expression.Add(
                                 Expression.Multiply(
-                                    expression,
-                                    Expression.Constant((decimal)Math.Pow(10, scale)))),
+                                    Expression.New(
+                                        integerConstructor,
+                                        expression),
+                                    Expression.Constant(BigInteger.Pow(10, scale))),
+                                Expression.New(
+                                    integerConstructor,
+                                    Expression.Multiply(
+                                        Expression.Modulo(expression, Expression.Constant(1m)),
+                                        Expression.Constant((decimal)Math.Pow(10, scale))))),
                             toByteArray)),
 
                     // BigInteger is little-endian, so reverse:

@@ -17,8 +17,23 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [MemberData(nameof(Encodings))]
-        public void EncodedDecimalValues(int precision, int scale, decimal value, byte[] encoding, decimal resizing)
+        [MemberData(nameof(BoundaryDecimals))]
+        public void BoundaryDecimalValues(decimal value)
+        {
+            var schema = new BytesSchema()
+            {
+                LogicalType = new DecimalLogicalType(29, 14)
+            };
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<decimal>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<decimal>(schema);
+
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
+        [MemberData(nameof(ResizedDecimals))]
+        public void ResizedDecimalValues(int precision, int scale, decimal value, byte[] encoding, decimal resizing)
         {
             var schema = new BytesSchema()
             {
@@ -32,7 +47,14 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(resizing, deserializer.Deserialize(encoding));
         }
 
-        public static IEnumerable<object[]> Encodings => new List<object[]>
+        public static IEnumerable<object[]> BoundaryDecimals => new List<object[]>
+        {
+            new object[] { decimal.MinValue },
+            new object[] { decimal.Zero },
+            new object[] { decimal.MaxValue }
+        };
+
+        public static IEnumerable<object[]> ResizedDecimals => new List<object[]>
         {
             new object[] { 6, 0, -32769m, new byte[] { 0x06, 0xff, 0x7f, 0xff }, -32769m },
             new object[] { 6, 0, -32768m, new byte[] { 0x04, 0x80, 0x00 }, -32768m },
