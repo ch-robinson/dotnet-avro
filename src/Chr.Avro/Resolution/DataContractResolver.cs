@@ -274,7 +274,7 @@ namespace Chr.Avro.Resolution
                             m.MemberInfo,
                             m.Type,
                             Name: CreateNameResolution(m.MemberInfo, m.Attribute),
-                            m.Attribute.Order
+                            m.Attribute!.Order
                         )))
                     .OrderBy(m => m.Order)
                     .ThenBy(m => m.Name.Value)
