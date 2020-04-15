@@ -112,45 +112,6 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Fact]
-        public void PartiallySelectedTypes()
-        {
-            var schema = new UnionSchema(new[]
-            {
-                new RecordSchema(nameof(OrderCancelledEvent), new[]
-                {
-                    new RecordField("timestamp", new StringSchema())
-                }),
-                new RecordSchema(nameof(OrderCreatedEvent), new[]
-                {
-                    new RecordField("timestamp", new StringSchema()),
-                    new RecordField("total", new BytesSchema()
-                    {
-                        LogicalType = new DecimalLogicalType(5, 2)
-                    })
-                })
-            });
-
-            var codec = new BinaryCodec();
-            var resolver = new ReflectionResolver();
-
-            var deserializer = DeserializerBuilder.BuildDeserializer<OrderCreatedEvent>(schema);
-
-            var serializer = new BinarySerializerBuilder(BinarySerializerBuilder.CreateBinarySerializerCaseBuilders(codec)
-                .Prepend(builder => new OrderSerializerBuilderCase(resolver, codec, builder)))
-                .BuildSerializer<OrderEvent>(schema);
-
-            var value = new OrderCreatedEvent
-            {
-                Timestamp = DateTime.UtcNow,
-                Total = 40M
-            };
-
-            var result = deserializer.Deserialize(serializer.Serialize(value));
-            Assert.Equal(value.Timestamp, result.Timestamp);
-            Assert.Equal(value.Total, result.Total);
-        }
-
-        [Fact]
         public void SelectedTypes()
         {
             var schema = new RecordSchema(nameof(EventContainer), new[]
@@ -305,7 +266,7 @@ namespace Chr.Avro.Serialization.Tests
 
             protected override TypeResolution SelectType(TypeResolution resolution, Schema schema)
             {
-                if (!(resolution is RecordResolution recordResolution) || !recordResolution.Type.IsAssignableFrom(typeof(OrderEvent)))
+                if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
                 {
                     throw new UnsupportedTypeException(resolution.Type);
                 }

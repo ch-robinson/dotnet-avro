@@ -106,9 +106,9 @@ namespace Chr.Avro.Serialization
         ConcurrentDictionary<ParameterExpression, Expression> Assignments { get; }
 
         /// <summary>
-        /// A map of schema-type pairs to top-level variables.
+        /// A map of types to top-level variables.
         /// </summary>
-        ConcurrentDictionary<(Schema, Type), ParameterExpression> References { get; }
+        ConcurrentDictionary<Type, ParameterExpression> References { get; }
 
         /// <summary>
         /// The input <see cref="System.IO.Stream" />.
@@ -369,7 +369,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// A map of types to top-level variables.
         /// </summary>
-        public ConcurrentDictionary<(Schema, Type), ParameterExpression> References { get; }
+        public ConcurrentDictionary<Type, ParameterExpression> References { get; }
 
         /// <summary>
         /// The input <see cref="System.IO.Stream" />.
@@ -386,7 +386,7 @@ namespace Chr.Avro.Serialization
         public BinaryDeserializerBuilderContext(ParameterExpression? stream = null)
         {
             Assignments = new ConcurrentDictionary<ParameterExpression, Expression>();
-            References = new ConcurrentDictionary<(Schema, Type), ParameterExpression>();
+            References = new ConcurrentDictionary<Type, ParameterExpression>();
             Stream = stream ?? Expression.Parameter(typeof(Stream));
         }
     }
@@ -1524,7 +1524,7 @@ namespace Chr.Avro.Serialization
                 if (resolution is RecordResolution recordResolution)
                 {
                     var parameter = Expression.Parameter(typeof(Func<>).MakeGenericType(resolution.Type));
-                    var reference = context.References.GetOrAdd((recordSchema, resolution.Type), parameter);
+                    var reference = context.References.GetOrAdd(resolution.Type, parameter);
                     result.Expression = Expression.Invoke(reference);
 
                     if (parameter == reference)
