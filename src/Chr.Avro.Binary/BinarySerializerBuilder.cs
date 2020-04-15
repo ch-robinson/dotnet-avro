@@ -981,7 +981,11 @@ namespace Chr.Avro.Serialization
                 return Expression.SwitchCase(write, Expression.Constant(symbol.Value));
             });
 
-            var result = Expression.Switch(value, cases.ToArray());
+            var exceptionConstructor = typeof(ArgumentOutOfRangeException)
+                .GetConstructor(new[] { typeof(string) });
+
+            var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum value out of range."));
+            var result = Expression.Switch(value, Expression.Throw(exception), cases.ToArray());
             var lambda = Expression.Lambda(result, $"{enumSchema.Name} serializer", new[] { value, stream });
             var compiled = lambda.Compile();
 

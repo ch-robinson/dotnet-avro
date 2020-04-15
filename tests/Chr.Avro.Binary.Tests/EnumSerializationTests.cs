@@ -38,6 +38,10 @@ namespace Chr.Avro.Serialization.Tests
 
             schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS" });
             Assert.Throws<AggregateException>(() => SerializerBuilder.BuildSerializer<Suit>(schema));
+
+            schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" });
+            var serializer = SerializerBuilder.BuildSerializer<Suit>(schema);
+            Assert.Throws<ArgumentOutOfRangeException>(() => serializer.Serialize((Suit)(-1)));
         }
 
         [Theory]
