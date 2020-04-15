@@ -1001,7 +1001,12 @@ namespace Chr.Avro.Serialization
                         return Expression.SwitchCase(Codec.WriteInteger(Expression.Constant((long)index), context.Stream), Expression.Constant(symbol.Value));
                     });
 
-                    result.Expression = Expression.Switch(value, cases.ToArray());
+                    var exceptionConstructor = typeof(ArgumentOutOfRangeException)
+                        .GetConstructor(new[] { typeof(string) });
+
+                    var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum value out of range."));
+
+                    result.Expression = Expression.Switch(value, Expression.Throw(exception), cases.ToArray());
                 }
                 else
                 {
