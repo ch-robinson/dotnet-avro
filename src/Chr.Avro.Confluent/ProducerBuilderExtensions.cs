@@ -252,7 +252,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             int id
         ) => producerBuilder.SetKeySerializer(
             await serializerBuilder.Build<TKey>(id).ConfigureAwait(false));
@@ -271,7 +271,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             int id
         ) => producerBuilder.SetKeySerializer(
             await serializerBuilder.Build<TKey>(id).ConfigureAwait(false));
@@ -416,7 +416,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
         ) => producerBuilder.SetKeySerializer(
@@ -440,7 +440,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never
         ) => producerBuilder.SetKeySerializer(
@@ -581,7 +581,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version
         ) => producerBuilder.SetKeySerializer(
@@ -604,7 +604,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroKeySerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version
         ) => producerBuilder.SetKeySerializer(
@@ -891,7 +891,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             int id,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) => producerBuilder.SetValueSerializer(
@@ -914,7 +914,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             int id,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) => producerBuilder.SetValueSerializer(
@@ -1079,7 +1079,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
@@ -1107,7 +1107,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             AutomaticRegistrationBehavior registerAutomatically = AutomaticRegistrationBehavior.Never,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
@@ -1268,7 +1268,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<DependentProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this DependentProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
@@ -1295,7 +1295,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ProducerBuilder<TKey, TValue>> SetAvroValueSerializer<TKey, TValue>(
             this ProducerBuilder<TKey, TValue> producerBuilder,
-            SchemaRegistrySerializerBuilder serializerBuilder,
+            ISchemaRegistrySerializerBuilder serializerBuilder,
             string subject,
             int version,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None

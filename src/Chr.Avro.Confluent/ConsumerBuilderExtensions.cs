@@ -114,7 +114,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroKeyDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
-            SchemaRegistryDeserializerBuilder deserializerBuilder,
+            ISchemaRegistryDeserializerBuilder deserializerBuilder,
             int id
         ) => consumerBuilder.SetKeyDeserializer(
             await deserializerBuilder.Build<TKey>(id).ConfigureAwait(false));
@@ -187,7 +187,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroKeyDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
-            SchemaRegistryDeserializerBuilder deserializerBuilder,
+            ISchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject
         ) => consumerBuilder.SetKeyDeserializer(
             await deserializerBuilder.Build<TKey>(subject).ConfigureAwait(false));
@@ -268,7 +268,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroKeyDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
-            SchemaRegistryDeserializerBuilder deserializerBuilder,
+            ISchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject,
             int version
         ) => consumerBuilder.SetKeyDeserializer(
@@ -397,7 +397,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
-            SchemaRegistryDeserializerBuilder deserializerBuilder,
+            ISchemaRegistryDeserializerBuilder deserializerBuilder,
             int id,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) => consumerBuilder.SetValueDeserializer(
@@ -482,7 +482,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
-            SchemaRegistryDeserializerBuilder deserializerBuilder,
+            ISchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) => consumerBuilder.SetValueDeserializer(
@@ -575,7 +575,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public static async Task<ConsumerBuilder<TKey, TValue>> SetAvroValueDeserializer<TKey, TValue>(
             this ConsumerBuilder<TKey, TValue> consumerBuilder,
-            SchemaRegistryDeserializerBuilder deserializerBuilder,
+            ISchemaRegistryDeserializerBuilder deserializerBuilder,
             string subject,
             int version,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
