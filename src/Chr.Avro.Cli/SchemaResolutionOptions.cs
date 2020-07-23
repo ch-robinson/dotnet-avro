@@ -1,9 +1,9 @@
 using System;
 using System.Threading.Tasks;
-
 using SchemaRegistryClient = Confluent.SchemaRegistry.CachedSchemaRegistryClient;
 using SchemaRegistryConfiguration = Confluent.SchemaRegistry.SchemaRegistryConfig;
 using SchemaRegistryException = Confluent.SchemaRegistry.SchemaRegistryException;
+using SchemaType = Confluent.SchemaRegistry.SchemaType;
 
 namespace Chr.Avro.Cli
 {
@@ -38,7 +38,7 @@ namespace Chr.Avro.Cli
 
                 var configuration = new SchemaRegistryConfiguration
                 {
-                    SchemaRegistryUrl = options.RegistryUrl
+                    Url = options.RegistryUrl
                 };
 
                 using var client = new SchemaRegistryClient(configuration);
@@ -54,7 +54,14 @@ namespace Chr.Avro.Cli
 
                         try
                         {
-                            return await client.GetSchemaAsync(id);
+                            var schema = await client.GetSchemaAsync(id);
+
+                            if (schema.SchemaType != SchemaType.Avro)
+                            {
+                                throw new ProgramException(message: $"The schema with ID {id} is not an Avro schema.");
+                            }
+
+                            return schema.SchemaString;
                         }
                         catch (AggregateException aggregate) when (aggregate.InnerException is SchemaRegistryException inner)
                         {
@@ -72,7 +79,14 @@ namespace Chr.Avro.Cli
                         {
                             try
                             {
-                                return await client.GetSchemaAsync(subject, version);
+                                var schema = await client.GetRegisteredSchemaAsync(subject, version);
+
+                                if (schema.SchemaType != SchemaType.Avro)
+                                {
+                                    throw new ProgramException(message: $"The schema with subject {subject} and version {version} is not an Avro schema.");
+                                }
+
+                                return schema.SchemaString;
                             }
                             catch (AggregateException aggregate) when (aggregate.InnerException is SchemaRegistryException inner)
                             {
@@ -83,7 +97,14 @@ namespace Chr.Avro.Cli
                         {
                             try
                             {
-                                return (await client.GetLatestSchemaAsync(options.SchemaSubject)).SchemaString;
+                                var schema = await client.GetLatestSchemaAsync(options.SchemaSubject);
+
+                                if (schema.SchemaType != SchemaType.Avro)
+                                {
+                                    throw new ProgramException(message: $"The latest schema with subject {subject} is not an Avro schema.");
+                                }
+
+                                return schema.SchemaString;
                             }
                             catch (AggregateException aggregate) when (aggregate.InnerException is SchemaRegistryException inner)
                             {

@@ -12,7 +12,7 @@ namespace Chr.Avro
         /// <summary>
         /// The schema that caused the exception to be thrown.
         /// </summary>
-        public Schema UnsupportedSchema { get; }
+        public Schema? UnsupportedSchema { get; }
 
         /// <summary>
         /// Creates an exception describing the error.
@@ -26,7 +26,7 @@ namespace Chr.Avro
         /// <param name="inner">
         /// An underlying error that may provide additional context.
         /// </param>
-        public UnsupportedSchemaException(Schema schema, string? message = null, Exception? inner = null) : base(message ?? $"{schema.GetType()} is not supported.", inner)
+        public UnsupportedSchemaException(Schema? schema, string? message = null, Exception? inner = null) : base(message ?? $"{schema?.GetType()?.Name ?? "The schema"} is not supported.", inner)
         {
             UnsupportedSchema = schema;
         }

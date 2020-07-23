@@ -3,7 +3,6 @@ using Chr.Avro.Serialization;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -64,7 +63,7 @@ namespace Chr.Avro.Confluent
 
         private readonly Func<string, string, Task<int>> _register;
 
-        private readonly Func<string, Task<Schema>> _resolve;
+        private readonly Func<string, Task<RegisteredSchema>> _resolve;
 
         /// <summary>
         /// Creates a serializer.
@@ -138,7 +137,7 @@ namespace Chr.Avro.Confluent
             {
                 using (var registry = new CachedSchemaRegistryClient(registryConfiguration))
                 {
-                    return await registry.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
+                    return await registry.RegisterSchemaAsync(subject, new Schema(json, SchemaType.Avro)).ConfigureAwait(false);
                 }
             };
 
@@ -146,7 +145,14 @@ namespace Chr.Avro.Confluent
             {
                 using (var registry = new CachedSchemaRegistryClient(registryConfiguration))
                 {
-                    return await registry.GetLatestSchemaAsync(subject).ConfigureAwait(false);
+                    var schema = await registry.GetLatestSchemaAsync(subject).ConfigureAwait(false);
+
+                    if (schema.SchemaType != SchemaType.Avro)
+                    {
+                        throw new UnsupportedSchemaException(null, $"The latest schema with subject {subject} is not an Avro schema.");
+                    }
+
+                    return schema;
                 }
             };
         }
@@ -217,8 +223,18 @@ namespace Chr.Avro.Confluent
             TombstoneBehavior = tombstoneBehavior;
 
             _cache = new Dictionary<string, Task<Func<T, byte[]>>>();
-            _register = (subject, json) => registryClient.RegisterSchemaAsync(subject, json);
-            _resolve = subject => registryClient.GetLatestSchemaAsync(subject);
+            _register = (subject, json) => registryClient.RegisterSchemaAsync(subject, new Schema(json, SchemaType.Avro));
+            _resolve = async subject =>
+            {
+                var schema = await registryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
+
+                if (schema.SchemaType != SchemaType.Avro)
+                {
+                    throw new UnsupportedSchemaException(null, $"The latest schema with subject {subject} is not an Avro schema.");
+                }
+
+                return schema;
+            };
         }
 
         /// <summary>

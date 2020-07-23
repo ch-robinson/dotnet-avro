@@ -161,7 +161,14 @@ namespace Chr.Avro.Confluent
             int id,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
-            return Build<T>(id, await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false), tombstoneBehavior);
+            var schema = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
+
+            if (schema.SchemaType != SchemaType.Avro)
+            {
+                throw new UnsupportedSchemaException(null, $"The schema with ID {id} is not an Avro schema.");
+            }
+
+            return Build<T>(id, schema.SchemaString, tombstoneBehavior);
         }
 
         /// <summary>
@@ -182,6 +189,11 @@ namespace Chr.Avro.Confluent
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
             var schema = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
+
+            if (schema.SchemaType != SchemaType.Avro)
+            {
+                throw new UnsupportedSchemaException(null, $"The latest schema with subject {subject} is not an Avro schema.");
+            }
 
             return Build<T>(schema.Id, schema.SchemaString, tombstoneBehavior);
         }
@@ -206,10 +218,16 @@ namespace Chr.Avro.Confluent
             int version,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
-            var schema = await RegistryClient.GetSchemaAsync(subject, version).ConfigureAwait(false);
+            var schema = await RegistryClient.GetRegisteredSchemaAsync(subject, version).ConfigureAwait(false);
+
+            if (schema.SchemaType != SchemaType.Avro)
+            {
+                throw new UnsupportedSchemaException(null, $"The schema with subject {subject} and version {version} is not an Avro schema.");
+            }
+
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema).ConfigureAwait(false);
 
-            return Build<T>(id, schema, tombstoneBehavior);
+            return Build<T>(id, schema.SchemaString, tombstoneBehavior);
         }
 
         /// <summary>

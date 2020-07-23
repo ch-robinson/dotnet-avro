@@ -1,4 +1,3 @@
-using Chr.Avro.Abstract;
 using Chr.Avro.Representation;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
@@ -202,7 +201,12 @@ namespace Chr.Avro.Confluent
         ) {
             var schema = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
 
-            return Build<T>(id, schema, tombstoneBehavior);
+            if (schema.SchemaType != SchemaType.Avro)
+            {
+                throw new UnsupportedSchemaException(null, $"The schema with ID {id} is not an Avro schema.");
+            }
+
+            return Build<T>(id, schema.SchemaString, tombstoneBehavior);
         }
 
         /// <summary>
@@ -231,7 +235,7 @@ namespace Chr.Avro.Confluent
             {
                 case AutomaticRegistrationBehavior.Always:
                     var json = SchemaWriter.Write(SchemaBuilder.BuildSchema<T>());
-                    var id = await RegistryClient.RegisterSchemaAsync(subject, json).ConfigureAwait(false);
+                    var id = await RegistryClient.RegisterSchemaAsync(subject, new Schema(json, SchemaType.Avro)).ConfigureAwait(false);
 
                     return Build<T>(id, json, tombstoneBehavior);
 
@@ -265,10 +269,16 @@ namespace Chr.Avro.Confluent
             int version,
             TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None
         ) {
-            var schema = await RegistryClient.GetSchemaAsync(subject, version).ConfigureAwait(false);
+            var schema = await RegistryClient.GetRegisteredSchemaAsync(subject, version).ConfigureAwait(false);
+
+            if (schema.SchemaType != SchemaType.Avro)
+            {
+                throw new UnsupportedSchemaException(null, $"The schema with subject {subject} and version {version} is not an Avro schema.");
+            }
+
             var id = await RegistryClient.GetSchemaIdAsync(subject, schema).ConfigureAwait(false);
 
-            return Build<T>(id, schema, tombstoneBehavior);
+            return Build<T>(id, schema.SchemaString, tombstoneBehavior);
         }
 
         /// <summary>
@@ -320,8 +330,8 @@ namespace Chr.Avro.Confluent
                     throw new UnsupportedTypeException(typeof(T), $"{typeof(T)} cannot represent tombstone values.");
                 }
 
-                var hasNull = schema is NullSchema
-                    || (schema is UnionSchema union && union.Schemas.Any(s => s is NullSchema));
+                var hasNull = schema is Abstract.NullSchema
+                    || (schema is Abstract.UnionSchema union && union.Schemas.Any(s => s is Abstract.NullSchema));
 
                 if (tombstoneBehavior == TombstoneBehavior.Strict && hasNull)
                 {

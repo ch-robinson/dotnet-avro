@@ -22,8 +22,8 @@ namespace Chr.Avro.Confluent.Tests
             var id = 6;
             var json = @"[""null"",""int""]";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id))
-                .ReturnsAsync(json)
+            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
@@ -44,7 +44,7 @@ namespace Chr.Avro.Confluent.Tests
             var version = 4;
 
             RegistryMock.Setup(r => r.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, version, id, json))
+                .ReturnsAsync(new RegisteredSchema(subject, version, id, json, SchemaType.Avro, null))
                 .Verifiable();
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
@@ -64,11 +64,11 @@ namespace Chr.Avro.Confluent.Tests
             var subject = "test-subject";
             var version = 4;
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(subject, version))
-                .ReturnsAsync(json)
+            RegistryMock.Setup(r => r.GetRegisteredSchemaAsync(subject, version))
+                .ReturnsAsync(new RegisteredSchema(subject, version, id, json, SchemaType.Avro, null))
                 .Verifiable();
 
-            RegistryMock.Setup(r => r.GetSchemaIdAsync(subject, json))
+            RegistryMock.Setup(r => r.GetSchemaIdAsync(subject, It.Is<Schema>(s => s.SchemaString == json)))
                 .ReturnsAsync(id)
                 .Verifiable();
 
@@ -89,8 +89,8 @@ namespace Chr.Avro.Confluent.Tests
             var id = 12;
             var json = @"""string""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id))
-                .ReturnsAsync(json)
+            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             var context = new SerializationContext(MessageComponentType.Value, "test-topic");
@@ -109,8 +109,8 @@ namespace Chr.Avro.Confluent.Tests
             var id = 4;
             var json = @"""int""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id))
-                .ReturnsAsync(json)
+            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
@@ -126,8 +126,8 @@ namespace Chr.Avro.Confluent.Tests
             var id = 1;
             var json = @"""null""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id))
-                .ReturnsAsync(json)
+            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
@@ -143,8 +143,8 @@ namespace Chr.Avro.Confluent.Tests
             var id = 6;
             var json = @"[""null"",""int""]";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id))
-                .ReturnsAsync(json)
+            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
@@ -161,8 +161,8 @@ namespace Chr.Avro.Confluent.Tests
             var id = 12;
             var json = @"""string""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id))
-                .ReturnsAsync(json)
+            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             var context = new SerializationContext(MessageComponentType.Value, "test-topic");
@@ -184,8 +184,8 @@ namespace Chr.Avro.Confluent.Tests
             var id = 12;
             var json = @"""string""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id))
-                .ReturnsAsync(json)
+            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             var context = new SerializationContext(MessageComponentType.Value, "test-topic");

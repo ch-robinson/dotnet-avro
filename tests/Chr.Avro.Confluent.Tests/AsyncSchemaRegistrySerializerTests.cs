@@ -31,7 +31,7 @@ namespace Chr.Avro.Confluent.Tests
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 1, 12, "\"null\""));
+                .ReturnsAsync(new RegisteredSchema(subject, 1, 12, "\"null\"", SchemaType.Avro, null));
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
                 serializer.SerializeAsync(null, context)
@@ -62,7 +62,7 @@ namespace Chr.Avro.Confluent.Tests
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 1, 12, "\"null\""));
+                .ReturnsAsync(new RegisteredSchema(subject, 1, 12, "\"null\"", SchemaType.Avro, null));
 
             await serializer.SerializeAsync(null, context);
         }
@@ -82,7 +82,7 @@ namespace Chr.Avro.Confluent.Tests
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 1, 4, "\"int\""));
+                .ReturnsAsync(new RegisteredSchema(subject, 1, 4, "\"int\"", SchemaType.Avro, null));
 
             Assert.Equal(encoding,
                 await serializer.SerializeAsync(data, context)
@@ -103,7 +103,7 @@ namespace Chr.Avro.Confluent.Tests
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 1, 4, "\"int\""));
+                .ReturnsAsync(new RegisteredSchema(subject, 1, 4, "\"int\"", SchemaType.Avro, null));
 
             Assert.Null(await serializer.SerializeAsync(data, context));
         }
@@ -123,7 +123,7 @@ namespace Chr.Avro.Confluent.Tests
             var subject = $"{context.Topic}-value";
 
             RegistryClientMock
-                .Setup(c => c.RegisterSchemaAsync(subject, It.IsAny<string>()))
+                .Setup(c => c.RegisterSchemaAsync(subject, It.Is<Schema>(s => s.SchemaType == SchemaType.Avro)))
                 .ReturnsAsync(9);
 
             Assert.Equal(encoding, await serializer.SerializeAsync(data, context));
@@ -144,7 +144,7 @@ namespace Chr.Avro.Confluent.Tests
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 1, 9, "\"string\""));
+                .ReturnsAsync(new RegisteredSchema(subject, 1, 9, "\"string\"", SchemaType.Avro, null));
 
             await Assert.ThrowsAsync<UnsupportedTypeException>(() => serializer.SerializeAsync(data, context));
         }
@@ -163,7 +163,7 @@ namespace Chr.Avro.Confluent.Tests
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 1, 4, "\"int\""));
+                .ReturnsAsync(new RegisteredSchema(subject, 1, 4, "\"int\"", SchemaType.Avro, null));
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 serializer.SerializeAsync(data, context)
@@ -197,7 +197,7 @@ namespace Chr.Avro.Confluent.Tests
 
             RegistryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
-                .ReturnsAsync(new Schema(subject, 2, 8, "\"int\""));
+                .ReturnsAsync(new RegisteredSchema(subject, 2, 8, "\"int\"", SchemaType.Avro, null));
 
             Assert.Equal(encoding,
                 await serializer.SerializeAsync(data, context)

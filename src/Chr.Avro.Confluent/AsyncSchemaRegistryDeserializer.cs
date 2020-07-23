@@ -3,7 +3,6 @@ using Chr.Avro.Serialization;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -154,7 +153,7 @@ namespace Chr.Avro.Confluent
 
                 if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
                 {
-                    throw new InvalidDataException("Data does not conform to the Confluent wire format.");
+                    throw new InvalidDataException("The encoded data does not conform to the Confluent wire format.");
                 }
 
                 if (BitConverter.IsLittleEndian)
@@ -172,10 +171,14 @@ namespace Chr.Avro.Confluent
                     {
                         _cache[id] = task = ((Func<int, Task<Func<Stream, T>>>)(async id =>
                         {
-                            var json = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
-                            var schema = SchemaReader.Read(json);
+                            var schema = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
 
-                            return DeserializerBuilder.BuildDelegate<T>(schema);
+                            if (schema.SchemaType != SchemaType.Avro)
+                            {
+                                throw new UnsupportedSchemaException(null, $"The schema used to encode the data ({id}) is not an Avro schema.");
+                            }
+
+                            return DeserializerBuilder.BuildDelegate<T>(SchemaReader.Read(schema.SchemaString));
                         }))(id);
                     }
                 }

@@ -1,6 +1,5 @@
-using Chr.Avro.Abstract;
-using Chr.Avro.Serialization;
 using Confluent.Kafka;
+using Confluent.SchemaRegistry;
 using Moq;
 using System.IO;
 using System.Linq;
@@ -32,15 +31,15 @@ namespace Chr.Avro.Confluent.Tests
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             RegistryClientMock
-                .Setup(c => c.GetSchemaAsync(0))
-                .ReturnsAsync("\"null\"");
+                .Setup(c => c.GetSchemaAsync(0, null))
+                .ReturnsAsync(new Schema("\"null\"", SchemaType.Avro));
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
                 deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)
             ));
 
             RegistryClientMock
-                .Verify(c => c.GetSchemaAsync(0), Times.Once());
+                .Verify(c => c.GetSchemaAsync(0, null), Times.Once());
         }
 
         [Fact]
@@ -54,7 +53,7 @@ namespace Chr.Avro.Confluent.Tests
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             RegistryClientMock
-                .Setup(c => c.GetSchemaAsync(0))
+                .Setup(c => c.GetSchemaAsync(0, null))
                 .ThrowsAsync(new HttpRequestException());
 
             await Assert.ThrowsAsync<HttpRequestException>(() =>
@@ -62,8 +61,8 @@ namespace Chr.Avro.Confluent.Tests
             );
 
             RegistryClientMock
-                .Setup(c => c.GetSchemaAsync(0))
-                .ReturnsAsync("\"null\"");
+                .Setup(c => c.GetSchemaAsync(0, null))
+                .ReturnsAsync(new Schema("\"null\"", SchemaType.Avro));
 
             await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context);
         }
@@ -80,8 +79,8 @@ namespace Chr.Avro.Confluent.Tests
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             RegistryClientMock
-                .Setup(c => c.GetSchemaAsync(4))
-                .ReturnsAsync("\"int\"");
+                .Setup(c => c.GetSchemaAsync(4, null))
+                .ReturnsAsync(new Schema("\"int\"", SchemaType.Avro));
 
             Assert.Equal(data,
                 await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)
