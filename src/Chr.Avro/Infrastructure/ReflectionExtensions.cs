@@ -14,5 +14,10 @@ namespace Chr.Avro.Infrastructure
                 .GetGenericArguments()?
                 .ElementAt(0);
         }
+
+        public static Type GetUnderlyingType(this Type type)
+        {
+            return Nullable.GetUnderlyingType(type) ?? type;
+        }
     }
 }

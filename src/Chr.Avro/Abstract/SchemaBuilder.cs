@@ -1,3 +1,4 @@
+using Chr.Avro.Infrastructure;
 using Chr.Avro.Resolution;
 using System;
 using System.Collections.Concurrent;
@@ -181,7 +182,7 @@ namespace Chr.Avro.Abstract
 
             var resolution = Resolver.ResolveType(type);
 
-            if (!cache.TryGetValue(resolution.Type, out var schema))
+            if (!cache.TryGetValue(resolution.Type.GetUnderlyingType(), out var schema))
             {
                 var exceptions = new List<Exception>();
 
@@ -318,7 +319,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is ArrayResolution array)
             {
-                result.Schema = cache.GetOrAdd(array.Type, _ => new ArraySchema(SchemaBuilder.BuildSchema(array.ItemType, cache)));
+                result.Schema = cache.GetOrAdd(array.Type.GetUnderlyingType(), _ => new ArraySchema(SchemaBuilder.BuildSchema(array.ItemType, cache)));
             }
             else
             {
@@ -354,7 +355,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is BooleanResolution boolean)
             {
-                result.Schema = cache.GetOrAdd(boolean.Type, _ => new BooleanSchema());
+                result.Schema = cache.GetOrAdd(boolean.Type.GetUnderlyingType(), _ => new BooleanSchema());
             }
             else
             {
@@ -390,7 +391,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is ByteArrayResolution bytes)
             {
-                result.Schema = cache.GetOrAdd(bytes.Type, _ => new BytesSchema());
+                result.Schema = cache.GetOrAdd(bytes.Type.GetUnderlyingType(), _ => new BytesSchema());
             }
             else
             {
@@ -426,7 +427,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is DecimalResolution @decimal)
             {
-                result.Schema = cache.GetOrAdd(@decimal.Type, _ => new BytesSchema()
+                result.Schema = cache.GetOrAdd(@decimal.Type.GetUnderlyingType(), _ => new BytesSchema()
                 {
                     LogicalType = new DecimalLogicalType(@decimal.Precision, @decimal.Scale)
                 });
@@ -465,7 +466,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is FloatingPointResolution @double && @double.Size == 16)
             {
-                result.Schema = cache.GetOrAdd(@double.Type, _ => new DoubleSchema());
+                result.Schema = cache.GetOrAdd(@double.Type.GetUnderlyingType(), _ => new DoubleSchema());
             }
             else
             {
@@ -501,7 +502,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is DurationResolution duration)
             {
-                result.Schema = cache.GetOrAdd(duration.Type, _ => new StringSchema());
+                result.Schema = cache.GetOrAdd(duration.Type.GetUnderlyingType(), _ => new StringSchema());
             }
             else
             {
@@ -553,7 +554,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is EnumResolution @enum)
             {
-                result.Schema = cache.GetOrAdd(@enum.Type, _ =>
+                result.Schema = cache.GetOrAdd(@enum.Type.GetUnderlyingType(), _ =>
                 {
                     if (@enum.IsFlagEnum)
                     {
@@ -610,7 +611,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is FloatingPointResolution @float && @float.Size == 8)
             {
-                result.Schema = cache.GetOrAdd(@float.Type, _ => new FloatSchema());
+                result.Schema = cache.GetOrAdd(@float.Type.GetUnderlyingType(), _ => new FloatSchema());
             }
             else
             {
@@ -647,7 +648,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is IntegerResolution @int && @int.Size <= 32)
             {
-                result.Schema = cache.GetOrAdd(@int.Type, _ => new IntSchema());
+                result.Schema = cache.GetOrAdd(@int.Type.GetUnderlyingType(), _ => new IntSchema());
             }
             else
             {
@@ -684,7 +685,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is IntegerResolution @long && @long.Size > 32)
             {
-                result.Schema = cache.GetOrAdd(@long.Type, _ => new LongSchema());
+                result.Schema = cache.GetOrAdd(@long.Type.GetUnderlyingType(), _ => new LongSchema());
             }
             else
             {
@@ -736,7 +737,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is MapResolution map)
             {
-                result.Schema = cache.GetOrAdd(map.Type, _ => new MapSchema(SchemaBuilder.BuildSchema(map.ValueType, cache)));
+                result.Schema = cache.GetOrAdd(map.Type.GetUnderlyingType(), _ => new MapSchema(SchemaBuilder.BuildSchema(map.ValueType, cache)));
             }
             else
             {
@@ -788,7 +789,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is RecordResolution record)
             {
-                if (cache.TryGetValue(record.Type, out var schema))
+                if (cache.TryGetValue(record.Type.GetUnderlyingType(), out var schema))
                 {
                     result.Schema = schema;
                 }
@@ -800,7 +801,7 @@ namespace Chr.Avro.Abstract
 
                     var instance = new RecordSchema(name);
 
-                    if (!cache.TryAdd(record.Type, instance))
+                    if (!cache.TryAdd(record.Type.GetUnderlyingType(), instance))
                     {
                         throw new InvalidOperationException("Failed to cache record schema prior to building its fields.");
                     }
@@ -847,7 +848,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is StringResolution @string)
             {
-                result.Schema = cache.GetOrAdd(@string.Type, _ => new StringSchema());
+                result.Schema = cache.GetOrAdd(@string.Type.GetUnderlyingType(), _ => new StringSchema());
             }
             else
             {
@@ -901,7 +902,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is TimestampResolution timestamp)
             {
-                result.Schema = cache.GetOrAdd(timestamp.Type, _ => TemporalBehavior switch
+                result.Schema = cache.GetOrAdd(timestamp.Type.GetUnderlyingType(), _ => TemporalBehavior switch
                 {
                     TemporalBehavior.EpochMicroseconds => new LongSchema()
                     {
@@ -949,7 +950,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is UriResolution uri)
             {
-                result.Schema = cache.GetOrAdd(uri.Type, _ => new StringSchema());
+                result.Schema = cache.GetOrAdd(uri.Type.GetUnderlyingType(), _ => new StringSchema());
             }
             else
             {
@@ -985,7 +986,7 @@ namespace Chr.Avro.Abstract
 
             if (resolution is UuidResolution uuid)
             {
-                result.Schema = cache.GetOrAdd(uuid.Type, new StringSchema()
+                result.Schema = cache.GetOrAdd(uuid.Type.GetUnderlyingType(), new StringSchema()
                 {
                     LogicalType = new UuidLogicalType()
                 });

@@ -723,8 +723,9 @@ namespace Chr.Avro.Resolution
         public override ITypeResolutionResult ResolveType(Type type)
         {
             var result = new TypeResolutionResult();
+            var underlyingType = type.GetUnderlyingType();
 
-            if (Nullable.GetUnderlyingType(type) is Type underlyingType)
+            if (type != underlyingType)
             {
                 var resolution = Resolver.ResolveType(underlyingType);
                 resolution.IsNullable = true;

@@ -1,5 +1,6 @@
 using Chr.Avro.Abstract;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Xunit;
 
@@ -113,7 +114,14 @@ namespace Chr.Avro.Tests
         [Fact]
         public void BuildsClassesWithNullableProperties()
         {
-            var schema = Builder.BuildSchema<NullablePropertyClass>() as RecordSchema;
+            var cache = new ConcurrentDictionary<Type, Schema>();
+            var schema = Builder.BuildSchema<NullablePropertyClass>(cache) as RecordSchema;
+
+            Assert.Collection(cache.Keys,
+                t => t.Equals(typeof(DateTime)),
+                t => t.Equals(typeof(Guid)),
+                t => t.Equals(typeof(NullablePropertyClass))
+            );
 
             Assert.NotNull(schema);
             Assert.Collection(schema.Fields,
