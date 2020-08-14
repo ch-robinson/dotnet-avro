@@ -6,7 +6,7 @@ const clrTypeOptions = [{
   abbreviation: 'a',
   name: 'assembly',
   required: false,
-  summary: 'The name of or path to an assembly that contains the type.'
+  summary: 'The name of or path to an assembly to load (multiple space-separated values accepted).'
 }, {
   name: 'enums-as-ints',
   required: false,

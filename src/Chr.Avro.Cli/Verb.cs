@@ -39,8 +39,8 @@ namespace Chr.Avro.Cli
     [Verb("create", HelpText = "Create an Avro schema for a .NET type.")]
     public class CreateSchemaVerb : Verb, IClrTypeOptions
     {
-        [Option('a', "assembly", HelpText = "The name of or path to an assembly that contains the type.")]
-        public string AssemblyName { get; set; }
+        [Option('a', "assembly", HelpText = "The name of or path to an assembly to load (multiple space-separated values accepted).")]
+        public IEnumerable<string> AssemblyNames { get; set; }
 
         [Option("enums-as-integers", HelpText = "Whether enums should be represented with \"int\" or \"long\" schemas.")]
         public bool EnumsAsIntegers { get; set; }
@@ -63,9 +63,14 @@ namespace Chr.Avro.Cli
             }),
             new Example("Create a schema for a type in a compiled assembly", new CreateSchemaVerb
             {
-                AssemblyName = "./out/Example.Models.dll",
+                AssemblyNames = new[] { "./out/Example.Models.dll" },
                 TypeName = "Example.Models.ExampleModel"
             }),
+            new Example("Create a schema for a type in a compiled assembly with dependencies", new CreateSchemaVerb
+            {
+                AssemblyNames = new[] { "System.Text.Json", "./out/Example.Models.dll" },
+                TypeName = "Example.Models.ExampleModel"
+            })
         };
 
         protected override Task Run()
@@ -189,7 +194,7 @@ namespace Chr.Avro.Cli
         {
             new Example("Test that a type works with the latest version of a subject", new TestSchemaVerb
             {
-                AssemblyName = "./out/Example.Models.dll",
+                AssemblyNames = new[] { "./out/Example.Models.dll" },
                 RegistryUrl = "http://registry:8081",
                 SchemaSubject = "example_subject",
                 TypeName = "Example.Models.ExampleModel",
@@ -200,8 +205,8 @@ namespace Chr.Avro.Cli
 
         private const string BySubjectSet = "BySubject";
 
-        [Option('a', "assembly", HelpText = "The name of or path to an assembly that contains the type.")]
-        public string AssemblyName { get; set; }
+        [Option('a', "assembly", HelpText = "The name of or path to an assembly to load (multiple space-separated values accepted).")]
+        public IEnumerable<string> AssemblyNames { get; set; }
 
         [Option('t', "type", Required = true, HelpText = "The type to test.")]
         public string TypeName { get; set; }
