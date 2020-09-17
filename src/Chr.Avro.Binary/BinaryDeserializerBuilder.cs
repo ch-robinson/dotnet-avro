@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -525,6 +526,11 @@ namespace Chr.Avro.Serialization
             if (resolution.Type.IsAssignableFrom(typeof(SortedSet<>).MakeGenericType(resolution.ItemType)))
             {
                 return Expression.New(typeof(SortedSet<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
+            }
+            
+            if (resolution.Type.IsAssignableFrom(typeof(Collection<>).MakeGenericType(resolution.ItemType)))
+            {
+                return Expression.New(typeof(Collection<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
             }
 
             return Expression.New(typeof(List<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
