@@ -2,6 +2,7 @@ using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Linq;
 using Xunit;
 
@@ -61,6 +62,17 @@ namespace Chr.Avro.Serialization.Tests
             var deserializer = DeserializerBuilder.BuildDeserializer<ICollection<int>>(schema);
             var serializer = SerializerBuilder.BuildSerializer<ICollection<int>>(schema);
             Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArrayData))]
+        public void CollectionValues(int[] value)
+        {
+            var schema = new ArraySchema(new IntSchema());
+
+            var deserializer = DeserializerBuilder.BuildDeserializer<Collection<int>>(schema);
+            var serializer = SerializerBuilder.BuildSerializer<Collection<int>>(schema);
+            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(new Collection<int>(value))));
         }
 
         [Theory]
