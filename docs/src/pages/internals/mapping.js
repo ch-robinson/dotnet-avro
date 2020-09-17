@@ -25,7 +25,7 @@ export default () =>
         <p>The type is a one-dimensional or jagged array. Multi-dimensional arrays are currently not supported because they can’t be deserialized reliably.</p>
       </li>
       <li>
-        <p>The type is an <DotnetReference id='T:System.ArraySegment`1' /> type or a generic collection type from <DotnetReference id='N:System.Collections.Generic' /> or <DotnetReference id='N:System.Collections.Immutable' />.</p>
+        <p>The type is an <DotnetReference id='T:System.ArraySegment`1' /> type, a <DotnetReference id='T:System.Collections.ObjectModel.Collection`1' /> type, or a generic collection type from <DotnetReference id='N:System.Collections.Generic' /> or <DotnetReference id='N:System.Collections.Immutable' />.</p>
       </li>
       <li>
         <p>The type implements <DotnetReference id='T:System.Collections.Generic.IEnumerable`1' /> (for serialization) and has a constructor with a single <DotnetReference id='T:System.Collections.Generic.IEnumerable`1' /> parameter (for deserialization).</p>
