@@ -49,7 +49,7 @@ namespace Chr.Avro.Cli
                     {
                         if (!string.IsNullOrEmpty(options.SchemaSubject) || options.SchemaVersion.HasValue)
                         {
-                            throw new ProgramException(message: "When using --id, don’t use --schema or --version.");
+                            throw new ProgramException(message: "When using --id, don’t use --subject or --version.");
                         }
 
                         try
@@ -72,7 +72,7 @@ namespace Chr.Avro.Cli
                     {
                         if (options.SchemaSubject is var subject && string.IsNullOrEmpty(subject))
                         {
-                            throw new ProgramException(message: "Either --id or --schema (and optionally --version) must be provided.");
+                            throw new ProgramException(message: "Either --id or --subject (and optionally --version) must be provided.");
                         }
 
                         if (options.SchemaVersion is int version)
