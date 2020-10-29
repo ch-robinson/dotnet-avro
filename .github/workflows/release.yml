@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: Create release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull code
+        uses: actions/checkout@v2
+      - name: Build packages
+        uses: cake-build/cake-action@v1
+        with:
+          target: Pack
+      - name: Draft GitHub release
+        uses: actions/github-script@v2
+        with:
+          script: |
+            const fs = require('fs').promises;
+
+            const release = await github.repos.createRelease({
+              draft: true,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: process.env.GITHUB_REF,
+              target_commitish: context.sha
+            });
+
+            await Promise.all((await fs.readdir('./releases')).map(async file => {
+              await github.repos.uploadReleaseAsset({
+                data: await fs.readFile(`./releases/${file}`)
+                name: file,
+                owner: context.repo.owner,
+                release_id: release.data.id,
+                repo: context.repo.repo
+              });
+            }));
