@@ -22,7 +22,7 @@ Guidelines for bug reports:
 
 1.  **Use the issue search** to check whether the same bug has already been reported.
 
-2.  **Reproduce the bug against the development branch** to ensure that it hasn’t been fixed already.
+2.  **Reproduce the bug against the main branch** to ensure that it hasn’t been fixed already.
 
 3.  **Isolate the bug**—determine the minimal amount of code needed to reproduce the problem.
 
@@ -67,19 +67,16 @@ To open a well-formed pull request:
 
     # assign the original repo to a remote called "upstream"
     git remote add upstream https://github.com/ch-robinson/dotnet-avro
-
-    # switch to the development branch
-    git checkout development
     ```
 
 2.  If it’s been awhile since you cloned the repo, make sure you’re working with the latest code:
 
     ```bash
-    git checkout development
-    git pull upstream development
+    git checkout main
+    git pull upstream main
     ```
 
-3.  Create a new topic branch (off of the development branch) to contain your feature, change, or fix:
+3.  Create a new topic branch to contain your feature, change, or fix:
 
     ```bash
     git checkout -b <topic-branch-name>
@@ -87,10 +84,10 @@ To open a well-formed pull request:
 
 4.  Commit your changes in logical chunks and make your commit messages consistent with the rest of the project. Use Git’s [interactive rebase](https://help.github.com/en/articles/about-git-rebase) feature to tidy up your commits before making them public.
 
-5.  Before opening the PR, rebase your topic branch onto the upstream development branch:
+5.  Before opening the PR, rebase your topic branch onto the upstream main branch:
 
     ```bash
-    git pull --rebase upstream development
+    git pull --rebase upstream main
     ```
 
 6.  Push your topic branch up to your fork:
@@ -99,6 +96,6 @@ To open a well-formed pull request:
     git push origin <topic-branch-name>
     ```
 
-7.  [Open a pull pequest](https://help.github.com/articles/using-pull-requests/) against the development branch.
+7.  [Open a pull pequest](https://help.github.com/articles/using-pull-requests/) against the main branch.
 
 **Note**: By opening a pull request, you agree to allow C.H. Robinson to license your work under the same [license](LICENSE.md) used by the project.
