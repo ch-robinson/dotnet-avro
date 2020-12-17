@@ -32,7 +32,7 @@ jobs:
 
             await Promise.all((await fs.readdir('./releases')).map(async file => {
               await github.repos.uploadReleaseAsset({
-                data: await fs.readFile(`./releases/${file}`)
+                data: await fs.readFile(`./releases/${file}`),
                 name: file,
                 owner: context.repo.owner,
                 release_id: release.data.id,
