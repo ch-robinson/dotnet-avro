@@ -538,6 +538,11 @@ namespace Chr.Avro.Representation
 
                     foreach (var alias in schema.Aliases)
                     {
+                        if (alias == schema.FullName)
+                        {
+                            continue;
+                        }
+
                         if (!cache.TryAdd(alias, schema))
                         {
                             throw new InvalidDataException($"Invalid fixed alias; a definition for {alias} was already read.");
@@ -696,6 +701,11 @@ namespace Chr.Avro.Representation
 
                 foreach (var alias in schema.Aliases)
                 {
+                    if (alias == schema.FullName)
+                    {
+                        continue;
+                    }
+
                     if (!cache.TryAdd(alias, schema))
                     {
                         throw new InvalidDataException($"Invalid duration alias; a definition for {alias} was already read.");
@@ -750,6 +760,11 @@ namespace Chr.Avro.Representation
 
                 foreach (var alias in schema.Aliases)
                 {
+                    if (alias == schema.FullName)
+                    {
+                        continue;
+                    }
+
                     if (!cache.TryAdd(alias, schema))
                     {
                         throw new InvalidDataException($"Invalid enum alias; a definition for {alias} was already read.");
@@ -850,6 +865,11 @@ namespace Chr.Avro.Representation
 
                 foreach (var alias in schema.Aliases)
                 {
+                    if (alias == schema.FullName)
+                    {
+                        continue;
+                    }
+
                     if (!cache.TryAdd(alias, schema))
                     {
                         throw new InvalidDataException($"Invalid fixed alias; a definition for {alias} was already read.");
@@ -1154,6 +1174,11 @@ namespace Chr.Avro.Representation
 
                 foreach (var alias in schema.Aliases)
                 {
+                    if (alias == schema.FullName)
+                    {
+                        continue;
+                    }
+
                     if (!cache.TryAdd(alias, schema))
                     {
                         throw new InvalidDataException($"Invalid record alias; a definition for {alias} was already read.");

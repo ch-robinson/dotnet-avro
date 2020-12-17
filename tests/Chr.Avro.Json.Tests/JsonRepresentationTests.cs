@@ -73,6 +73,7 @@ namespace Chr.Avro.Representation.Tests
         public static IEnumerable<object[]> FixedSchemaRepresentations => new List<object[]>
         {
             new object[] { "{\"name\":\"Empty\",\"type\":\"fixed\",\"size\":0}" },
+            new object[] { "{\"name\":\"Empty\",\"aliases\":[\"Empty\"],\"type\":\"fixed\",\"size\":0}" },
             new object[] { "{\"name\":\"sizes.Kibibyte\",\"type\":\"fixed\",\"size\":0}" },
         };
 
@@ -98,6 +99,7 @@ namespace Chr.Avro.Representation.Tests
         public static IEnumerable<object[]> RecordSchemaRepresentations => new List<object[]>
         {
             new object[] { "{\"name\":\"Empty\",\"type\":\"record\",\"fields\":[]}" },
+            new object[] { "{\"name\":\"Empty\",\"aliases\":[\"Empty\"],\"type\":\"record\",\"fields\":[]}" },
             new object[] { "{\"name\":\"cards.Card\",\"type\":\"record\",\"fields\":[{\"name\":\"suit\",\"type\":{\"name\":\"cards.Suit\",\"type\":\"enum\",\"symbols\":[\"CLUBS\",\"DIAMONDS\",\"HEARTS\",\"SPADES\"]}},{\"name\":\"number\",\"type\":\"int\"}]}" },
             new object[] { "{\"name\":\"lists.Node\",\"type\":\"record\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"},{\"name\":\"next\",\"type\":\"lists.Node\"}]}" },
         };
