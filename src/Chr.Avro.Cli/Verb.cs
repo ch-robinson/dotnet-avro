@@ -234,7 +234,7 @@ namespace Chr.Avro.Cli
             {
                 var builder = new BinaryDeserializerBuilder();
                 var method = typeof(IBinaryDeserializerBuilder)
-                    .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDeserializer))
+                    .GetMethod(nameof(IBinaryDeserializerBuilder.BuildDelegate))
                     .MakeGenericMethod(type);
 
                 method.Invoke(builder, new[] { schema });
@@ -248,7 +248,7 @@ namespace Chr.Avro.Cli
             {
                 var builder = new BinarySerializerBuilder();
                 var method = typeof(IBinarySerializerBuilder)
-                    .GetMethod(nameof(IBinarySerializerBuilder.BuildSerializer))
+                    .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
                     .MakeGenericMethod(type);
 
                 method.Invoke(builder, new[] { schema });

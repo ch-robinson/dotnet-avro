@@ -43,17 +43,6 @@ namespace Chr.Avro.Serialization
         /// Information describing top-level expressions.
         /// </param>
         Expression BuildExpression(Expression value, Schema schema, IBinarySerializerBuilderContext context);
-
-        /// <summary>
-        /// Builds a binary serializer.
-        /// </summary>
-        /// <typeparam name="T">
-        /// The type of object to be serialized.
-        /// </typeparam>
-        /// <param name="schema">
-        /// The schema to map to the type.
-        /// </param>
-        IBinarySerializer<T> BuildSerializer<T>(Schema schema);
     }
 
     /// <summary>
@@ -233,23 +222,6 @@ namespace Chr.Avro.Serialization
             }
 
             throw new UnsupportedTypeException(resolution.Type, $"No serializer builder case matched {resolution.GetType().Name}.", new AggregateException(exceptions));
-        }
-
-        /// <summary>
-        /// Builds a binary serializer.
-        /// </summary>
-        /// <typeparam name="T">
-        /// The type of object to be serialized.
-        /// </typeparam>
-        /// <param name="schema">
-        /// The schema to map to the type.
-        /// </param>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no case can map the type to the schema.
-        /// </exception>
-        public IBinarySerializer<T> BuildSerializer<T>(Schema schema)
-        {
-            return new BinarySerializer<T>(BuildDelegate<T>(schema));
         }
 
         /// <summary>

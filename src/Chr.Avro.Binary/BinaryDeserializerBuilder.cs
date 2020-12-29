@@ -32,17 +32,6 @@ namespace Chr.Avro.Serialization
         Func<Stream, T> BuildDelegate<T>(Schema schema);
 
         /// <summary>
-        /// Builds a binary deserializer.
-        /// </summary>
-        /// <typeparam name="T">
-        /// The type of object to be deserialized.
-        /// </typeparam>
-        /// <param name="schema">
-        /// The schema to map to the type.
-        /// </param>
-        IBinaryDeserializer<T> BuildDeserializer<T>(Schema schema);
-
-        /// <summary>
         /// Builds an expression that represents reading an object of <paramref name="type" /> from
         /// a stream (provided by <paramref name="context" />).
         /// </summary>
@@ -196,23 +185,6 @@ namespace Chr.Avro.Serialization
                     .Select(a => (Expression)Expression.Assign(a.Key, a.Value))
                     .Concat(new[] { root })
             ), new[] { context.Stream }).Compile();
-        }
-
-        /// <summary>
-        /// Builds a binary deserializer.
-        /// </summary>
-        /// <typeparam name="T">
-        /// The type of object to be deserialized.
-        /// </typeparam>
-        /// <param name="schema">
-        /// The schema to map to the type.
-        /// </param>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no case can map the type to the schema.
-        /// </exception>
-        public virtual IBinaryDeserializer<T> BuildDeserializer<T>(Schema schema)
-        {
-            return new BinaryDeserializer<T>(BuildDelegate<T>(schema));
         }
 
         /// <summary>
