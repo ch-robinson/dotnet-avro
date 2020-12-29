@@ -528,7 +528,7 @@ namespace Chr.Avro.Representation
                     var schema = new FixedSchema(GetQualifiedName(element, scope), GetSize(element))
                     {
                         Aliases = GetQualifiedAliases(element, scope) ?? new string[0],
-                        LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element))
+                        LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element) ?? 0)
                     };
 
                     if (!cache.TryAdd(schema.FullName, schema))
@@ -555,7 +555,7 @@ namespace Chr.Avro.Representation
                 {
                     result.Schema = cache.GetOrAdd($"{JsonSchemaToken.Bytes}!{JsonSchemaToken.Decimal}", new BytesSchema()
                     {
-                        LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element))
+                        LogicalType = new DecimalLogicalType(GetPrecision(element), GetScale(element) ?? 0)
                     });
                 }
             }
@@ -583,11 +583,16 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Extracts the scale from a decimal schema.
         /// </summary>
-        protected virtual int GetScale(JsonElement element)
+        protected virtual int? GetScale(JsonElement element)
         {
-            if (!element.TryGetProperty(JsonAttributeToken.Scale, out var scale) || scale.ValueKind != JsonValueKind.Number)
+            if (!element.TryGetProperty(JsonAttributeToken.Scale, out var scale))
             {
-                throw new InvalidDataException("Decimal schemas must contain a \"scale\" key with an integer as its value.");
+                return null;
+            }
+
+            if (scale.ValueKind != JsonValueKind.Number)
+            {
+                throw new InvalidDataException("A \"scale\" key must have an integer as its value.");
             }
 
             return scale.GetInt32();
