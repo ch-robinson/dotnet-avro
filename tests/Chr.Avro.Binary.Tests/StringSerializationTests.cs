@@ -1,20 +1,24 @@
 using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class StringSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly MemoryStream _stream;
 
         public StringSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new BinaryDeserializerBuilder();
+            _serializerBuilder = new BinarySerializerBuilder();
+            _stream = new MemoryStream();
         }
 
         [Theory]
@@ -23,10 +27,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTime>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<DateTime>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTime>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTime>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -35,10 +46,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTime?>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<DateTime>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTime?>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTime>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -47,10 +65,16 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTimeOffset>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<DateTimeOffset>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
 
-            var decoded = deserializer.Deserialize(serializer.Serialize(value));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+            var decoded = deserialize(ref reader);
 
             // comparing two DateTimeOffsets doesn’t necessarily ensure that they’re identical:
             Assert.Equal(value.DateTime, decoded.DateTime);
@@ -63,10 +87,16 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTimeOffset?>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<DateTimeOffset>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTimeOffset?>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
 
-            var decoded = deserializer.Deserialize(serializer.Serialize(value));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+            var decoded = deserialize(ref reader);
 
             // comparing two DateTimeOffsets doesn’t necessarily ensure that they’re identical:
             Assert.Equal(value.DateTime, decoded.Value.DateTime);
@@ -79,10 +109,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Guid>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Guid>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<Guid>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Guid>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -91,10 +128,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Guid?>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Guid>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<Guid?>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Guid>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -106,10 +150,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<string>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<string>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<string>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<string>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -118,10 +169,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<TimeSpan>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<TimeSpan>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<TimeSpan>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -130,10 +188,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<TimeSpan?>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<TimeSpan>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<TimeSpan?>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -142,10 +207,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new StringSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Uri>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Uri>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<Uri>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Uri>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         public static IEnumerable<object[]> DateTimes => new List<object[]>

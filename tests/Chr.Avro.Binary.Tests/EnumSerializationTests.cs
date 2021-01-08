@@ -1,19 +1,23 @@
-using System;
 using Chr.Avro.Abstract;
+using System;
+using System.IO;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class EnumSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly MemoryStream _stream;
 
         public EnumSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new BinaryDeserializerBuilder();
+            _serializerBuilder = new BinarySerializerBuilder();
+            _stream = new MemoryStream();
         }
 
         [Theory]
@@ -25,23 +29,35 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" });
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Suit>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Suit>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var deserialize = _deserializerBuilder.BuildDelegate<Suit>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Suit>(schema);
+
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Fact]
         public void MissingValues()
         {
             var schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES", "EAGLES" });
-            Assert.Throws<UnsupportedTypeException>(() => DeserializerBuilder.BuildDeserializer<Suit>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => _deserializerBuilder.BuildDelegate<Suit>(schema));
 
             schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS" });
-            Assert.Throws<UnsupportedTypeException>(() => SerializerBuilder.BuildSerializer<Suit>(schema));
+            Assert.Throws<UnsupportedTypeException>(() => _serializerBuilder.BuildDelegate<Suit>(schema));
 
             schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" });
-            var serializer = SerializerBuilder.BuildSerializer<Suit>(schema);
-            Assert.Throws<ArgumentOutOfRangeException>(() => serializer.Serialize((Suit)(-1)));
+            var serialize = _serializerBuilder.BuildDelegate<Suit>(schema);
+
+            using (_stream)
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => serialize((Suit)(-1), new BinaryWriter(_stream)));
+            }
         }
 
         [Theory]
@@ -53,9 +69,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" });
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Suit?>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Suit>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var deserialize = _deserializerBuilder.BuildDelegate<Suit?>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Suit>(schema);
+
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         public enum Suit

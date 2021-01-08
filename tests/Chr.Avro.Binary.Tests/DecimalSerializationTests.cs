@@ -1,19 +1,23 @@
 using Chr.Avro.Abstract;
 using System.Collections.Generic;
+using System.IO;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class DecimalSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly MemoryStream _stream;
 
         public DecimalSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new BinaryDeserializerBuilder();
+            _serializerBuilder = new BinarySerializerBuilder();
+            _stream = new MemoryStream();
         }
 
         [Theory]
@@ -25,10 +29,17 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new DecimalLogicalType(29, 14)
             };
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<decimal>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<decimal>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<decimal>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<decimal>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -40,11 +51,19 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new DecimalLogicalType(precision, scale)
             };
 
-            var serializer = SerializerBuilder.BuildSerializer<decimal>(schema);
-            Assert.Equal(encoding, serializer.Serialize(value));
+            var deserialize = _deserializerBuilder.BuildDelegate<decimal>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<decimal>(schema);
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<decimal>(schema);
-            Assert.Equal(resizing, deserializer.Deserialize(encoding));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var encoded = _stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(resizing, deserialize(ref reader));
         }
 
         public static IEnumerable<object[]> BoundaryDecimals => new List<object[]>

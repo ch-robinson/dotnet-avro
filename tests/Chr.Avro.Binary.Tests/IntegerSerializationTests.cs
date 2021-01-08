@@ -1,19 +1,24 @@
 using Chr.Avro.Abstract;
 using System;
+using System.IO;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class IntegerSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly MemoryStream _stream;
 
         public IntegerSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new BinaryDeserializerBuilder();
+            _serializerBuilder = new BinarySerializerBuilder();
+            _stream = new MemoryStream();
         }
 
         [Theory]
@@ -23,10 +28,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<byte>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<byte>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<byte>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<byte>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -37,10 +49,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTimeKind>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<DateTimeKind>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTimeKind>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTimeKind>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -51,10 +70,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<short>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<short>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<short>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<short>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -65,10 +91,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<int>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<int>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<int>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<int>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -79,10 +112,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<long>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<long>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<long>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<long>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Fact]
@@ -90,13 +130,31 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<int>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<ulong>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<int>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<ulong>(schema);
 
-            Assert.Throws<OverflowException>(() => serializer.Serialize(ulong.MaxValue));
-            Assert.Throws<OverflowException>(() => deserializer.Deserialize(serializer.Serialize((ulong)int.MaxValue + 1)));
+            using (_stream)
+            {
+                Assert.Throws<OverflowException>(() => serialize(ulong.MaxValue, new BinaryWriter(_stream)));
+
+                serialize((ulong)int.MaxValue + 1, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            try
+            {
+                deserialize(ref reader);
+
+                // since the reader is a ref struct, can't do Assert.Throws
+                throw new ThrowsException(typeof(OverflowException));
+            }
+            catch (OverflowException)
+            {
+                //
+            }
         }
-        
+
         [Theory]
         [InlineData(sbyte.MinValue)]
         [InlineData(0)]
@@ -105,10 +163,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<sbyte>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<sbyte>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<sbyte>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<sbyte>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -118,10 +183,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<ushort>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<ushort>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<ushort>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<ushort>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -131,10 +203,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<uint>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<uint>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<uint>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<uint>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -144,10 +223,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<ulong>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<ulong>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<ulong>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<ulong>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
     }
 }

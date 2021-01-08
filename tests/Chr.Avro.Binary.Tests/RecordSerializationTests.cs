@@ -1,19 +1,23 @@
 using Chr.Avro.Abstract;
 using System.Collections.Generic;
+using System.IO;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class RecordSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly MemoryStream _stream;
 
         public RecordSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new BinaryDeserializerBuilder();
+            _serializerBuilder = new BinarySerializerBuilder();
+            _stream = new MemoryStream();
         }
 
         [Fact]
@@ -23,38 +27,45 @@ namespace Chr.Avro.Serialization.Tests
             schema.Fields.Add(new RecordField("Value", new IntSchema()));
             schema.Fields.Add(new RecordField("Children", new ArraySchema(schema)));
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Node>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Node>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<Node>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Node>(schema);
 
-            var n5 = deserializer.Deserialize(serializer.Serialize(new Node()
+            using (_stream)
             {
-                Value = 5,
-                Children = new[]
+                serialize(new Node()
                 {
-                    new Node()
+                    Value = 5,
+                    Children = new[]
                     {
-                        Value = 4,
-                        Children = new Node[0]
-                    },
-                    new Node()
-                    {
-                        Value = 7,
-                        Children = new[]
+                        new Node()
                         {
-                            new Node()
+                            Value = 4,
+                            Children = new Node[0]
+                        },
+                        new Node()
+                        {
+                            Value = 7,
+                            Children = new[]
                             {
-                                Value = 6,
-                                Children = new Node[0]
-                            },
-                            new Node
-                            {
-                                Value = 8,
-                                Children = new Node[0]
+                                new Node()
+                                {
+                                    Value = 6,
+                                    Children = new Node[0]
+                                },
+                                new Node
+                                {
+                                    Value = 8,
+                                    Children = new Node[0]
+                                }
                             }
                         }
                     }
-                }
-            }));
+                }, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            var n5 = deserialize(ref reader);
 
             Assert.Equal(5, n5.Value);
             Assert.Collection(n5.Children,
@@ -89,38 +100,45 @@ namespace Chr.Avro.Serialization.Tests
             schema.Fields.Add(new RecordField("Value", new IntSchema()));
             schema.Fields.Add(new RecordField("Children", new ArraySchema(schema)));
 
-            var serializer = SerializerBuilder.BuildSerializer<Node>(schema);
-            var deserializer = DeserializerBuilder.BuildDeserializer<MappedNode>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<MappedNode>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Node>(schema);
 
-            var n5 = deserializer.Deserialize(serializer.Serialize(new Node()
+            using (_stream)
             {
-                Value = 5,
-                Children = new[]
+                serialize(new Node()
                 {
-                    new Node()
+                    Value = 5,
+                    Children = new[]
                     {
-                        Value = 9,
-                        Children = new Node[0]
-                    },
-                    new Node()
-                    {
-                        Value = 3,
-                        Children = new[]
+                        new Node()
                         {
-                            new Node()
+                            Value = 9,
+                            Children = new Node[0]
+                        },
+                        new Node()
+                        {
+                            Value = 3,
+                            Children = new[]
                             {
-                                Value = 2,
-                                Children = new Node[0]
-                            },
-                            new Node()
-                            {
-                                Value = 10,
-                                Children = new Node[0]
+                                new Node()
+                                {
+                                    Value = 2,
+                                    Children = new Node[0]
+                                },
+                                new Node()
+                                {
+                                    Value = 10,
+                                    Children = new Node[0]
+                                }
                             }
                         }
                     }
-                }
-            }));
+                }, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            var n5 = deserialize(ref reader);
 
             Assert.Equal(5, n5.RequiredValue);
             Assert.Equal(999, n5.OptionalValue);
@@ -178,8 +196,8 @@ namespace Chr.Avro.Serialization.Tests
                 new RecordField("Eighth", @enum)
             });
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<WithoutEvenFields>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<WithEvenFields>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<WithoutEvenFields>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<WithEvenFields>(schema);
 
             var value = new WithEvenFields()
             {
@@ -193,7 +211,14 @@ namespace Chr.Avro.Serialization.Tests
                 Eighth = Position.First
             };
 
-            Assert.Equal(value.Seventh, deserializer.Deserialize(serializer.Serialize(value)).Seventh);
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value.Seventh, deserialize(ref reader).Seventh);
         }
 
         [Fact]
@@ -207,17 +232,24 @@ namespace Chr.Avro.Serialization.Tests
             schema.Fields.Add(new RecordField("Node", node));
             schema.Fields.Add(new RecordField("RelatedNodes", new ArraySchema(node)));
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Reference>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Reference>(schema);
+            var deserialize = _deserializerBuilder.BuildDelegate<Reference>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Reference>(schema);
 
-            var root = deserializer.Deserialize(serializer.Serialize(new Reference()
+            using (_stream)
             {
-                Node = new Node()
+                serialize(new Reference()
                 {
-                    Children = new Node[0]
-                },
-                RelatedNodes = new Node[0]
-            }));
+                    Node = new Node()
+                    {
+                        Children = new Node[0]
+                    },
+                    RelatedNodes = new Node[0]
+                }, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            var root = deserialize(ref reader);
 
             Assert.Empty(root.Node.Children);
             Assert.Empty(root.RelatedNodes);

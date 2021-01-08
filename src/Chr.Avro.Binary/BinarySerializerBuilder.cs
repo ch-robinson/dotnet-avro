@@ -1,6 +1,7 @@
 using Chr.Avro.Abstract;
 using Chr.Avro.Resolution;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -8,18 +9,28 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Numerics;
-using System.Text;
 using System.Xml;
 
 namespace Chr.Avro.Serialization
 {
+    /// <summary>
+    /// A function that serializes a .NET object to binary Avro.
+    /// </summary>
+    /// <param name="value">
+    /// An unserialized value.
+    /// </param>
+    /// <param name="writer">
+    /// A binary Avro writer instance.
+    /// </param>
+    public delegate void BinarySerializer<T>(T value, BinaryWriter writer);
+
     /// <summary>
     /// Builds Avro serializers for .NET types.
     /// </summary>
     public interface IBinarySerializerBuilder
     {
         /// <summary>
-        /// Builds a delegate that writes a serialized object to a stream.
+        /// Builds a delegate that writes a serialized object.
         /// </summary>
         /// <typeparam name="T">
         /// The type of object to be serialized.
@@ -27,11 +38,21 @@ namespace Chr.Avro.Serialization
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        Action<T, Stream> BuildDelegate<T>(Schema schema);
+        BinarySerializer<T> BuildDelegate<T>(Schema schema);
 
         /// <summary>
-        /// Builds an expression that represents writing <paramref name="value" /> to a stream
-        /// (provided by <paramref name="context" />).
+        /// Builds an expression that represents writing a serialized object.
+        /// </summary>
+        /// <typeparam name="T">
+        /// The type of object to be serialized.
+        /// </typeparam>
+        /// <param name="schema">
+        /// The schema to map to the type.
+        /// </param>
+        Expression<BinarySerializer<T>> BuildExpression<T>(Schema schema);
+
+        /// <summary>
+        /// Builds an expression that represents writing <paramref name="value" /> to a span.
         /// </summary>
         /// <param name="value">
         /// An expression that represents the value to be serialized.
@@ -40,7 +61,7 @@ namespace Chr.Avro.Serialization
         /// The schema to map to <paramref name="value" />.
         /// </param>
         /// <param name="context">
-        /// Information describing top-level expressions.
+        /// Top-level expressions.
         /// </param>
         Expression BuildExpression(Expression value, Schema schema, IBinarySerializerBuilderContext context);
     }
@@ -102,9 +123,9 @@ namespace Chr.Avro.Serialization
         ConcurrentDictionary<(Schema, Type), ParameterExpression> References { get; }
 
         /// <summary>
-        /// The output <see cref="System.IO.Stream" />.
+        /// The output <see cref="BinaryWriter" />.
         /// </summary>
-        ParameterExpression Stream { get; }
+        ParameterExpression Writer { get; }
     }
 
     /// <summary>
@@ -126,16 +147,12 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Creates a new serializer builder.
         /// </summary>
-        /// <param name="codec">
-        /// A codec implementation that generated serializers will use for write operations. If no
-        /// codec is provided, <see cref="BinaryCodec" /> will be used.
-        /// </param>
         /// <param name="resolver">
         /// A resolver to retrieve type information from. If no resolver is provided, the serializer
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public BinarySerializerBuilder(IBinaryCodec? codec = null, ITypeResolver? resolver = null)
-            : this(CreateBinarySerializerCaseBuilders(codec ?? new BinaryCodec()), resolver) { }
+        public BinarySerializerBuilder(ITypeResolver? resolver = null)
+            : this(DefaultCaseBuilders, resolver) { }
 
         /// <summary>
         /// Creates a new serializer builder.
@@ -161,7 +178,7 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
-        /// Builds a delegate that writes a serialized object to a stream.
+        /// Builds a delegate that writes a serialized object.
         /// </summary>
         /// <typeparam name="T">
         /// The type of object to be serialized.
@@ -172,7 +189,24 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map the type to the schema.
         /// </exception>
-        public virtual Action<T, Stream> BuildDelegate<T>(Schema schema)
+        public virtual BinarySerializer<T> BuildDelegate<T>(Schema schema)
+        {
+            return BuildExpression<T>(schema).Compile();
+        }
+
+        /// <summary>
+        /// Builds an expression that represents writing a serialized object.
+        /// </summary>
+        /// <typeparam name="T">
+        /// The type of object to be serialized.
+        /// </typeparam>
+        /// <param name="schema">
+        /// The schema to map to the type.
+        /// </param>
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when no case can map the type to the schema.
+        /// </exception>
+        public virtual Expression<BinarySerializer<T>> BuildExpression<T>(Schema schema)
         {
             var context = new BinarySerializerBuilderContext();
             var value = Expression.Parameter(typeof(T));
@@ -180,17 +214,16 @@ namespace Chr.Avro.Serialization
             // ensure that all assignments are present before building the lambda:
             var root = BuildExpression(value, schema, context);
 
-            return Expression.Lambda<Action<T, Stream>>(Expression.Block(
+            return Expression.Lambda<BinarySerializer<T>>(Expression.Block(
                 context.Assignments.Keys,
                 context.Assignments
                     .Select(a => (Expression)Expression.Assign(a.Key, a.Value))
                     .Concat(new[] { root })
-            ), new[] { value, context.Stream }).Compile();
+            ), new[] { value, context.Writer });
         }
 
         /// <summary>
-        /// Builds an expression that represents writing <paramref name="value" /> to a stream
-        /// (provided by <paramref name="context" />).
+        /// Builds an expression that represents writing <paramref name="value" /> to a span.
         /// </summary>
         /// <param name="value">
         /// An expression that represents the value to be serialized.
@@ -199,7 +232,7 @@ namespace Chr.Avro.Serialization
         /// The schema to map to <paramref name="value" />.
         /// </param>
         /// <param name="context">
-        /// Information describing top-level expressions.
+        /// Top-level expressions.
         /// </param>
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map <paramref name="value" /> to the schema.
@@ -225,44 +258,39 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
-        /// Creates a default list of case builders.
+        /// A default list of case builders.
         /// </summary>
-        /// <param name="codec">
-        /// A codec implementation that generated serializers will use for write operations.
-        /// </param>
-        public static IEnumerable<Func<IBinarySerializerBuilder, IBinarySerializerBuilderCase>> CreateBinarySerializerCaseBuilders(IBinaryCodec codec)
-        {
-            return new Func<IBinarySerializerBuilder, IBinarySerializerBuilderCase>[]
+        public static readonly IEnumerable<Func<IBinarySerializerBuilder, IBinarySerializerBuilderCase>> DefaultCaseBuilders =
+            new Func<IBinarySerializerBuilder, IBinarySerializerBuilderCase>[]
             {
                 // logical types:
-                builder => new DecimalSerializerBuilderCase(codec),
-                builder => new DurationSerializerBuilderCase(codec),
-                builder => new TimestampSerializerBuilderCase(codec),
+                builder => new DecimalSerializerBuilderCase(),
+                builder => new DurationSerializerBuilderCase(),
+                builder => new TimestampSerializerBuilderCase(),
 
                 // primitives:
-                builder => new BooleanSerializerBuilderCase(codec),
-                builder => new BytesSerializerBuilderCase(codec),
-                builder => new DoubleSerializerBuilderCase(codec),
-                builder => new FixedSerializerBuilderCase(codec),
-                builder => new FloatSerializerBuilderCase(codec),
-                builder => new IntegerSerializerBuilderCase(codec),
+                builder => new BooleanSerializerBuilderCase(),
+                builder => new BytesSerializerBuilderCase(),
+                builder => new DoubleSerializerBuilderCase(),
+                builder => new FixedSerializerBuilderCase(),
+                builder => new FloatSerializerBuilderCase(),
+                builder => new IntegerSerializerBuilderCase(),
                 builder => new NullSerializerBuilderCase(),
-                builder => new StringSerializerBuilderCase(codec),
+                builder => new StringSerializerBuilderCase(),
 
                 // collections:
-                builder => new ArraySerializerBuilderCase(codec, builder),
-                builder => new MapSerializerBuilderCase(codec, builder),
+                builder => new ArraySerializerBuilderCase(builder),
+                builder => new MapSerializerBuilderCase(builder),
 
                 // enums:
-                builder => new EnumSerializerBuilderCase(codec),
+                builder => new EnumSerializerBuilderCase(),
 
                 // records:
                 builder => new RecordSerializerBuilderCase(builder),
 
                 // unions:
-                builder => new UnionSerializerBuilderCase(codec, builder)
+                builder => new UnionSerializerBuilderCase(builder)
             };
-        }
     }
 
     /// <summary>
@@ -310,21 +338,102 @@ namespace Chr.Avro.Serialization
         /// <remarks>
         /// See the remarks for <see cref="Expression.ConvertChecked(Expression, Type)" />.
         /// </remarks>
-        protected virtual Expression GenerateConversion(Expression input, Type intermediate)
+        /// <param name="value">
+        /// The value to convert.
+        /// </param>
+        /// <param name="intermediate">
+        /// The type to convert <paramref name="value" /> to.
+        /// </param>
+        protected virtual Expression GenerateConversion(Expression value, Type intermediate)
         {
-            if (input.Type == intermediate)
+            if (value.Type == intermediate)
             {
-                return input;
+                return value;
             }
 
             try
             {
-                return Expression.ConvertChecked(input, intermediate);
+                return Expression.ConvertChecked(value, intermediate);
             }
             catch (InvalidOperationException inner)
             {
-                throw new UnsupportedTypeException(intermediate, $"Failed to generate a conversion for {input.Type}.", inner);
+                throw new UnsupportedTypeException(intermediate, $"Failed to generate a conversion for {value.Type}.", inner);
             }
+        }
+
+        /// <summary>
+        /// Generates an iteration to write items in an Avro block encoding.
+        /// </summary>
+        /// <param name="writer">
+        /// A <see cref="BinaryWriter" />.
+        /// </param>
+        /// <param name="items">
+        /// An <see cref="IEnumerable{T}" />.
+        /// </param>
+        /// <param name="item">
+        /// A variable that will be assigned an item prior to invoking <paramref name="body" />.
+        /// </param>
+        /// <param name="body">
+        /// The expression that will be executed for each item.
+        /// </param>
+        public Expression GenerateIteration(Expression writer, Expression items, ParameterExpression item, Expression body)
+        {
+            var collection = Expression.Variable(typeof(ICollection<>).MakeGenericType(item.Type));
+            var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(item.Type));
+            var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(item.Type));
+
+            var loop = Expression.Label();
+
+            var dispose = typeof(IDisposable)
+                .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
+
+            var getCount = collection.Type
+                .GetProperty("Count")
+                .GetGetMethod();
+
+            var getCurrent = enumerator.Type
+                .GetProperty("Current")
+                .GetGetMethod();
+
+            var getEnumerator = typeof(IEnumerable<>)
+                .MakeGenericType(item.Type)
+                .GetMethod("GetEnumerator", Type.EmptyTypes);
+
+            var moveNext = typeof(IEnumerator)
+                .GetMethod("MoveNext", Type.EmptyTypes);
+
+            var toList = typeof(Enumerable)
+                .GetMethod(nameof(Enumerable.ToList))
+                .MakeGenericMethod(item.Type);
+
+            var writeInteger = typeof(BinaryWriter)
+                .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
+
+            return Expression.Block(
+                new[] { enumerator, collection },
+                Expression.Assign(
+                    collection,
+                    Expression.Condition(
+                        Expression.TypeIs(items, collection.Type),
+                        Expression.Convert(items, collection.Type),
+                        Expression.Convert(Expression.Call(null, toList, Expression.Convert(items, enumerable.Type)), collection.Type))),
+                Expression.IfThen(
+                    Expression.GreaterThan(Expression.Property(collection, getCount), Expression.Constant(0)),
+                    Expression.Block(
+                        Expression.Call(writer, writeInteger, Expression.Convert(Expression.Property(collection, getCount), typeof(long))),
+                        Expression.Assign(enumerator, Expression.Call(collection, getEnumerator)),
+                        Expression.TryFinally(
+                            Expression.Loop(
+                                Expression.IfThenElse(
+                                    Expression.Call(enumerator, moveNext),
+                                    Expression.Block(
+                                        new[] { item },
+                                        Expression.Assign(item, Expression.Property(enumerator, getCurrent)),
+                                        body),
+                                    Expression.Break(loop)),
+                                loop),
+                            Expression.Call(enumerator, dispose)))),
+                Expression.Call(writer, writeInteger, Expression.Constant(0L)));
         }
     }
 
@@ -344,22 +453,22 @@ namespace Chr.Avro.Serialization
         public ConcurrentDictionary<(Schema, Type), ParameterExpression> References { get; }
 
         /// <summary>
-        /// The output <see cref="System.IO.Stream" />.
+        /// The output <see cref="BinaryWriter" />.
         /// </summary>
-        public ParameterExpression Stream { get; }
+        public ParameterExpression Writer { get; }
 
         /// <summary>
         /// Creates a new context.
         /// </summary>
-        /// <param name="stream">
-        /// The output <see cref="System.IO.Stream" />. If an expression is not provided, one will
+        /// <param name="writer">
+        /// The output <see cref="BinaryWriter" />. If an expression is not provided, one will
         /// be created.
         /// </param>
-        public BinarySerializerBuilderContext(ParameterExpression? stream = null)
+        public BinarySerializerBuilderContext(ParameterExpression? writer = null)
         {
             Assignments = new ConcurrentDictionary<ParameterExpression, Expression>();
             References = new ConcurrentDictionary<(Schema, Type), ParameterExpression>();
-            Stream = stream ?? Expression.Parameter(typeof(Stream));
+            Writer = writer ?? Expression.Parameter(typeof(BinaryWriter));
         }
     }
 
@@ -370,11 +479,6 @@ namespace Chr.Avro.Serialization
     public class ArraySerializerBuilderCase : BinarySerializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
         /// The serializer builder to use to build item serializers.
         /// </summary>
         public IBinarySerializerBuilder SerializerBuilder { get; }
@@ -382,15 +486,11 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Creates a new array serializer builder case.
         /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
         /// <param name="serializerBuilder">
         /// The serializer builder to use to build item serializers.
         /// </param>
-        public ArraySerializerBuilderCase(IBinaryCodec codec, IBinarySerializerBuilder serializerBuilder)
+        public ArraySerializerBuilderCase(IBinarySerializerBuilder serializerBuilder)
         {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
             SerializerBuilder = serializerBuilder ?? throw new ArgumentNullException(nameof(serializerBuilder), "Binary serializer builder cannot be null.");
         }
 
@@ -424,10 +524,10 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is ArrayResolution arrayResolution)
                 {
-                    var itemVariable = Expression.Variable(arrayResolution.ItemType);
-                    var itemSerializer = SerializerBuilder.BuildExpression(itemVariable, arraySchema.Item, context);
+                    var item = Expression.Variable(arrayResolution.ItemType);
+                    var itemSerializer = SerializerBuilder.BuildExpression(item, arraySchema.Item, context);
 
-                    result.Expression = Codec.WriteArray(value, itemVariable, itemSerializer, context.Stream);
+                    result.Expression = GenerateIteration(context.Writer, value, item, itemSerializer);
                 }
                 else
                 {
@@ -449,22 +549,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class BooleanSerializerBuilderCase : BinarySerializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new boolean serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public BooleanSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a boolean serializer for a type-schema pair.
         /// </summary>
@@ -493,7 +577,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is BooleanSchema)
             {
-                result.Expression = Codec.WriteBoolean(GenerateConversion(value, typeof(bool)), context.Stream);
+                var writeBoolean = typeof(BinaryWriter)
+                    .GetMethod(nameof(BinaryWriter.WriteBoolean), new[] { typeof(bool) });
+
+                result.Expression = Expression.Call(context.Writer, writeBoolean, GenerateConversion(value, typeof(bool)));
             }
             else
             {
@@ -510,22 +597,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class BytesSerializerBuilderCase : BinarySerializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new variable-length bytes serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public BytesSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a variable-length bytes serializer for a type-schema pair.
         /// </summary>
@@ -554,14 +625,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is BytesSchema)
             {
-                var bytes = Expression.Variable(typeof(byte[]));
+                var writeBytes = typeof(BinaryWriter)
+                    .GetMethod(nameof(BinaryWriter.WriteBytes), new[] { typeof(byte[]) });
 
-                result.Expression = Expression.Block(
-                    new[] { bytes },
-                    Expression.Assign(bytes, GenerateConversion(value, bytes.Type)),
-                    Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), context.Stream),
-                    Codec.Write(bytes, context.Stream)
-                );
+                result.Expression = Expression.Call(context.Writer, writeBytes, GenerateConversion(value, typeof(byte[])));
             }
             else
             {
@@ -576,17 +643,17 @@ namespace Chr.Avro.Serialization
         /// will convert a <see cref="Guid" /> value to a byte array prior to applying the base
         /// implementation.
         /// </summary>
-        protected override Expression GenerateConversion(Expression input, Type intermediate)
+        protected override Expression GenerateConversion(Expression value, Type intermediate)
         {
-            if (input.Type == typeof(Guid))
+            if (value.Type == typeof(Guid))
             {
                 var convertGuid = typeof(Guid)
                     .GetMethod(nameof(Guid.ToByteArray), Type.EmptyTypes);
 
-                input = Expression.Call(input, convertGuid);
+                value = Expression.Call(value, convertGuid);
             }
 
-            return base.GenerateConversion(input, intermediate);
+            return base.GenerateConversion(value, intermediate);
         }
     }
 
@@ -596,22 +663,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class DecimalSerializerBuilderCase : BinarySerializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new decimal serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public DecimalSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a decimal serializer for a type-schema pair.
         /// </summary>
@@ -686,17 +737,22 @@ namespace Chr.Avro.Serialization
                 // figure out how to write:
                 if (schema is BytesSchema)
                 {
+                    var writeBytes = typeof(BinaryWriter)
+                        .GetMethod(nameof(BinaryWriter.WriteBytes), new[] { typeof(byte[]) });
+
                     expression = Expression.Block(
                         new[] { bytes },
                         expression,
-                        Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), context.Stream),
-                        Codec.Write(bytes, context.Stream)
+                        Expression.Call(context.Writer, writeBytes, bytes)
                     );
                 }
                 else if (schema is FixedSchema fixedSchema)
                 {
                     var exceptionConstructor = typeof(OverflowException)
                         .GetConstructor(new[] { typeof(string) });
+
+                    var writeFixed = typeof(BinaryWriter)
+                        .GetMethod(nameof(BinaryWriter.WriteFixed), new[] { typeof(byte[]) });
 
                     expression = Expression.Block(
                         new[] { bytes },
@@ -705,7 +761,7 @@ namespace Chr.Avro.Serialization
                             Expression.NotEqual(Expression.ArrayLength(bytes), Expression.Constant(fixedSchema.Size)),
                             Expression.Throw(Expression.New(exceptionConstructor, Expression.Constant($"Size mismatch between {fixedSchema.Name} (size {fixedSchema.Size}) and decimal with precision {precision} and scale {scale}.")))
                         ),
-                        Codec.Write(bytes, context.Stream)
+                        Expression.Call(context.Writer, writeFixed, bytes)
                     );
                 }
                 else
@@ -730,22 +786,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class DoubleSerializerBuilderCase : BinarySerializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new double serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public DoubleSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a double serializer for a type-schema pair.
         /// </summary>
@@ -774,7 +814,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is DoubleSchema)
             {
-                result.Expression = Codec.WriteFloat(GenerateConversion(value, typeof(double)), context.Stream);
+                var writeDouble = typeof(BinaryWriter)
+                    .GetMethod(nameof(BinaryWriter.WriteDouble), new[] { typeof(double) });
+
+                result.Expression = Expression.Call(context.Writer, writeDouble, GenerateConversion(value, typeof(double)));
             }
             else
             {
@@ -791,22 +834,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class DurationSerializerBuilderCase : BinarySerializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new duration serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public DurationSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a duration serializer for a type-schema pair.
         /// </summary>
@@ -840,57 +867,59 @@ namespace Chr.Avro.Serialization
 
             if (schema.LogicalType is DurationLogicalType)
             {
-                if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == 12))
+                if (resolution is DurationResolution)
                 {
-                    throw new UnsupportedSchemaException(schema);
-                }
-
-                if (resolution.Type != typeof(TimeSpan))
-                {
-                    throw new UnsupportedTypeException(resolution.Type);
-                }
-
-                Expression write(Expression value)
-                {
-                    var getBytes = typeof(BitConverter)
-                        .GetMethod(nameof(BitConverter.GetBytes), new[] { value.Type });
-
-                    Expression bytes = Expression.Call(null, getBytes, value);
-
-                    if (!BitConverter.IsLittleEndian)
+                    if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == 12))
                     {
-                        var buffer = Expression.Variable(bytes.Type);
-                        var reverse = typeof(Array)
-                            .GetMethod(nameof(Array.Reverse), new[] { bytes.Type });
-
-                        bytes = Expression.Block(
-                            new[] { buffer },
-                            Expression.Assign(buffer, bytes),
-                            Expression.Call(null, reverse, buffer),
-                            buffer);
+                        throw new UnsupportedSchemaException(schema);
                     }
 
-                    var write = typeof(Stream)
-                        .GetMethod(nameof(Stream.Write), new[] { bytes.Type, typeof(int), typeof(int) });
+                    Expression write(Expression value)
+                    {
+                        var getBytes = typeof(BitConverter)
+                            .GetMethod(nameof(BitConverter.GetBytes), new[] { value.Type });
 
-                    return Expression.Call(context.Stream, write, bytes, Expression.Constant(0), Expression.ArrayLength(bytes));
+                        Expression bytes = Expression.Call(null, getBytes, value);
+
+                        if (!BitConverter.IsLittleEndian)
+                        {
+                            var buffer = Expression.Variable(bytes.Type);
+                            var reverse = typeof(Array)
+                                .GetMethod(nameof(Array.Reverse), new[] { bytes.Type });
+
+                            bytes = Expression.Block(
+                                new[] { buffer },
+                                Expression.Assign(buffer, bytes),
+                                Expression.Call(null, reverse, buffer),
+                                buffer);
+                        }
+
+                        var writeFixed = typeof(BinaryWriter)
+                            .GetMethod(nameof(BinaryWriter.WriteFixed), new[] { bytes.Type });
+
+                        return Expression.Call(context.Writer, writeFixed, bytes);
+                    }
+
+                    var totalDays = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalDays));
+                    var totalMs = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalMilliseconds));
+
+                    result.Expression = Expression.Block(
+                        write(Expression.Constant(0U)),
+                        write(
+                            Expression.ConvertChecked(Expression.Property(value, totalDays), typeof(uint))),
+                        write(
+                            Expression.ConvertChecked(
+                                Expression.Subtract(
+                                    Expression.Convert(Expression.Property(value, totalMs), typeof(ulong)),
+                                    Expression.Multiply(
+                                        Expression.Convert(Expression.Property(value, totalDays), typeof(ulong)),
+                                        Expression.Constant(86400000UL))),
+                            typeof(uint))));
                 }
-
-                var totalDays = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalDays));
-                var totalMs = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalMilliseconds));
-
-                result.Expression = Expression.Block(
-                    write(Expression.Constant(0U)),
-                    write(
-                        Expression.ConvertChecked(Expression.Property(value, totalDays), typeof(uint))),
-                    write(
-                        Expression.ConvertChecked(
-                            Expression.Subtract(
-                                Expression.Convert(Expression.Property(value, totalMs), typeof(ulong)),
-                                Expression.Multiply(
-                                    Expression.Convert(Expression.Property(value, totalDays), typeof(ulong)),
-                                    Expression.Constant(86400000UL))),
-                        typeof(uint))));
+                else
+                {
+                    result.Exceptions.Add(new UnsupportedTypeException(resolution.Type));
+                }
             }
             else
             {
@@ -907,22 +936,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class EnumSerializerBuilderCase : BinarySerializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new enum serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public EnumSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds an enum serializer for a type-schema pair.
         /// </summary>
@@ -953,6 +966,9 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is EnumResolution enumResolution)
                 {
+                    var writeInteger = typeof(BinaryWriter)
+                        .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
+
                     var symbols = enumSchema.Symbols.ToList();
 
                     // find a match for each enum in the type:
@@ -970,7 +986,9 @@ namespace Chr.Avro.Serialization
                             throw new UnsupportedTypeException(resolution.Type, $"{resolution.Type.Name} has an ambiguous symbol ({symbol.Name}).");
                         }
 
-                        return Expression.SwitchCase(Codec.WriteInteger(Expression.Constant((long)index), context.Stream), Expression.Constant(symbol.Value));
+                        return Expression.SwitchCase(
+                            Expression.Call(context.Writer, writeInteger, Expression.Constant((long)index)),
+                            Expression.Constant(symbol.Value));
                     });
 
                     var exceptionConstructor = typeof(ArgumentOutOfRangeException)
@@ -1000,22 +1018,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class FixedSerializerBuilderCase : BinarySerializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new fixed-length bytes serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public FixedSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a fixed-length bytes serializer for a type-schema pair.
         /// </summary>
@@ -1049,12 +1051,15 @@ namespace Chr.Avro.Serialization
                 var exceptionConstructor = typeof(OverflowException)
                     .GetConstructor(new[] { typeof(string) });
 
+                var writeFixed = typeof(BinaryWriter)
+                    .GetMethod(nameof(BinaryWriter.WriteFixed), new[] { typeof(byte[]) });
+
                 result.Expression = Expression.Block(
                     Expression.IfThen(
                         Expression.NotEqual(Expression.ArrayLength(expression), Expression.Constant(fixedSchema.Size)),
                         Expression.Throw(Expression.New(exceptionConstructor, Expression.Constant($"Only arrays of size {fixedSchema.Size} can be serialized to {fixedSchema.Name}.")))
                     ),
-                    Codec.Write(expression, context.Stream));
+                    Expression.Call(context.Writer, writeFixed, expression));
             }
             else
             {
@@ -1090,22 +1095,6 @@ namespace Chr.Avro.Serialization
     public class FloatSerializerBuilderCase : BinarySerializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new float serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public FloatSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a float serializer for a type-schema pair.
         /// </summary>
         /// <param name="value">
@@ -1133,7 +1122,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is FloatSchema)
             {
-                result.Expression = Codec.WriteFloat(GenerateConversion(value, typeof(float)), context.Stream);
+                var writeSingle = typeof(BinaryWriter)
+                    .GetMethod(nameof(BinaryWriter.WriteSingle), new[] { typeof(float) });
+
+                result.Expression = Expression.Call(context.Writer, writeSingle, GenerateConversion(value, typeof(float)));
             }
             else
             {
@@ -1150,22 +1142,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class IntegerSerializerBuilderCase : BinarySerializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new integer serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public IntegerSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds an integer serializer for a type-schema pair.
         /// </summary>
@@ -1194,7 +1170,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is IntSchema || schema is LongSchema)
             {
-                result.Expression = Codec.WriteInteger(GenerateConversion(value, typeof(long)), context.Stream);
+                var writeInteger = typeof(BinaryWriter)
+                    .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
+
+                result.Expression = Expression.Call(context.Writer, writeInteger, GenerateConversion(value, typeof(long)));
             }
             else
             {
@@ -1212,11 +1191,6 @@ namespace Chr.Avro.Serialization
     public class MapSerializerBuilderCase : BinarySerializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
         /// The serializer builder to use to build key and value serializers.
         /// </summary>
         public IBinarySerializerBuilder SerializerBuilder { get; }
@@ -1224,15 +1198,11 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Creates a new map serializer builder case.
         /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
         /// <param name="serializerBuilder">
         /// The serializer builder to use to build key and value serializers.
         /// </param>
-        public MapSerializerBuilderCase(IBinaryCodec codec, IBinarySerializerBuilder serializerBuilder)
+        public MapSerializerBuilderCase(IBinarySerializerBuilder serializerBuilder)
         {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
             SerializerBuilder = serializerBuilder ?? throw new ArgumentNullException(nameof(serializerBuilder), "Binary serializer builder cannot be null.");
         }
 
@@ -1266,13 +1236,20 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is MapResolution mapResolution)
                 {
-                    var keyVariable = Expression.Variable(mapResolution.KeyType);
-                    var keySerializer = SerializerBuilder.BuildExpression(keyVariable, new StringSchema(), context);
+                    var pair = Expression.Variable(typeof(KeyValuePair<,>).MakeGenericType(mapResolution.KeyType, mapResolution.ValueType));
 
-                    var valueVariable = Expression.Variable(mapResolution.ValueType);
-                    var valueSerializer = SerializerBuilder.BuildExpression(valueVariable, mapSchema.Value, context);
+                    var getKey = pair.Type
+                        .GetProperty("Key")
+                        .GetGetMethod();
 
-                    result.Expression = Codec.WriteMap(value, keyVariable, valueVariable, keySerializer, valueSerializer, context.Stream);
+                    var getValue = pair.Type
+                        .GetProperty("Value")
+                        .GetGetMethod();
+
+                    var keySerializer = SerializerBuilder.BuildExpression(Expression.Property(pair, getKey), new StringSchema(), context);
+                    var valueSerializer = SerializerBuilder.BuildExpression(Expression.Property(pair, getValue), mapSchema.Value, context);
+
+                    result.Expression = GenerateIteration(context.Writer, value, pair, Expression.Block(keySerializer, valueSerializer));
                 }
                 else
                 {
@@ -1382,10 +1359,13 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is RecordResolution recordResolution)
                 {
-                    var parameter = Expression.Parameter(typeof(Action<>).MakeGenericType(resolution.Type));
+                    // since record serialization is potentially recursive, create a delegate and
+                    // return its invocation:
+                    var parameter = Expression.Parameter(Expression.GetDelegateType(resolution.Type, context.Writer.Type, typeof(void)));
                     var reference = context.References.GetOrAdd((recordSchema, resolution.Type), parameter);
-                    result.Expression = Expression.Invoke(reference, value);
+                    result.Expression = Expression.Invoke(reference, value, context.Writer);
 
+                    // then build/set the delegate if it hasn’t been built yet:
                     if (parameter == reference)
                     {
                         var argument = Expression.Variable(resolution.Type);
@@ -1408,7 +1388,7 @@ namespace Chr.Avro.Serialization
                             ? Expression.Block(writes)
                             : Expression.Empty() as Expression;
 
-                        expression = Expression.Lambda(expression, $"{recordSchema.Name} serializer", new[] { argument });
+                        expression = Expression.Lambda(parameter.Type, expression, $"{recordSchema.Name} serializer", new[] { argument, context.Writer });
 
                         if (!context.Assignments.TryAdd(reference, expression))
                         {
@@ -1437,22 +1417,6 @@ namespace Chr.Avro.Serialization
     public class StringSerializerBuilderCase : BinarySerializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new string serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public StringSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a string serializer for a type-schema pair.
         /// </summary>
         /// <param name="value">
@@ -1480,23 +1444,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is StringSchema)
             {
-                var expression = GenerateConversion(value, typeof(string));
+                var writeString = typeof(BinaryWriter)
+                    .GetMethod(nameof(BinaryWriter.WriteString), new[] { typeof(string) });
 
-                var convertString = typeof(Encoding)
-                    .GetMethod(nameof(Encoding.GetBytes), new[] { typeof(string) });
-
-                expression = Expression.Call(Expression.Constant(Encoding.UTF8), convertString, expression);
-
-                var bytes = Expression.Variable(expression.Type);
-
-                expression = Expression.Block(
-                    new[] { bytes },
-                    Expression.Assign(bytes, expression),
-                    Codec.WriteInteger(Expression.ConvertChecked(Expression.ArrayLength(bytes), typeof(long)), context.Stream),
-                    Codec.Write(bytes, context.Stream)
-                );
-
-                result.Expression = expression;
+                result.Expression = Expression.Call(context.Writer, writeString, GenerateConversion(value, typeof(string)));
             }
             else
             {
@@ -1572,22 +1523,6 @@ namespace Chr.Avro.Serialization
     public class TimestampSerializerBuilderCase : BinarySerializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new timestamp serializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
-        public TimestampSerializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a timestamp serializer for a type-schema pair.
         /// </summary>
         /// <param name="value">
@@ -1648,8 +1583,17 @@ namespace Chr.Avro.Serialization
                     var utcTicks = typeof(DateTimeOffset)
                         .GetProperty(nameof(DateTimeOffset.UtcTicks));
 
-                    // result = (value.UtcTicks - epoch) / factor;
-                    result.Expression = Codec.WriteInteger(Expression.Divide(Expression.Subtract(Expression.Property(expression, utcTicks), epoch), factor), context.Stream);
+                    var writeInteger = typeof(BinaryWriter)
+                        .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
+
+                    result.Expression = Expression.Call(
+                        context.Writer,
+                        writeInteger,
+
+                        // (value.UtcTicks - epoch) / factor
+                        Expression.Divide(
+                            Expression.Subtract(Expression.Property(expression, utcTicks), epoch),
+                            factor));
                 }
                 else
                 {
@@ -1672,11 +1616,6 @@ namespace Chr.Avro.Serialization
     public class UnionSerializerBuilderCase : BinarySerializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated serializers should use for write operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
         /// The serializer builder to use to build child serializers.
         /// </summary>
         public IBinarySerializerBuilder SerializerBuilder { get; }
@@ -1684,15 +1623,11 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Creates a new union serializer builder case.
         /// </summary>
-        /// <param name="codec">
-        /// The codec that generated serializers should use for write operations.
-        /// </param>
         /// <param name="serializerBuilder">
         /// The serializer builder to use to build child serializers.
         /// </param>
-        public UnionSerializerBuilderCase(IBinaryCodec codec, IBinarySerializerBuilder serializerBuilder)
+        public UnionSerializerBuilderCase(IBinarySerializerBuilder serializerBuilder)
         {
-            Codec = codec;
             SerializerBuilder = serializerBuilder;
         }
 
@@ -1736,9 +1671,13 @@ namespace Chr.Avro.Serialization
                 var candidates = schemas.Where(s => !(s is NullSchema)).ToList();
                 var @null = schemas.Find(s => s is NullSchema);
 
-                Expression writeIndex(Schema child) => Codec.WriteInteger(
-                    Expression.Constant((long)schemas.IndexOf(child)),
-                    context.Stream);
+                var writeInteger = typeof(BinaryWriter)
+                    .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
+
+                Expression writeIndex(Schema child) => Expression.Call(
+                    context.Writer,
+                    writeInteger,
+                    Expression.Constant((long)schemas.IndexOf(child)));
 
                 Expression expression = null!;
 
@@ -1765,7 +1704,7 @@ namespace Chr.Avro.Serialization
                         {
                             body = Expression.Block(
                                 writeIndex(candidate),
-                                SerializerBuilder.BuildExpression(Expression.ConvertChecked(value, underlying), candidate, context));
+                                SerializerBuilder.BuildExpression(Expression.Convert(value, underlying), candidate, context));
                         }
                         catch (Exception exception)
                         {

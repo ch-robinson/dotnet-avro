@@ -302,6 +302,7 @@ namespace Chr.Avro.Benchmarks.Chr
         public override IEnumerable<(string, TimeSpan)> Run()
         {
             var stream = new MemoryStream();
+            var writer = new BinaryWriter(stream);
 
             var deserialize = new BinaryDeserializerBuilder().BuildDelegate<T>(Schema);
             var serialize = new BinarySerializerBuilder().BuildDelegate<T>(Schema);
@@ -310,7 +311,7 @@ namespace Chr.Avro.Benchmarks.Chr
             {
                 foreach (var value in Values)
                 {
-                    serialize(value, stream);
+                    serialize(value, writer);
                 }
             }
 
@@ -318,6 +319,7 @@ namespace Chr.Avro.Benchmarks.Chr
             var size = stream.ToArray().Length * Iterations / count;
 
             stream = new MemoryStream(size);
+            writer = new BinaryWriter(stream);
 
             using (stream)
             {
@@ -326,19 +328,20 @@ namespace Chr.Avro.Benchmarks.Chr
 
                 for (int i = 0; i < Iterations; i++)
                 {
-                    serialize(Values[i % count], stream);
+                    serialize(Values[i % count], writer);
                 }
 
                 stopwatch.Stop();
                 yield return ("serialization", stopwatch.Elapsed);
-
                 stopwatch.Reset();
-                stream.Position = 0;
+
+                var reader = new Serialization.BinaryReader(stream.ToArray());
+
                 stopwatch.Start();
 
                 for (int i = 0; i < Iterations; i++)
                 {
-                    deserialize(stream);
+                    deserialize(ref reader);
                 }
 
                 stopwatch.Stop();

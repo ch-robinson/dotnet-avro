@@ -2,20 +2,24 @@ using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class MapSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly MemoryStream _stream;
 
         public MapSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new BinaryDeserializerBuilder();
+            _serializerBuilder = new BinarySerializerBuilder();
+            _stream = new MemoryStream();
         }
 
         [Theory]
@@ -24,9 +28,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new StringSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Dictionary<DateTime, string>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Dictionary<DateTime, string>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var deserialize = _deserializerBuilder.BuildDelegate<Dictionary<DateTime, string>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<Dictionary<DateTime, string>>(schema);
+
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -35,9 +47,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new StringSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<IDictionary<DateTime, string>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<IDictionary<DateTime, string>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var deserialize = _deserializerBuilder.BuildDelegate<IDictionary<DateTime, string>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<IDictionary<DateTime, string>>(schema);
+
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -46,9 +66,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new DoubleSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<IEnumerable<KeyValuePair<string, double>>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<IEnumerable<KeyValuePair<string, double>>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var deserialize = _deserializerBuilder.BuildDelegate<IEnumerable<KeyValuePair<string, double>>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<IEnumerable<KeyValuePair<string, double>>>(schema);
+
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -57,9 +85,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new DoubleSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<IImmutableDictionary<string, double>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<IImmutableDictionary<string, double>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value.ToImmutableDictionary())));
+            var deserialize = _deserializerBuilder.BuildDelegate<IImmutableDictionary<string, double>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<IImmutableDictionary<string, double>>(schema);
+
+            using (_stream)
+            {
+                serialize(value.ToImmutableDictionary(), new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -68,9 +104,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new DoubleSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<IReadOnlyDictionary<string, double>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<IReadOnlyDictionary<string, double>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var deserialize = _deserializerBuilder.BuildDelegate<IReadOnlyDictionary<string, double>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<IReadOnlyDictionary<string, double>>(schema);
+
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -79,9 +123,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new DoubleSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<ImmutableDictionary<string, double>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<ImmutableDictionary<string, double>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value.ToImmutableDictionary())));
+            var deserialize = _deserializerBuilder.BuildDelegate<ImmutableDictionary<string, double>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<ImmutableDictionary<string, double>>(schema);
+
+            using (_stream)
+            {
+                serialize(value.ToImmutableDictionary(), new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -90,9 +142,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new DoubleSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<ImmutableSortedDictionary<string, double>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<ImmutableSortedDictionary<string, double>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value.ToImmutableSortedDictionary())));
+            var deserialize = _deserializerBuilder.BuildDelegate<ImmutableSortedDictionary<string, double>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<ImmutableSortedDictionary<string, double>>(schema);
+
+            using (_stream)
+            {
+                serialize(value.ToImmutableSortedDictionary(), new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -101,9 +161,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new DoubleSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<SortedDictionary<string, double>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<SortedDictionary<string, double>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(new SortedDictionary<string, double>(value))));
+            var deserialize = _deserializerBuilder.BuildDelegate<SortedDictionary<string, double>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<SortedDictionary<string, double>>(schema);
+
+            using (_stream)
+            {
+                serialize(new SortedDictionary<string, double>(value), new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -112,9 +180,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new MapSchema(new DoubleSchema());
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<SortedList<string, double>>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<SortedList<string, double>>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(new SortedList<string, double>(value))));
+            var deserialize = _deserializerBuilder.BuildDelegate<SortedList<string, double>>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<SortedList<string, double>>(schema);
+
+            using (_stream)
+            {
+                serialize(new SortedList<string, double>(value), new BinaryWriter(_stream));
+            }
+
+            var reader = new BinaryReader(_stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         public static IEnumerable<object[]> DateTimeKeyData => new List<object[]>

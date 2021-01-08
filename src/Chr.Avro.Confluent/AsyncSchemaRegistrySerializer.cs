@@ -5,6 +5,7 @@ using Confluent.SchemaRegistry;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Confluent
@@ -19,12 +20,17 @@ namespace Chr.Avro.Confluent
     /// would query the Schema Registry for subject "test_topic-key". (This is a Confluent
     /// convention—values would be "test_topic-value".)
     /// </remarks>
-    public class AsyncSchemaRegistrySerializer<T> : IAsyncSerializer<T>
+    public class AsyncSchemaRegistrySerializer<T> : IAsyncSerializer<T>, IDisposable
     {
         /// <summary>
         /// Whether to automatically register schemas that match the type being serialized.
         /// </summary>
         public AutomaticRegistrationBehavior RegisterAutomatically { get; }
+
+        /// <summary>
+        /// The client used for Schema Registry operations.
+        /// </summary>
+        public ISchemaRegistryClient RegistryClient { get; }
 
         /// <summary>
         /// The schema builder used to create a schema for a C# type when registering automatically.
@@ -61,9 +67,7 @@ namespace Chr.Avro.Confluent
 
         private readonly IDictionary<string, Task<Func<T, byte[]>>> _cache;
 
-        private readonly Func<string, string, Task<int>> _register;
-
-        private readonly Func<string, Task<RegisteredSchema>> _resolve;
+        private readonly bool _disposeRegistryClient;
 
         /// <summary>
         /// Creates a serializer.
@@ -123,6 +127,7 @@ namespace Chr.Avro.Confluent
             }
 
             RegisterAutomatically = registerAutomatically;
+            RegistryClient = new CachedSchemaRegistryClient(registryConfiguration);
             SchemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
             SchemaReader = schemaReader ?? new JsonSchemaReader();
             SchemaWriter = schemaWriter ?? new JsonSchemaWriter();
@@ -132,29 +137,7 @@ namespace Chr.Avro.Confluent
             TombstoneBehavior = tombstoneBehavior;
 
             _cache = new Dictionary<string, Task<Func<T, byte[]>>>();
-
-            _register = async (subject, json) =>
-            {
-                using (var registry = new CachedSchemaRegistryClient(registryConfiguration))
-                {
-                    return await registry.RegisterSchemaAsync(subject, new Schema(json, SchemaType.Avro)).ConfigureAwait(false);
-                }
-            };
-
-            _resolve = async subject =>
-            {
-                using (var registry = new CachedSchemaRegistryClient(registryConfiguration))
-                {
-                    var schema = await registry.GetLatestSchemaAsync(subject).ConfigureAwait(false);
-
-                    if (schema.SchemaType != SchemaType.Avro)
-                    {
-                        throw new UnsupportedSchemaException(null, $"The latest schema with subject {subject} is not an Avro schema.");
-                    }
-
-                    return schema;
-                }
-            };
+            _disposeRegistryClient = true;
         }
 
         /// <summary>
@@ -214,6 +197,7 @@ namespace Chr.Avro.Confluent
             }
 
             RegisterAutomatically = registerAutomatically;
+            RegistryClient = registryClient;
             SchemaBuilder = schemaBuilder ?? new Abstract.SchemaBuilder();
             SchemaReader = schemaReader ?? new JsonSchemaReader();
             SchemaWriter = schemaWriter ?? new JsonSchemaWriter();
@@ -223,18 +207,7 @@ namespace Chr.Avro.Confluent
             TombstoneBehavior = tombstoneBehavior;
 
             _cache = new Dictionary<string, Task<Func<T, byte[]>>>();
-            _register = (subject, json) => registryClient.RegisterSchemaAsync(subject, new Schema(json, SchemaType.Avro));
-            _resolve = async subject =>
-            {
-                var schema = await registryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
-
-                if (schema.SchemaType != SchemaType.Avro)
-                {
-                    throw new UnsupportedSchemaException(null, $"The latest schema with subject {subject} is not an Avro schema.");
-                }
-
-                return schema;
-            };
+            _disposeRegistryClient = false;
         }
 
         /// <summary>
@@ -256,14 +229,19 @@ namespace Chr.Avro.Confluent
                         {
                             case AutomaticRegistrationBehavior.Always:
                                 var schema = SchemaBuilder.BuildSchema<T>();
-                                var id = await _register(subject, SchemaWriter.Write(schema)).ConfigureAwait(false);
+                                var id = await RegistryClient.RegisterSchemaAsync(subject, new Schema(SchemaWriter.Write(schema), SchemaType.Avro)).ConfigureAwait(false);
 
                                 return Build(id, schema);
 
                             case AutomaticRegistrationBehavior.Never:
-                                var existing = await _resolve(subject).ConfigureAwait(false);
+                                var registration = await RegistryClient.GetLatestSchemaAsync(subject).ConfigureAwait(false);
 
-                                return Build(existing.Id, SchemaReader.Read(existing.SchemaString));
+                                if (registration.SchemaType != SchemaType.Avro)
+                                {
+                                    throw new UnsupportedSchemaException(null, $"The latest schema with subject {subject} is not an Avro schema.");
+                                }
+
+                                return Build(registration.Id, SchemaReader.Read(registration.SchemaString));
 
                             default:
                                 throw new ArgumentOutOfRangeException(nameof(RegisterAutomatically));
@@ -296,29 +274,68 @@ namespace Chr.Avro.Confluent
         /// </param>
         protected virtual Func<T, byte[]> Build(int id, Abstract.Schema schema)
         {
-            var bytes = BitConverter.GetBytes(id);
+            var header = new byte[5];
+            Array.Copy(BitConverter.GetBytes(id), 0, header, 1, 4);
 
             if (BitConverter.IsLittleEndian)
             {
-                Array.Reverse(bytes);
+                Array.Reverse(header, 1, 4);
             }
 
-            var serialize = SerializerBuilder.BuildDelegate<T>(schema);
+            var inner = SerializerBuilder.BuildExpression<T>(schema);
 
-            return value =>
+            var streamConstructor = typeof(MemoryStream)
+                .GetConstructor(Type.EmptyTypes);
+
+            var writerConstructor = inner.Parameters[1].Type
+                .GetConstructor(new[] { typeof(Stream) });
+
+            var dispose = typeof(IDisposable)
+                .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
+
+            var toArray = typeof(MemoryStream)
+                .GetMethod(nameof(MemoryStream.ToArray), Type.EmptyTypes);
+
+            var write = typeof(Stream)
+                .GetMethod(nameof(Stream.Write), new[] { typeof(byte[]), typeof(int), typeof(int) });
+
+            var stream = Expression.Parameter(typeof(MemoryStream));
+            var value = inner.Parameters[0];
+
+            var writer = Expression.Block(
+                new[] { stream },
+                Expression.Assign(stream, Expression.New(streamConstructor)),
+                Expression.TryFinally(
+                    Expression.Block(
+                        Expression.Call(stream, write, Expression.Constant(header), Expression.Constant(0), Expression.Constant(header.Length)),
+                        Expression.Invoke(inner, value, Expression.New(writerConstructor, stream))),
+                    Expression.Call(stream, dispose)),
+                Expression.Call(stream, toArray));
+
+            return Expression.Lambda<Func<T, byte[]>>(writer, value).Compile();
+        }
+
+        /// <summary>
+        /// Disposes the serializer, freeing up any resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the serializer, freeing up any resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                var stream = new MemoryStream();
-
-                using (stream)
+                if (_disposeRegistryClient)
                 {
-                    stream.WriteByte(0x00);
-                    stream.Write(bytes, 0, bytes.Length);
-
-                    serialize(value, stream);
+                    RegistryClient.Dispose();
                 }
-
-                return stream.ToArray();
-            };
+            }
         }
     }
 }

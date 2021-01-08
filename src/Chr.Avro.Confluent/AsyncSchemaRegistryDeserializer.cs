@@ -1,3 +1,4 @@
+using Chr.Avro.Abstract;
 using Chr.Avro.Representation;
 using Chr.Avro.Serialization;
 using Confluent.Kafka;
@@ -5,6 +6,8 @@ using Confluent.SchemaRegistry;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace Chr.Avro.Confluent
@@ -19,7 +22,7 @@ namespace Chr.Avro.Confluent
     public class AsyncSchemaRegistryDeserializer<T> : IAsyncDeserializer<T>, IDisposable
     {
         /// <summary>
-        /// The deserializer builder used to generate deserialization functions for C# types.
+        /// The builder used to generate deserialization functions.
         /// </summary>
         public IBinaryDeserializerBuilder DeserializerBuilder { get; }
 
@@ -39,7 +42,7 @@ namespace Chr.Avro.Confluent
         /// </summary>
         public TombstoneBehavior TombstoneBehavior { get; }
 
-        private readonly IDictionary<int, Task<Func<Stream, T>>> _cache;
+        private readonly IDictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>> _cache;
 
         private readonly bool _disposeRegistryClient;
 
@@ -85,7 +88,7 @@ namespace Chr.Avro.Confluent
             SchemaReader = schemaReader ?? new JsonSchemaReader();
             TombstoneBehavior = tombstoneBehavior;
 
-            _cache = new Dictionary<int, Task<Func<Stream, T>>>();
+            _cache = new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>();
             _disposeRegistryClient = true;
         }
 
@@ -130,7 +133,7 @@ namespace Chr.Avro.Confluent
             SchemaReader = schemaReader ?? new JsonSchemaReader();
             TombstoneBehavior = tombstoneBehavior;
 
-            _cache = new Dictionary<int, Task<Func<Stream, T>>>();
+            _cache = new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>();
             _disposeRegistryClient = false;
         }
 
@@ -147,46 +150,92 @@ namespace Chr.Avro.Confluent
                 }
             }
 
-            using (var stream = new MemoryStream(data.ToArray(), false))
+            if (data.Length < 5)
             {
-                var bytes = new byte[4];
-
-                if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
-                {
-                    throw new InvalidDataException("The encoded data does not conform to the Confluent wire format.");
-                }
-
-                if (BitConverter.IsLittleEndian)
-                {
-                    Array.Reverse(bytes);
-                }
-
-                var id = BitConverter.ToInt32(bytes, 0);
-
-                Task<Func<Stream, T>> task;
-
-                lock (_cache)
-                {
-                    if (!_cache.TryGetValue(id, out task) || task.IsFaulted)
-                    {
-                        _cache[id] = task = ((Func<int, Task<Func<Stream, T>>>)(async id =>
-                        {
-                            var schema = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
-
-                            if (schema.SchemaType != SchemaType.Avro)
-                            {
-                                throw new UnsupportedSchemaException(null, $"The schema used to encode the data ({id}) is not an Avro schema.");
-                            }
-
-                            return DeserializerBuilder.BuildDelegate<T>(SchemaReader.Read(schema.SchemaString));
-                        }))(id);
-                    }
-                }
-
-                var deserialize = await task.ConfigureAwait(false);
-
-                return deserialize(stream);
+                throw new InvalidDataException("The encoded data does not include a Confluent wire format header.");
             }
+
+            var header = data.Slice(0, 5).ToArray();
+
+            if (header[0] != 0x00)
+            {
+                throw new InvalidDataException("The encoded data does not conform to the Confluent wire format.");
+            }
+
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(header, 1, 4);
+            }
+
+            var id = BitConverter.ToInt32(header, 1);
+
+            Task<Func<ReadOnlyMemory<byte>, T>> task;
+
+            lock (_cache)
+            {
+                if (!_cache.TryGetValue(id, out task) || task.IsFaulted)
+                {
+                    _cache[id] = task = ((Func<int, Task<Func<ReadOnlyMemory<byte>, T>>>)(async id =>
+                    {
+                        var registration = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
+
+                        if (registration.SchemaType != SchemaType.Avro)
+                        {
+                            throw new UnsupportedSchemaException(null, $"The schema used to encode the data ({id}) is not an Avro schema.");
+                        }
+
+                        var schema = SchemaReader.Read(registration.SchemaString);
+
+                        if (TombstoneBehavior != TombstoneBehavior.None)
+                        {
+                            var hasNull = schema is NullSchema
+                                || (schema is UnionSchema union && union.Schemas.Any(s => s is NullSchema));
+
+                            if (TombstoneBehavior == TombstoneBehavior.Strict && hasNull)
+                            {
+                                throw new UnsupportedSchemaException(schema, "Tombstone deserialization is not supported for schemas that can represent null values.");
+                            }
+                        }
+
+                        return Build(schema);
+                    }))(id);
+                }
+            }
+
+            return (await task.ConfigureAwait(false))(data);
+        }
+
+        /// <summary>
+        /// Builds a deserializer for the Confluent wire format.
+        /// </summary>
+        /// <param name="schema">
+        /// The schema to build the Avro deserializer from.
+        /// </param>
+        protected virtual Func<ReadOnlyMemory<byte>, T> Build(Abstract.Schema schema)
+        {
+            // the reader, as a ref struct, can't be declared within an async or lambda function, so
+            // build it into the delegate:
+            var inner = DeserializerBuilder.BuildExpression<T>(schema);
+            var memory = Expression.Parameter(typeof(ReadOnlyMemory<byte>));
+
+            var getSpan = memory.Type
+                .GetProperty(nameof(ReadOnlyMemory<byte>.Span))
+                .GetGetMethod();
+
+            var readerConstructor = inner.Parameters[0].Type
+                .GetConstructor(new[] { getSpan.ReturnType });
+
+            var slice = memory.Type
+                .GetMethod(nameof(ReadOnlyMemory<byte>.Slice), new[] { typeof(int) });
+
+            var reader = Expression.Invoke(inner,
+                Expression.New(
+                    readerConstructor,
+                    Expression.Property(
+                        Expression.Call(memory, slice, Expression.Constant(5)),
+                        getSpan)));
+
+            return Expression.Lambda<Func<ReadOnlyMemory<byte>, T>>(reader, true, memory).Compile();
         }
 
         /// <summary>

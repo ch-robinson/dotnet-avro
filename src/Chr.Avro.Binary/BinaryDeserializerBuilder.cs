@@ -10,18 +10,28 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Numerics;
-using System.Text;
 using System.Xml;
 
 namespace Chr.Avro.Serialization
 {
+    /// <summary>
+    /// A function that deserializes a .NET object from serialized binary Avro.
+    /// </summary>
+    /// <param name="reader">
+    /// The reader of the binary Avro data.
+    /// </param>
+    /// <returns>
+    /// An binary Avro reader instance.
+    /// </returns>
+    public delegate T BinaryDeserializer<T>(ref BinaryReader reader);
+
     /// <summary>
     /// Builds Avro deserializers for .NET types.
     /// </summary>
     public interface IBinaryDeserializerBuilder
     {
         /// <summary>
-        /// Builds a delegate that reads a serialized object from a stream.
+        /// Builds a delegate that reads a serialized object.
         /// </summary>
         /// <typeparam name="T">
         /// The type of object to be deserialized.
@@ -29,11 +39,22 @@ namespace Chr.Avro.Serialization
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        Func<Stream, T> BuildDelegate<T>(Schema schema);
+        BinaryDeserializer<T> BuildDelegate<T>(Schema schema);
+
+        /// <summary>
+        /// Builds an expression that represents reading a serialized object.
+        /// </summary>
+        /// <typeparam name="T">
+        /// The type of object to be deserialized.
+        /// </typeparam>
+        /// <param name="schema">
+        /// The schema to map to the type.
+        /// </param>
+        Expression<BinaryDeserializer<T>> BuildExpression<T>(Schema schema);
 
         /// <summary>
         /// Builds an expression that represents reading an object of <paramref name="type" /> from
-        /// a stream (provided by <paramref name="context" />).
+        /// a stream.
         /// </summary>
         /// <param name="type">
         /// The type of object to be deserialized.
@@ -42,7 +63,7 @@ namespace Chr.Avro.Serialization
         /// The schema to map to the type.
         /// </param>
         /// <param name="context">
-        /// Information describing top-level expressions.
+        /// Top-level expressions.
         /// </param>
         Expression BuildExpression(Type type, Schema schema, IBinaryDeserializerBuilderContext context);
     }
@@ -96,14 +117,14 @@ namespace Chr.Avro.Serialization
         ConcurrentDictionary<ParameterExpression, Expression> Assignments { get; }
 
         /// <summary>
+        /// The input <see cref="BinaryReader" />.
+        /// </summary>
+        ParameterExpression Reader { get; }
+
+        /// <summary>
         /// A map of schema-type pairs to top-level variables.
         /// </summary>
         ConcurrentDictionary<(Schema, Type), ParameterExpression> References { get; }
-
-        /// <summary>
-        /// The input <see cref="System.IO.Stream" />.
-        /// </summary>
-        ParameterExpression Stream { get; }
     }
 
     /// <summary>
@@ -125,16 +146,12 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Creates a new deserializer builder.
         /// </summary>
-        /// <param name="codec">
-        /// A codec implementation that generated deserializers will use for read operations. If
-        /// no codec is provided, <see cref="BinaryCodec" /> will be used.
-        /// </param>
         /// <param name="resolver">
         /// A resolver to retrieve type information from. If no resolver is provided, the deserializer
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public BinaryDeserializerBuilder(IBinaryCodec? codec = null, ITypeResolver? resolver = null)
-            : this(CreateBinaryDeserializerCaseBuilders(codec ?? new BinaryCodec()), resolver) { }
+        public BinaryDeserializerBuilder(ITypeResolver? resolver = null)
+            : this(DefaultCaseBuilders, resolver) { }
 
         /// <summary>
         /// Creates a new deserializer builder.
@@ -160,7 +177,7 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
-        /// Builds a delegate that reads a serialized object from a stream.
+        /// Builds a delegate that reads a serialized object.
         /// </summary>
         /// <typeparam name="T">
         /// The type of object to be deserialized.
@@ -171,25 +188,42 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map the type to the schema.
         /// </exception>
-        public virtual Func<Stream, T> BuildDelegate<T>(Schema schema)
+        public virtual BinaryDeserializer<T> BuildDelegate<T>(Schema schema)
+        {
+            return BuildExpression<T>(schema).Compile();
+        }
+
+        /// <summary>
+        /// Builds an expression that represents reading a serialized object.
+        /// </summary>
+        /// <typeparam name="T">
+        /// The type of object to be deserialized.
+        /// </typeparam>
+        /// <param name="schema">
+        /// The schema to map to the type.
+        /// </param>
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when no case can map the type to the schema.
+        /// </exception>
+        public Expression<BinaryDeserializer<T>> BuildExpression<T>(Schema schema)
         {
             var context = new BinaryDeserializerBuilderContext();
 
             // ensure that all assignments are present before building the lambda:
             var root = BuildExpression(typeof(T), schema, context);
 
-            return Expression.Lambda<Func<Stream, T>>(Expression.Block(
+            return Expression.Lambda<BinaryDeserializer<T>>(Expression.Block(
                 context.Assignments
                     .Select(a => a.Key),
                 context.Assignments
                     .Select(a => (Expression)Expression.Assign(a.Key, a.Value))
                     .Concat(new[] { root })
-            ), new[] { context.Stream }).Compile();
+            ), new[] { context.Reader });
         }
 
         /// <summary>
         /// Builds an expression that represents reading an object of <paramref name="type" /> from
-        /// a stream (provided by <paramref name="context" />).
+        /// a stream.
         /// </summary>
         /// <param name="type">
         /// The type of object to be deserialized.
@@ -198,7 +232,7 @@ namespace Chr.Avro.Serialization
         /// The schema to map to the type.
         /// </param>
         /// <param name="context">
-        /// Information describing top-level expressions.
+        /// Top-level expressions.
         /// </param>
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map the type to the schema.
@@ -224,44 +258,39 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
-        /// Creates a default list of case builders.
+        /// A default list of case builders.
         /// </summary>
-        /// <param name="codec">
-        /// A codec implementation that generated deserializers will use for read operations.
-        /// </param>
-        public static IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> CreateBinaryDeserializerCaseBuilders(IBinaryCodec codec)
-        {
-            return new Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>[]
+        public static readonly IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> DefaultCaseBuilders =
+            new Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>[]
             {
                 // logical types:
-                builder => new DecimalDeserializerBuilderCase(codec),
-                builder => new DurationDeserializerBuilderCase(codec),
-                builder => new TimestampDeserializerBuilderCase(codec),
+                builder => new DecimalDeserializerBuilderCase(),
+                builder => new DurationDeserializerBuilderCase(),
+                builder => new TimestampDeserializerBuilderCase(),
 
                 // primitives:
-                builder => new BooleanDeserializerBuilderCase(codec),
-                builder => new BytesDeserializerBuilderCase(codec),
-                builder => new DoubleDeserializerBuilderCase(codec),
-                builder => new FixedDeserializerBuilderCase(codec),
-                builder => new FloatDeserializerBuilderCase(codec),
-                builder => new IntegerDeserializerBuilderCase(codec),
+                builder => new BooleanDeserializerBuilderCase(),
+                builder => new BytesDeserializerBuilderCase(),
+                builder => new DoubleDeserializerBuilderCase(),
+                builder => new FixedDeserializerBuilderCase(),
+                builder => new FloatDeserializerBuilderCase(),
+                builder => new IntegerDeserializerBuilderCase(),
                 builder => new NullDeserializerBuilderCase(),
-                builder => new StringDeserializerBuilderCase(codec),
+                builder => new StringDeserializerBuilderCase(),
 
                 // collections:
-                builder => new ArrayDeserializerBuilderCase(codec, builder),
-                builder => new MapDeserializerBuilderCase(codec, builder),
+                builder => new ArrayDeserializerBuilderCase(builder),
+                builder => new MapDeserializerBuilderCase(builder),
 
                 // enums:
-                builder => new EnumDeserializerBuilderCase(codec),
+                builder => new EnumDeserializerBuilderCase(),
 
                 // records:
                 builder => new RecordDeserializerBuilderCase(builder),
 
                 // unions:
-                builder => new UnionDeserializerBuilderCase(codec, builder)
+                builder => new UnionDeserializerBuilderCase(builder)
             };
-        }
     }
 
     /// <summary>
@@ -311,6 +340,12 @@ namespace Chr.Avro.Serialization
         /// <remarks>
         /// See the remarks for <see cref="Expression.ConvertChecked(Expression, Type)" />.
         /// </remarks>
+        /// <param name="value">
+        /// The value to convert.
+        /// </param>
+        /// <param name="target">
+        /// The type to convert <paramref name="value" /> to.
+        /// </param>
         protected virtual Expression GenerateConversion(Expression value, Type target)
         {
             if (value.Type == target)
@@ -327,6 +362,56 @@ namespace Chr.Avro.Serialization
                 throw new UnsupportedTypeException(target, inner: inner);
             }
         }
+
+        /// <summary>
+        /// Generates an iteration to read items in an Avro block encoding.
+        /// </summary>
+        /// <param name="reader">
+        /// A <see cref="BinaryReader" />.
+        /// </param>
+        /// <param name="body">
+        /// The expression that will be executed for each item.
+        /// </param>
+        public virtual Expression GenerateIteration(Expression reader, Expression body)
+        {
+            var index = Expression.Variable(typeof(long));
+            var size = Expression.Variable(typeof(long));
+
+            var outer = Expression.Label();
+            var inner = Expression.Label();
+
+            var readInteger = typeof(BinaryReader)
+                .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+
+            return Expression.Block(
+                new[] { index, size },
+                Expression.Loop(
+                    Expression.Block(
+                        Expression.Assign(
+                            size,
+                            Expression.Call(reader, readInteger)),
+                        Expression.IfThen(
+                            Expression.Equal(size, Expression.Constant(0L)),
+                            Expression.Break(outer)),
+
+                        // negative size indicates that the number of bytes in the block follows,
+                        // so discard:
+                        Expression.IfThen(
+                            Expression.LessThan(size, Expression.Constant(0L)),
+                            Expression.Block(
+                                Expression.MultiplyAssign(size, Expression.Constant(-1L)),
+                                Expression.Call(reader, readInteger))),
+
+                        Expression.Assign(index, Expression.Constant(0L)),
+                        Expression.Loop(
+                            Expression.Block(
+                                Expression.IfThen(
+                                    Expression.Equal(Expression.PostIncrementAssign(index), size),
+                                    Expression.Break(inner)),
+                                body),
+                            inner)),
+                    outer));
+        }
     }
 
     /// <summary>
@@ -340,27 +425,27 @@ namespace Chr.Avro.Serialization
         public ConcurrentDictionary<ParameterExpression, Expression> Assignments { get; }
 
         /// <summary>
+        /// The input <see cref="BinaryReader" />.
+        /// </summary>
+        public ParameterExpression Reader { get; }
+
+        /// <summary>
         /// A map of types to top-level variables.
         /// </summary>
         public ConcurrentDictionary<(Schema, Type), ParameterExpression> References { get; }
 
         /// <summary>
-        /// The input <see cref="System.IO.Stream" />.
-        /// </summary>
-        public ParameterExpression Stream { get; }
-
-        /// <summary>
         /// Creates a new context.
         /// </summary>
-        /// <param name="stream">
-        /// The input <see cref="System.IO.Stream" />. If an expression is not provided, one will
+        /// <param name="reader">
+        /// The input <see cref="BinaryReader" />. If an expression is not provided, one will
         /// be created.
         /// </param>
-        public BinaryDeserializerBuilderContext(ParameterExpression? stream = null)
+        public BinaryDeserializerBuilderContext(ParameterExpression? reader = null)
         {
             Assignments = new ConcurrentDictionary<ParameterExpression, Expression>();
             References = new ConcurrentDictionary<(Schema, Type), ParameterExpression>();
-            Stream = stream ?? Expression.Parameter(typeof(Stream));
+            Reader = reader ?? Expression.Parameter(typeof(BinaryReader).MakeByRefType());
         }
     }
 
@@ -371,11 +456,6 @@ namespace Chr.Avro.Serialization
     public class ArrayDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
         /// The deserializer builder to use to build item deserializers.
         /// </summary>
         public IBinaryDeserializerBuilder DeserializerBuilder { get; }
@@ -383,15 +463,11 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Creates a new array deserializer builder case.
         /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
         /// <param name="deserializerBuilder">
         /// The deserializer builder to use to build item deserializers.
         /// </param>
-        public ArrayDeserializerBuilderCase(IBinaryCodec codec, IBinaryDeserializerBuilder deserializerBuilder)
+        public ArrayDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
         {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
             DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
         }
 
@@ -423,10 +499,18 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is ArrayResolution arrayResolution)
                 {
-                    var expression = Codec.ReadArray(
-                        context.Stream,
-                        CreateIntermediateCollection(arrayResolution),
-                        DeserializerBuilder.BuildExpression(arrayResolution.ItemType, arraySchema.Item, context)
+                    var create = CreateIntermediateCollection(arrayResolution);
+
+                    var readItem = DeserializerBuilder.BuildExpression(arrayResolution.ItemType, arraySchema.Item, context);
+                    var collection = Expression.Parameter(create.Type);
+
+                    var add = collection.Type.GetMethod("Add", new[] { readItem.Type });
+
+                    Expression expression = Expression.Block(
+                        new[] { collection },
+                        Expression.Assign(collection, create),
+                        GenerateIteration(context.Reader, Expression.Call(collection, add, readItem)),
+                        collection
                     );
 
                     if (!arrayResolution.Type.IsAssignableFrom(expression.Type) && FindEnumerableConstructor(arrayResolution) is ConstructorResolution constructorResolution)
@@ -499,7 +583,7 @@ namespace Chr.Avro.Serialization
             {
                 return Expression.New(typeof(SortedSet<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
             }
-            
+
             if (resolution.Type.IsAssignableFrom(typeof(Collection<>).MakeGenericType(resolution.ItemType)))
             {
                 return Expression.New(typeof(Collection<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
@@ -568,22 +652,6 @@ namespace Chr.Avro.Serialization
     public class BooleanDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new boolean deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public BooleanDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a boolean deserializer for a type-schema pair.
         /// </summary>
         /// <param name="resolution">
@@ -608,7 +676,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is BooleanSchema)
             {
-                result.Expression = GenerateConversion(Codec.ReadBoolean(context.Stream), resolution.Type);
+                var readBoolean = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadBoolean), Type.EmptyTypes);
+
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, readBoolean), resolution.Type);
             }
             else
             {
@@ -625,22 +696,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class BytesDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new variable-length bytes deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public BytesDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a variable-length bytes deserializer for a type-schema pair.
         /// </summary>
@@ -666,7 +721,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is BytesSchema)
             {
-                result.Expression = GenerateConversion(Codec.Read(context.Stream, Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int))), resolution.Type);
+                var readBytes = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadBytes), Type.EmptyTypes);
+
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, readBytes), resolution.Type);
             }
             else
             {
@@ -701,22 +759,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class DecimalDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new decimal deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public DecimalDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a decimal deserializer for a type-schema pair.
         /// </summary>
@@ -753,18 +795,22 @@ namespace Chr.Avro.Serialization
                 // figure out the size:
                 if (schema is BytesSchema)
                 {
-                    expression = Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int));
+                    var readBytes = typeof(BinaryReader)
+                        .GetMethod(nameof(BinaryReader.ReadBytes), Type.EmptyTypes);
+
+                    expression = Expression.Call(context.Reader, readBytes);
                 }
                 else if (schema is FixedSchema fixedSchema)
                 {
-                    expression = Expression.Constant(fixedSchema.Size);
+                    var readFixed = typeof(BinaryReader)
+                        .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(long) });
+
+                    expression = Expression.Call(context.Reader, readFixed, Expression.Constant((long)fixedSchema.Size));
                 }
                 else
                 {
                     throw new UnsupportedSchemaException(schema);
                 }
-
-                expression = Codec.Read(context.Stream, expression);
 
                 // declare variables for in-place transformation:
                 var bytes = Expression.Variable(typeof(byte[]));
@@ -820,22 +866,6 @@ namespace Chr.Avro.Serialization
     public class DoubleDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new double deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public DoubleDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a double deserializer for a type-schema pair.
         /// </summary>
         /// <param name="resolution">
@@ -860,7 +890,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is DoubleSchema)
             {
-                result.Expression = GenerateConversion(Codec.ReadDouble(context.Stream), resolution.Type);
+                var readDouble = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadDouble), Type.EmptyTypes);
+
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, readDouble), resolution.Type);
             }
             else
             {
@@ -877,22 +910,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class DurationDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new duration deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public DurationDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds a duration deserializer for a type-schema pair.
         /// </summary>
@@ -930,46 +947,51 @@ namespace Chr.Avro.Serialization
                         throw new UnsupportedSchemaException(schema);
                     }
 
-                    Func<Stream, long> read = input =>
+                    var readFixed = typeof(BinaryReader)
+                        .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(int) });
+
+                    Expression read = Expression.Call(context.Reader, readFixed, Expression.Constant(4));
+
+                    if (!BitConverter.IsLittleEndian)
                     {
-                        var buffer = new byte[4];
-                        var bytes = input.Read(buffer, 0, buffer.Length);
+                        var buffer = Expression.Variable(read.Type);
+                        var reverse = typeof(Array)
+                            .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
 
-                        if (!BitConverter.IsLittleEndian)
-                        {
-                            Array.Reverse(buffer);
-                        }
+                        read = Expression.Block(
+                            new[] { buffer },
+                            Expression.Assign(buffer, read),
+                            Expression.Call(null, reverse, Expression.Convert(buffer, typeof(Array))),
+                            buffer);
+                    }
 
-                        return BitConverter.ToUInt32(buffer, 0);
-                    };
+                    var toUInt32 = typeof(BitConverter)
+                        .GetMethod(nameof(BitConverter.ToUInt32), new[] { typeof(byte[]), typeof(int) });
 
-                    result.Expression = GenerateConversion(Expression.Block(
-                        Expression.IfThen(
-                            Expression.NotEqual(
-                                Expression.Invoke(Expression.Constant(read), context.Stream),
-                                Expression.Constant(0L)
-                            ),
-                            Expression.Throw(
-                                Expression.New(
-                                    typeof(OverflowException).GetConstructor(new[] { typeof(string )}),
-                                    Expression.Constant("Durations containing months cannot be accurately deserialized to a TimeSpan.")
-                                )
-                            )
-                        ),
-                        Expression.New(
-                            typeof(TimeSpan).GetConstructor(new[] { typeof(long) }),
-                            Expression.AddChecked(
-                                Expression.MultiplyChecked(
-                                    Expression.Invoke(Expression.Constant(read), context.Stream),
-                                    Expression.Constant(TimeSpan.TicksPerDay)
-                                ),
-                                Expression.MultiplyChecked(
-                                    Expression.Invoke(Expression.Constant(read), context.Stream),
-                                    Expression.Constant(TimeSpan.TicksPerMillisecond)
-                                )
-                            )
-                        )
-                    ), resolution.Type);
+                    read = Expression.ConvertChecked(
+                        Expression.Call(null, toUInt32, read, Expression.Constant(0)),
+                        typeof(long));
+
+                    var exceptionConstructor = typeof(OverflowException)
+                        .GetConstructor(new[] { typeof(string )});
+
+                    var timeSpanConstructor = typeof(TimeSpan)
+                        .GetConstructor(new[] { typeof(long) });
+
+                    result.Expression = GenerateConversion(
+                        Expression.Block(
+                            Expression.IfThen(
+                                Expression.NotEqual(read, Expression.Constant(0L)),
+                                Expression.Throw(
+                                    Expression.New(
+                                        exceptionConstructor,
+                                        Expression.Constant("Durations containing months cannot be accurately deserialized to a TimeSpan.")))),
+                            Expression.New(
+                                timeSpanConstructor,
+                                Expression.AddChecked(
+                                    Expression.MultiplyChecked(read, Expression.Constant(TimeSpan.TicksPerDay)),
+                                    Expression.MultiplyChecked(read, Expression.Constant(TimeSpan.TicksPerMillisecond))))),
+                        resolution.Type);
                 }
                 else
                 {
@@ -991,22 +1013,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class EnumDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new enum deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public EnumDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds an enum deserializer for a type-schema pair.
         /// </summary>
@@ -1035,7 +1041,10 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is EnumResolution enumResolution)
                 {
-                    Expression expression = Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int));
+                    var readInteger = typeof(BinaryReader)
+                        .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+
+                    Expression expression = Expression.ConvertChecked(Expression.Call(context.Reader, readInteger), typeof(int));
 
                     // find a match for each enum in the schema:
                     var cases = enumSchema.Symbols.Select((name, index) =>
@@ -1082,22 +1091,6 @@ namespace Chr.Avro.Serialization
     public class FixedDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new fixed-length bytes deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public FixedDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a fixed-length bytes deserializer for a type-schema pair.
         /// </summary>
         /// <param name="resolution">
@@ -1122,7 +1115,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is FixedSchema fixedSchema)
             {
-                result.Expression = GenerateConversion(Codec.Read(context.Stream, Expression.Constant(fixedSchema.Size)), resolution.Type);
+                var readFixed = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(int) });
+
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, readFixed, Expression.Constant(fixedSchema.Size)), resolution.Type);
             }
             else
             {
@@ -1158,22 +1154,6 @@ namespace Chr.Avro.Serialization
     public class FloatDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new float deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public FloatDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a float deserializer for a type-schema pair.
         /// </summary>
         /// <param name="resolution">
@@ -1198,7 +1178,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is FloatSchema)
             {
-                result.Expression = GenerateConversion(Codec.ReadSingle(context.Stream), resolution.Type);
+                var readSingle = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadSingle), Type.EmptyTypes);
+
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, readSingle), resolution.Type);
             }
             else
             {
@@ -1215,22 +1198,6 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class IntegerDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
-        /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new integer deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public IntegerDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
         /// <summary>
         /// Builds an integer deserializer for a type-schema pair.
         /// </summary>
@@ -1256,7 +1223,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is IntSchema || schema is LongSchema)
             {
-                result.Expression = GenerateConversion(Codec.ReadInteger(context.Stream), resolution.Type);
+                var readInteger = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, readInteger), resolution.Type);
             }
             else
             {
@@ -1274,11 +1244,6 @@ namespace Chr.Avro.Serialization
     public class MapDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
         /// The deserializer builder to use to build key and value deserializers.
         /// </summary>
         public IBinaryDeserializerBuilder DeserializerBuilder { get; }
@@ -1286,15 +1251,11 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Creates a new map deserializer builder case.
         /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
         /// <param name="deserializerBuilder">
         /// The deserializer builder to use to build key and value deserializers.
         /// </param>
-        public MapDeserializerBuilderCase(IBinaryCodec codec, IBinaryDeserializerBuilder deserializerBuilder)
+        public MapDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
         {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
             DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
         }
 
@@ -1325,11 +1286,19 @@ namespace Chr.Avro.Serialization
             {
                 if (resolution is MapResolution mapResolution)
                 {
-                    var expression = Codec.ReadMap(
-                        context.Stream,
-                        CreateIntermediateDictionary(mapResolution),
-                        DeserializerBuilder.BuildExpression(mapResolution.KeyType, new StringSchema(), context),
-                        DeserializerBuilder.BuildExpression(mapResolution.ValueType, mapSchema.Value, context)
+                    var create = CreateIntermediateDictionary(mapResolution);
+
+                    var readKey = DeserializerBuilder.BuildExpression(mapResolution.KeyType, new StringSchema(), context);
+                    var readValue = DeserializerBuilder.BuildExpression(mapResolution.ValueType, mapSchema.Value, context);
+                    var dictionary = Expression.Parameter(create.Type);
+
+                    var add = dictionary.Type.GetMethod("Add", new[] { readKey.Type, readValue.Type });
+
+                    Expression expression = Expression.Block(
+                        new[] { dictionary },
+                        Expression.Assign(dictionary, create),
+                        GenerateIteration(context.Reader, Expression.Call(dictionary, add, readKey, readValue)),
+                        dictionary
                     );
 
                     if (!mapResolution.Type.IsAssignableFrom(expression.Type) && FindDictionaryConstructor(mapResolution) is ConstructorResolution constructorResolution)
@@ -1497,19 +1466,22 @@ namespace Chr.Avro.Serialization
 
             if (schema is RecordSchema recordSchema)
             {
-                Expression expression;
-
                 if (resolution is RecordResolution recordResolution)
                 {
-                    var parameter = Expression.Parameter(typeof(Func<>).MakeGenericType(resolution.Type));
+                    // since record deserialization is potentially recursive, create a delegate and
+                    // return its invocation:
+                    var parameter = Expression.Parameter(Expression.GetDelegateType(context.Reader.Type.MakeByRefType(), resolution.Type));
                     var reference = context.References.GetOrAdd((recordSchema, resolution.Type), parameter);
-                    result.Expression = Expression.Invoke(reference);
+                    result.Expression = Expression.Invoke(reference, context.Reader);
 
+                    // then build/set the delegate if it hasn’t been built yet:
                     if (parameter == reference)
                     {
+                        Expression expression;
+
                         if (FindRecordConstructor(recordResolution, recordSchema) is ConstructorResolution constructorResolution)
                         {
-                            // deserialization has to happen in schema order
+                            // map constructor parameters to fields:
                             var mapping = recordSchema.Fields
                                 .Select(field =>
                                 {
@@ -1570,7 +1542,7 @@ namespace Chr.Avro.Serialization
                             );
                         }
 
-                        expression = Expression.Lambda(expression, $"{recordSchema.Name} deserializer", Array.Empty<ParameterExpression>());
+                        expression = Expression.Lambda(parameter.Type, expression, $"{recordSchema.Name} deserializer", new[] { context.Reader });
 
                         if (!context.Assignments.TryAdd(reference, expression))
                         {
@@ -1680,22 +1652,6 @@ namespace Chr.Avro.Serialization
     public class StringDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new string deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public StringDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a string deserializer for a type-schema pair.
         /// </summary>
         /// <param name="resolution">
@@ -1720,12 +1676,10 @@ namespace Chr.Avro.Serialization
 
             if (schema is StringSchema)
             {
-                var expression = Codec.Read(context.Stream, Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int)));
+                var readString = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadString), Type.EmptyTypes);
 
-                var decodeValue = typeof(Encoding)
-                    .GetMethod(nameof(Encoding.GetString), new[] { typeof(byte[]) });
-
-                result.Expression = GenerateConversion(Expression.Call(Expression.Constant(Encoding.UTF8), decodeValue, expression), resolution.Type);
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, readString), resolution.Type);
             }
             else
             {
@@ -1819,22 +1773,6 @@ namespace Chr.Avro.Serialization
     public class TimestampDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
-        /// Creates a new timestamp deserializer builder case.
-        /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
-        public TimestampDeserializerBuilderCase(IBinaryCodec codec)
-        {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
-        }
-
-        /// <summary>
         /// Builds a timestamp deserializer for a type-schema pair.
         /// </summary>
         /// <param name="resolution">
@@ -1887,7 +1825,10 @@ namespace Chr.Avro.Serialization
                         throw new UnsupportedSchemaException(schema);
                     }
 
-                    Expression expression = Codec.ReadInteger(context.Stream);
+                    var readInteger = typeof(BinaryReader)
+                        .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+
+                    Expression expression = Expression.Call(context.Reader, readInteger);
 
                     var addTicks = typeof(DateTime)
                         .GetMethod(nameof(DateTime.AddTicks));
@@ -1919,11 +1860,6 @@ namespace Chr.Avro.Serialization
     public class UnionDeserializerBuilderCase : BinaryDeserializerBuilderCase
     {
         /// <summary>
-        /// The codec that generated deserializers should use for read operations.
-        /// </summary>
-        public IBinaryCodec Codec { get; }
-
-        /// <summary>
         /// The deserializer builder to use to build child deserializers.
         /// </summary>
         public IBinaryDeserializerBuilder DeserializerBuilder { get; }
@@ -1931,15 +1867,11 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Creates a new record deserializer builder case.
         /// </summary>
-        /// <param name="codec">
-        /// The codec that generated deserializers should use for read operations.
-        /// </param>
         /// <param name="deserializerBuilder">
         /// The deserializer builder to use to build child deserializers.
         /// </param>
-        public UnionDeserializerBuilderCase(IBinaryCodec codec, IBinaryDeserializerBuilder deserializerBuilder)
+        public UnionDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
         {
-            Codec = codec ?? throw new ArgumentNullException(nameof(codec), "Binary codec cannot be null.");
             DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
         }
 
@@ -1976,7 +1908,10 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                Expression expression = Expression.ConvertChecked(Codec.ReadInteger(context.Stream), typeof(int));
+                var readInteger = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+
+                Expression expression = Expression.Call(context.Reader, readInteger);
 
                 // create a mapping for each schema in the union:
                 var cases = unionSchema.Schemas.Select((child, index) =>
@@ -1995,7 +1930,7 @@ namespace Chr.Avro.Serialization
 
                     return Expression.SwitchCase(
                         GenerateConversion(@case, resolution.Type),
-                        Expression.Constant(index)
+                        Expression.Constant((long)index)
                     );
                 });
 
