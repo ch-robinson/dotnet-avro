@@ -5,7 +5,7 @@
   <PropertyGroup>
     <Description>Avro JSON serialization and deserialization</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <LangVersion>8.0</LangVersion>
+    <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
   </PropertyGroup>
