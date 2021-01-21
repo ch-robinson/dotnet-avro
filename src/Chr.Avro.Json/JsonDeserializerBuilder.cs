@@ -9,12 +9,14 @@ using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Numerics;
+using System.Text;
+using System.Text.Json;
 using System.Xml;
 
 namespace Chr.Avro.Serialization
 {
     /// <summary>
-    /// A function that deserializes a .NET object from a binary-encoded Avro value.
+    /// A function that deserializes a .NET object from a JSON-encoded Avro value.
     /// </summary>
     /// <param name="reader">
     /// A reader around the encoded Avro data.
@@ -22,12 +24,12 @@ namespace Chr.Avro.Serialization
     /// <returns>
     /// The deserialized object.
     /// </returns>
-    public delegate T BinaryDeserializer<T>(ref BinaryReader reader);
+    public delegate T JsonDeserializer<T>(ref Utf8JsonReader reader);
 
     /// <summary>
     /// Builds Avro deserializers for .NET types.
     /// </summary>
-    public interface IBinaryDeserializerBuilder
+    public interface IJsonDeserializerBuilder
     {
         /// <summary>
         /// Builds a delegate that reads a serialized object.
@@ -38,7 +40,7 @@ namespace Chr.Avro.Serialization
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        BinaryDeserializer<T> BuildDelegate<T>(Schema schema);
+        JsonDeserializer<T> BuildDelegate<T>(Schema schema);
 
         /// <summary>
         /// Builds an expression that represents reading a serialized object.
@@ -49,7 +51,7 @@ namespace Chr.Avro.Serialization
         /// <param name="schema">
         /// The schema to map to the type.
         /// </param>
-        Expression<BinaryDeserializer<T>> BuildExpression<T>(Schema schema);
+        Expression<JsonDeserializer<T>> BuildExpression<T>(Schema schema);
 
         /// <summary>
         /// Builds an expression that represents reading an object of <paramref name="type" /> from
@@ -64,13 +66,14 @@ namespace Chr.Avro.Serialization
         /// <param name="context">
         /// Top-level expressions.
         /// </param>
-        Expression BuildExpression(Type type, Schema schema, IBinaryDeserializerBuilderContext context);
+        Expression BuildExpression(Type type, Schema schema, IJsonDeserializerBuilderContext context);
     }
 
     /// <summary>
     /// Represents the outcome of a deserializer builder case.
     /// </summary>
-    public interface IBinaryDeserializerBuildResult
+
+    public interface IJsonDeserializerBuildResult
     {
         /// <summary>
         /// Any exceptions related to the applicability of the case. If <see cref="Expression" /> is
@@ -86,9 +89,9 @@ namespace Chr.Avro.Serialization
 
     /// <summary>
     /// Builds Avro deserializers for specific type-schema combinations. See
-    /// <see cref="BinaryDeserializerBuilder" /> for implementation details.
+    /// <see cref="JsonDeserializerBuilder" /> for implementation details.
     /// </summary>
-    public interface IBinaryDeserializerBuilderCase
+    public interface IJsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a deserializer for a type-schema pair.
@@ -102,13 +105,13 @@ namespace Chr.Avro.Serialization
         /// <param name="context">
         /// Information describing top-level expressions.
         /// </param>
-        IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context);
+        IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context);
     }
 
     /// <summary>
     /// An object that contains information to build a top-level deserialization function.
     /// </summary>
-    public interface IBinaryDeserializerBuilderContext
+    public interface IJsonDeserializerBuilderContext
     {
         /// <summary>
         /// A map of top-level variables to their values.
@@ -116,7 +119,7 @@ namespace Chr.Avro.Serialization
         ConcurrentDictionary<ParameterExpression, Expression> Assignments { get; }
 
         /// <summary>
-        /// The input <see cref="BinaryReader" />.
+        /// The input <see cref="Utf8JsonReader" />.
         /// </summary>
         ParameterExpression Reader { get; }
 
@@ -129,13 +132,13 @@ namespace Chr.Avro.Serialization
     /// <summary>
     /// A deserializer builder configured with a reasonable set of default cases.
     /// </summary>
-    public class BinaryDeserializerBuilder : IBinaryDeserializerBuilder
+    public class JsonDeserializerBuilder : IJsonDeserializerBuilder
     {
         /// <summary>
         /// A list of cases that the build methods will attempt to apply. If the first case does
         /// not match, the next case will be tested, and so on.
         /// </summary>
-        public IEnumerable<IBinaryDeserializerBuilderCase> Cases { get; }
+        public IEnumerable<IJsonDeserializerBuilderCase> Cases { get; }
 
         /// <summary>
         /// A resolver to retrieve type information from.
@@ -149,7 +152,7 @@ namespace Chr.Avro.Serialization
         /// A resolver to retrieve type information from. If no resolver is provided, the deserializer
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public BinaryDeserializerBuilder(ITypeResolver? resolver = null)
+        public JsonDeserializerBuilder(ITypeResolver? resolver = null)
             : this(DefaultCaseBuilders, resolver) { }
 
         /// <summary>
@@ -162,9 +165,9 @@ namespace Chr.Avro.Serialization
         /// A resolver to retrieve type information from. If no resolver is provided, the deserializer
         /// builder will use the default <see cref="DataContractResolver" />.
         /// </param>
-        public BinaryDeserializerBuilder(IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> caseBuilders, ITypeResolver? resolver = null)
+        public JsonDeserializerBuilder(IEnumerable<Func<IJsonDeserializerBuilder, IJsonDeserializerBuilderCase>> caseBuilders, ITypeResolver? resolver = null)
         {
-            var cases = new List<IBinaryDeserializerBuilderCase>();
+            var cases = new List<IJsonDeserializerBuilderCase>();
 
             Cases = cases;
             Resolver = resolver ?? new DataContractResolver();
@@ -187,7 +190,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map the type to the schema.
         /// </exception>
-        public virtual BinaryDeserializer<T> BuildDelegate<T>(Schema schema)
+        public virtual JsonDeserializer<T> BuildDelegate<T>(Schema schema)
         {
             return BuildExpression<T>(schema).Compile();
         }
@@ -204,19 +207,26 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map the type to the schema.
         /// </exception>
-        public Expression<BinaryDeserializer<T>> BuildExpression<T>(Schema schema)
+        public Expression<JsonDeserializer<T>> BuildExpression<T>(Schema schema)
         {
-            var context = new BinaryDeserializerBuilderContext();
+            var context = new JsonDeserializerBuilderContext();
 
             // ensure that all assignments are present before building the lambda:
             var root = BuildExpression(typeof(T), schema, context);
 
-            return Expression.Lambda<BinaryDeserializer<T>>(Expression.Block(
+            var read = typeof(Utf8JsonReader)
+                .GetMethod(nameof(Utf8JsonReader.Read), Type.EmptyTypes);
+
+            return Expression.Lambda<JsonDeserializer<T>>(Expression.Block(
                 context.Assignments
                     .Select(a => a.Key),
                 context.Assignments
                     .Select(a => (Expression)Expression.Assign(a.Key, a.Value))
-                    .Concat(new[] { root })
+                    .Concat(new[]
+                    {
+                        Expression.Call(context.Reader, read),
+                        root
+                    })
             ), new[] { context.Reader });
         }
 
@@ -236,7 +246,7 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map the type to the schema.
         /// </exception>
-        public virtual Expression BuildExpression(Type type, Schema schema, IBinaryDeserializerBuilderContext context)
+        public virtual Expression BuildExpression(Type type, Schema schema, IJsonDeserializerBuilderContext context)
         {
             var resolution = Resolver.ResolveType(type);
             var exceptions = new List<Exception>();
@@ -259,8 +269,8 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// A default list of case builders.
         /// </summary>
-        public static readonly IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> DefaultCaseBuilders =
-            new Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>[]
+        public static readonly IEnumerable<Func<IJsonDeserializerBuilder, IJsonDeserializerBuilderCase>> DefaultCaseBuilders =
+            new Func<IJsonDeserializerBuilder, IJsonDeserializerBuilderCase>[]
             {
                 // logical types:
                 builder => new DecimalDeserializerBuilderCase(),
@@ -294,17 +304,16 @@ namespace Chr.Avro.Serialization
     }
 
     /// <summary>
-    /// A base <see cref="IBinaryDeserializerBuildResult" /> implementation.
+    /// A base <see cref="IJsonDeserializerBuildResult" /> implementation.
     /// </summary>
-    public class BinaryDeserializerBuildResult : IBinaryDeserializerBuildResult
+    public class JsonDeserializerBuildResult : IJsonDeserializerBuildResult
     {
         /// <summary>
         /// The result of applying the case. If null, the case was not applied successfully.
         /// </summary>
         /// <remarks>
-        /// The delegate should be a function that accepts a <see cref="BinaryReader" /> and returns a
-        /// deserialized object. Since this is not a typed method, the general <see cref="Expression" />
-        /// type is used.
+        /// The expression should operate on <see cref="JsonDeserializerBuilderContext.Reader" />
+        /// and result in a deserialized object.
         /// </remarks>
         public Expression? Expression { get; set; }
 
@@ -316,10 +325,21 @@ namespace Chr.Avro.Serialization
     }
 
     /// <summary>
-    /// A base <see cref="IBinaryDeserializerBuilderCase" /> implementation.
+    /// A base <see cref="IJsonDeserializerBuilderCase" /> implementation.
     /// </summary>
-    public abstract class BinaryDeserializerBuilderCase : IBinaryDeserializerBuilderCase
+    public abstract class JsonDeserializerBuilderCase : IJsonDeserializerBuilderCase
     {
+        /// <summary>
+        /// An encoding that can be used to read byte arrays encoded as JSON strings. This encoding
+        /// is configured to throw <see cref="EncoderFallbackException" /> for out-of-range
+        /// characters.
+        /// </summary>
+        protected static readonly Encoding ByteEncoding = Encoding.GetEncoding(
+            "iso-8859-1", // 0x00 through 0xff (Encoding.Latin1 in .NET 5)
+            EncoderFallback.ExceptionFallback,
+            DecoderFallback.ExceptionFallback
+        );
+
         /// <summary>
         /// Builds a deserializer for a type-schema pair.
         /// </summary>
@@ -332,7 +352,7 @@ namespace Chr.Avro.Serialization
         /// <param name="context">
         /// Information describing top-level expressions.
         /// </param>
-        public abstract IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context);
+        public abstract IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context);
 
         /// <summary>
         /// Generates a conversion from the intermediate type to the target type.
@@ -364,60 +384,68 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
-        /// Generates an iteration to read items in an Avro block encoding.
+        /// Generates an exception that includes information about the reader position.
         /// </summary>
         /// <param name="reader">
-        /// A <see cref="BinaryReader" />.
+        /// A <see cref="Utf8JsonReader" />.
         /// </param>
-        /// <param name="body">
-        /// The expression that will be executed for each item.
+        /// <param name="message">
+        /// The exception message.
         /// </param>
-        public virtual Expression GenerateIteration(Expression reader, Expression body)
+        /// <param name="inner">
+        /// An inner exception, if any.
+        /// </param>
+        /// <returns>
+        /// An <see cref="InvalidEncodingException" />.
+        /// </returns>
+        protected virtual Expression GenerateEncodingException(Expression reader, Expression message, Expression? inner = null)
         {
-            var index = Expression.Variable(typeof(long));
-            var size = Expression.Variable(typeof(long));
+            inner = inner ?? Expression.Default(typeof(Exception));
 
-            var outer = Expression.Label();
-            var inner = Expression.Label();
+            var exceptionConstructor = typeof(InvalidEncodingException)
+                .GetConstructor(new[] { typeof(long), typeof(string), typeof(Exception) });
 
-            var readInteger = typeof(BinaryReader)
-                .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+            var startIndex = typeof(Utf8JsonReader)
+                .GetProperty(nameof(Utf8JsonReader.TokenStartIndex));
 
-            return Expression.Block(
-                new[] { index, size },
-                Expression.Loop(
-                    Expression.Block(
-                        Expression.Assign(
-                            size,
-                            Expression.Call(reader, readInteger)),
-                        Expression.IfThen(
-                            Expression.Equal(size, Expression.Constant(0L)),
-                            Expression.Break(outer)),
+            return Expression.New(exceptionConstructor, Expression.Property(reader, startIndex), message, inner);
+        }
 
-                        // negative size indicates that the number of bytes in the block follows,
-                        // so discard:
-                        Expression.IfThen(
-                            Expression.LessThan(size, Expression.Constant(0L)),
-                            Expression.Block(
-                                Expression.MultiplyAssign(size, Expression.Constant(-1L)),
-                                Expression.Call(reader, readInteger))),
+        /// <summary>
+        /// Generates an exception thrown for invalid tokens.
+        /// </summary>
+        /// <param name="reader">
+        /// A <see cref="Utf8JsonReader" />.
+        /// </param>
+        /// <param name="expected">
+        /// Token types expected by the deserializer.
+        /// </param>
+        /// <returns>
+        /// An <see cref="InvalidEncodingException" />.
+        /// </returns>
+        protected virtual Expression GenerateTokenException(Expression reader, params JsonTokenType[] expected)
+        {
+            var format = typeof(string)
+                .GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object[]) });
 
-                        Expression.Assign(index, Expression.Constant(0L)),
-                        Expression.Loop(
-                            Expression.Block(
-                                Expression.IfThen(
-                                    Expression.Equal(Expression.PostIncrementAssign(index), size),
-                                    Expression.Break(inner)),
-                                body),
-                            inner)),
-                    outer));
+            var tokenType = typeof(Utf8JsonReader)
+                .GetProperty(nameof(Utf8JsonReader.TokenType));
+
+            return GenerateEncodingException(
+                reader,
+                Expression.Call(
+                    format,
+                    Expression.Constant("Expected token of type {0}; received {1}."),
+                    Expression.NewArrayInit(typeof(object),
+                        Expression.Constant(string.Join("/", expected), typeof(object)),
+                        Expression.Convert(Expression.Property(reader, tokenType), typeof(object)))));
         }
     }
 
     /// <summary>
-    /// A base <see cref="IBinaryDeserializerBuilderContext" /> implementation.
+    /// A base <see cref="IJsonDeserializerBuilderContext" /> implementation.
     /// </summary>
-    public class BinaryDeserializerBuilderContext : IBinaryDeserializerBuilderContext
+    public class JsonDeserializerBuilderContext : IJsonDeserializerBuilderContext
     {
         /// <summary>
         /// A map of top-level variables to their values.
@@ -425,7 +453,7 @@ namespace Chr.Avro.Serialization
         public ConcurrentDictionary<ParameterExpression, Expression> Assignments { get; }
 
         /// <summary>
-        /// The input <see cref="BinaryReader" />.
+        /// The input <see cref="Utf8JsonReader" />.
         /// </summary>
         public ParameterExpression Reader { get; }
 
@@ -438,14 +466,14 @@ namespace Chr.Avro.Serialization
         /// Creates a new context.
         /// </summary>
         /// <param name="reader">
-        /// The input <see cref="BinaryReader" />. If an expression is not provided, one will
+        /// The input <see cref="Utf8JsonReader" />. If an expression is not provided, one will
         /// be created.
         /// </param>
-        public BinaryDeserializerBuilderContext(ParameterExpression? reader = null)
+        public JsonDeserializerBuilderContext(ParameterExpression? reader = null)
         {
             Assignments = new ConcurrentDictionary<ParameterExpression, Expression>();
             References = new ConcurrentDictionary<(Schema, Type), ParameterExpression>();
-            Reader = reader ?? Expression.Parameter(typeof(BinaryReader).MakeByRefType());
+            Reader = reader ?? Expression.Parameter(typeof(Utf8JsonReader).MakeByRefType());
         }
     }
 
@@ -453,12 +481,12 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="ArraySchema" /> and attempts to map it
     /// to enumerable types.
     /// </summary>
-    public class ArrayDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class ArrayDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// The deserializer builder to use to build item deserializers.
         /// </summary>
-        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
+        public IJsonDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Creates a new array deserializer builder case.
@@ -466,9 +494,9 @@ namespace Chr.Avro.Serialization
         /// <param name="deserializerBuilder">
         /// The deserializer builder to use to build item deserializers.
         /// </param>
-        public ArrayDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+        public ArrayDeserializerBuilderCase(IJsonDeserializerBuilder deserializerBuilder)
         {
-            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "JSON deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -491,9 +519,9 @@ namespace Chr.Avro.Serialization
         /// Thrown when the resolved type does not have an enumerable constructor and is not
         /// assignable from <see cref="List{T}" />.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is ArraySchema arraySchema)
             {
@@ -503,15 +531,35 @@ namespace Chr.Avro.Serialization
 
                     var readItem = DeserializerBuilder.BuildExpression(arrayResolution.ItemType, arraySchema.Item, context);
                     var collection = Expression.Parameter(create.Type);
+                    var loop = Expression.Label();
+
+                    var tokenType = typeof(Utf8JsonReader)
+                        .GetProperty(nameof(Utf8JsonReader.TokenType));
+
+                    var read = typeof(Utf8JsonReader)
+                        .GetMethod(nameof(Utf8JsonReader.Read), Type.EmptyTypes);
 
                     var add = collection.Type.GetMethod("Add", new[] { readItem.Type });
 
                     Expression expression = Expression.Block(
                         new[] { collection },
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.StartArray)),
+                            Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.StartArray))),
                         Expression.Assign(collection, create),
-                        GenerateIteration(context.Reader, Expression.Call(collection, add, readItem)),
-                        collection
-                    );
+                        Expression.Loop(
+                            Expression.Block(
+                                Expression.Call(context.Reader, read),
+                                Expression.IfThen(
+                                    Expression.Equal(
+                                        Expression.Property(context.Reader, tokenType),
+                                        Expression.Constant(JsonTokenType.EndArray)),
+                                    Expression.Break(loop)),
+                                Expression.Call(collection, add, readItem)),
+                            loop),
+                        collection);
 
                     if (!arrayResolution.Type.IsAssignableFrom(expression.Type) && FindEnumerableConstructor(arrayResolution) is ConstructorResolution constructorResolution)
                     {
@@ -649,7 +697,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="BooleanSchema" /> and attempts to map
     /// it to any provided type.
     /// </summary>
-    public class BooleanDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class BooleanDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a boolean deserializer for a type-schema pair.
@@ -670,16 +718,16 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="bool" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is BooleanSchema)
             {
-                var readBoolean = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadBoolean), Type.EmptyTypes);
+                var getBoolean = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetBoolean), Type.EmptyTypes);
 
-                result.Expression = GenerateConversion(Expression.Call(context.Reader, readBoolean), resolution.Type);
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, getBoolean), resolution.Type);
             }
             else
             {
@@ -694,7 +742,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="BytesSchema" /> and attempts to map it
     /// to any provided type.
     /// </summary>
-    public class BytesDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class BytesDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a variable-length bytes deserializer for a type-schema pair.
@@ -715,20 +763,34 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="T:System.Byte[]" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is BytesSchema)
             {
-                var readBytes = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadBytes), Type.EmptyTypes);
+                var tokenType = typeof(Utf8JsonReader)
+                    .GetProperty(nameof(Utf8JsonReader.TokenType));
 
-                result.Expression = GenerateConversion(Expression.Call(context.Reader, readBytes), resolution.Type);
-            }
-            else
-            {
-                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+                var getString = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+
+                var getBytes = typeof(Encoding)
+                    .GetMethod(nameof(Encoding.GetBytes), new[] { typeof(string) });
+
+                result.Expression = GenerateConversion(
+                    Expression.Block(
+                        // ensure token is not null:
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.String)),
+                            Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.String))),
+                        Expression.Call(
+                            Expression.Constant(ByteEncoding),
+                            getBytes,
+                            Expression.Call(context.Reader, getString))),
+                    resolution.Type);
             }
 
             return result;
@@ -757,7 +819,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="DecimalLogicalType" /> and attempts to
     /// map it to any provided type.
     /// </summary>
-    public class DecimalDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class DecimalDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a decimal deserializer for a type-schema pair.
@@ -781,31 +843,67 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="decimal" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema.LogicalType is DecimalLogicalType decimalLogicalType)
             {
                 var precision = decimalLogicalType.Precision;
                 var scale = decimalLogicalType.Scale;
 
+                var bytes = Expression.Variable(typeof(byte[]));
+
+                var tokenType = typeof(Utf8JsonReader)
+                    .GetProperty(nameof(Utf8JsonReader.TokenType));
+
+                var getString = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+
+                var getBytes = typeof(Encoding)
+                    .GetMethod(nameof(Encoding.GetBytes), new[] { typeof(string) });
+
                 Expression expression;
 
-                // figure out the size:
                 if (schema is BytesSchema)
                 {
-                    var readBytes = typeof(BinaryReader)
-                        .GetMethod(nameof(BinaryReader.ReadBytes), Type.EmptyTypes);
-
-                    expression = Expression.Call(context.Reader, readBytes);
+                    expression = Expression.Block(
+                        // ensure token is not null:
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.String)),
+                            Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.String))),
+                        Expression.Assign(
+                            bytes,
+                            Expression.Call(
+                                Expression.Constant(ByteEncoding),
+                                getBytes,
+                                Expression.Call(context.Reader, getString))),
+                        bytes);
                 }
                 else if (schema is FixedSchema fixedSchema)
                 {
-                    var readFixed = typeof(BinaryReader)
-                        .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(long) });
-
-                    expression = Expression.Call(context.Reader, readFixed, Expression.Constant((long)fixedSchema.Size));
+                    expression = Expression.Block(
+                        // ensure token is not null:
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.String)),
+                            Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.String))),
+                        Expression.Assign(
+                            bytes,
+                            Expression.Call(
+                                Expression.Constant(ByteEncoding),
+                                getBytes,
+                                Expression.Call(context.Reader, getString))),
+                        // ensure length matches schema:
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.ArrayLength(bytes),
+                                Expression.Constant(fixedSchema.Size)),
+                            Expression.Throw(GenerateEncodingException(context.Reader, Expression.Constant($"Expected value of size {fixedSchema.Size}.")))),
+                        bytes);
                 }
                 else
                 {
@@ -813,7 +911,6 @@ namespace Chr.Avro.Serialization
                 }
 
                 // declare variables for in-place transformation:
-                var bytes = Expression.Variable(typeof(byte[]));
                 var remainder = Expression.Variable(typeof(BigInteger));
 
                 var divide = typeof(BigInteger)
@@ -828,8 +925,8 @@ namespace Chr.Avro.Serialization
                 expression = Expression.Block(
                     new[] { bytes, remainder },
 
-                    // store the bytes:
-                    Expression.Assign(bytes, expression),
+                    // read the value:
+                    expression,
 
                     // BigInteger is little-endian, so reverse before creating:
                     Expression.Call(null, reverse, bytes),
@@ -863,7 +960,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="DoubleSchema" /> and attempts to map it
     /// to any provided type.
     /// </summary>
-    public class DoubleDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class DoubleDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a double deserializer for a type-schema pair.
@@ -884,20 +981,16 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="double" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is DoubleSchema)
             {
-                var readDouble = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadDouble), Type.EmptyTypes);
+                var getDouble = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetDouble), Type.EmptyTypes);
 
-                result.Expression = GenerateConversion(Expression.Call(context.Reader, readDouble), resolution.Type);
-            }
-            else
-            {
-                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, getDouble), resolution.Type);
             }
 
             return result;
@@ -908,7 +1001,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="DurationLogicalType" /> and attempts to
     /// map it to <see cref="TimeSpan" />.
     /// </summary>
-    public class DurationDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class DurationDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a duration deserializer for a type-schema pair.
@@ -934,9 +1027,9 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="TimeSpan" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema.LogicalType is DurationLogicalType)
             {
@@ -947,30 +1040,55 @@ namespace Chr.Avro.Serialization
                         throw new UnsupportedSchemaException(schema);
                     }
 
-                    var readFixed = typeof(BinaryReader)
-                        .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(int) });
+                    var bytes = Expression.Parameter(typeof(byte[]));
 
-                    Expression read = Expression.Call(context.Reader, readFixed, Expression.Constant(4));
+                    var copy = typeof(Array)
+                        .GetMethod(nameof(Array.Copy), new[] { typeof(Array), typeof(int), typeof(Array), typeof(int), typeof(int) });
 
-                    if (!BitConverter.IsLittleEndian)
-                    {
-                        var buffer = Expression.Variable(read.Type);
-                        var reverse = typeof(Array)
-                            .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
+                    var tokenType = typeof(Utf8JsonReader)
+                        .GetProperty(nameof(Utf8JsonReader.TokenType));
 
-                        read = Expression.Block(
-                            new[] { buffer },
-                            Expression.Assign(buffer, read),
-                            Expression.Call(null, reverse, Expression.Convert(buffer, typeof(Array))),
-                            buffer);
-                    }
+                    var getString = typeof(Utf8JsonReader)
+                        .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+
+                    var getBytes = typeof(Encoding)
+                        .GetMethod(nameof(Encoding.GetBytes), new[] { typeof(string) });
+
+                    var reverse = typeof(Array)
+                        .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
 
                     var toUInt32 = typeof(BitConverter)
                         .GetMethod(nameof(BitConverter.ToUInt32), new[] { typeof(byte[]), typeof(int) });
 
-                    read = Expression.ConvertChecked(
-                        Expression.Call(null, toUInt32, read, Expression.Constant(0)),
-                        typeof(long));
+                    Expression read(Expression offset)
+                    {
+                        var component = Expression.Variable(typeof(byte[]));
+
+                        var expressions = new List<Expression>
+                        {
+                            Expression.Assign(
+                                component,
+                                Expression.NewArrayBounds(typeof(byte), Expression.Constant(4))),
+                            Expression.Call(null, copy, bytes, offset, component, Expression.Constant(0), Expression.ArrayLength(component))
+                        };
+
+                        if (!BitConverter.IsLittleEndian)
+                        {
+                            expressions.Add(Expression.Call(null, reverse, Expression.Convert(component, typeof(Array))));
+                        }
+
+                        expressions.Add(component);
+
+                        return Expression.ConvertChecked(
+                            Expression.Call(
+                                null,
+                                toUInt32,
+                                Expression.Block(
+                                    new[] { component },
+                                    expressions),
+                                Expression.Constant(0)),
+                            typeof(long));
+                    }
 
                     var exceptionConstructor = typeof(OverflowException)
                         .GetConstructor(new[] { typeof(string )});
@@ -980,17 +1098,36 @@ namespace Chr.Avro.Serialization
 
                     result.Expression = GenerateConversion(
                         Expression.Block(
-                            Expression.IfThen(
-                                Expression.NotEqual(read, Expression.Constant(0L)),
-                                Expression.Throw(
-                                    Expression.New(
-                                        exceptionConstructor,
-                                        Expression.Constant("Durations containing months cannot be accurately deserialized to a TimeSpan.")))),
-                            Expression.New(
-                                timeSpanConstructor,
-                                Expression.AddChecked(
-                                    Expression.MultiplyChecked(read, Expression.Constant(TimeSpan.TicksPerDay)),
-                                    Expression.MultiplyChecked(read, Expression.Constant(TimeSpan.TicksPerMillisecond))))),
+                        new[] { bytes },
+                        // ensure token is not null:
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.String)),
+                            Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.String))),
+                        Expression.Assign(
+                            bytes,
+                            Expression.Call(
+                                Expression.Constant(ByteEncoding),
+                                getBytes,
+                                Expression.Call(context.Reader, getString))),
+                        // ensure length matches schema:
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.ArrayLength(bytes),
+                                Expression.Constant(fixedSchema.Size)),
+                            Expression.Throw(GenerateEncodingException(context.Reader, Expression.Constant($"Expected value of size {fixedSchema.Size}.")))),
+                        Expression.IfThen(
+                            Expression.NotEqual(read(Expression.Constant(0)), Expression.Constant(0L)),
+                            Expression.Throw(
+                                Expression.New(
+                                    exceptionConstructor,
+                                    Expression.Constant("Durations containing months cannot be accurately deserialized to a TimeSpan.")))),
+                        Expression.New(
+                            timeSpanConstructor,
+                            Expression.AddChecked(
+                                Expression.MultiplyChecked(read(Expression.Constant(4)), Expression.Constant(TimeSpan.TicksPerDay)),
+                                Expression.MultiplyChecked(read(Expression.Constant(8)), Expression.Constant(TimeSpan.TicksPerMillisecond))))),
                         resolution.Type);
                 }
                 else
@@ -1011,7 +1148,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="EnumSchema" /> and attempts to map it
     /// to enum types.
     /// </summary>
-    public class EnumDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class EnumDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds an enum deserializer for a type-schema pair.
@@ -1033,21 +1170,21 @@ namespace Chr.Avro.Serialization
         /// Thrown when the the type does not contain a matching symbol for each symbol in the
         /// schema.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is EnumSchema enumSchema)
             {
                 if (resolution is EnumResolution enumResolution)
                 {
-                    var readInteger = typeof(BinaryReader)
-                        .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+                    var getString = typeof(Utf8JsonReader)
+                        .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
 
-                    Expression expression = Expression.ConvertChecked(Expression.Call(context.Reader, readInteger), typeof(int));
+                    Expression expression = Expression.Call(context.Reader, getString);
 
                     // find a match for each enum in the schema:
-                    var cases = enumSchema.Symbols.Select((name, index) =>
+                    var cases = enumSchema.Symbols.Select(name =>
                     {
                         var match = enumResolution.Symbols.SingleOrDefault(s => s.Name.IsMatch(name));
 
@@ -1058,16 +1195,15 @@ namespace Chr.Avro.Serialization
 
                         return Expression.SwitchCase(
                             GenerateConversion(Expression.Constant(match.Value), resolution.Type),
-                            Expression.Constant(index)
-                        );
+                            Expression.Constant(name));
                     });
 
                     var exceptionConstructor = typeof(OverflowException)
                         .GetConstructor(new[] { typeof(string) });
 
-                    var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum index out of range."));
+                    var exception = Expression.New(exceptionConstructor, Expression.Constant("Unknown enum value."));
 
-                    // generate a switch on the index:
+                    // generate a switch on the symbol:
                     result.Expression = Expression.Switch(expression, Expression.Throw(exception, resolution.Type), cases.ToArray());
                 }
                 else
@@ -1088,7 +1224,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="FixedSchema" /> and attempts to map it
     /// to any provided type.
     /// </summary>
-    public class FixedDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class FixedDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a fixed-length bytes deserializer for a type-schema pair.
@@ -1109,20 +1245,46 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="T:System.Byte[]" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is FixedSchema fixedSchema)
             {
-                var readFixed = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(int) });
+                var tokenType = typeof(Utf8JsonReader)
+                    .GetProperty(nameof(Utf8JsonReader.TokenType));
 
-                result.Expression = GenerateConversion(Expression.Call(context.Reader, readFixed, Expression.Constant(fixedSchema.Size)), resolution.Type);
-            }
-            else
-            {
-                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+                var getString = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+
+                var getBytes = typeof(Encoding)
+                    .GetMethod(nameof(Encoding.GetBytes), new[] { typeof(string) });
+
+                var bytes = Expression.Parameter(typeof(byte[]));
+
+                result.Expression = GenerateConversion(
+                    Expression.Block(
+                        new[] { bytes },
+                        // ensure token is not null:
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.String)),
+                            Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.String))),
+                        Expression.Assign(
+                            bytes,
+                            Expression.Call(
+                                Expression.Constant(ByteEncoding),
+                                getBytes,
+                                Expression.Call(context.Reader, getString))),
+                        // ensure length matches schema:
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.ArrayLength(bytes),
+                                Expression.Constant(fixedSchema.Size)),
+                            Expression.Throw(GenerateEncodingException(context.Reader, Expression.Constant($"Expected value of size {fixedSchema.Size}.")))),
+                        bytes),
+                    resolution.Type);
             }
 
             return result;
@@ -1151,7 +1313,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="FloatSchema" /> and attempts to map it
     /// to any provided type.
     /// </summary>
-    public class FloatDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class FloatDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a float deserializer for a type-schema pair.
@@ -1172,20 +1334,16 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="float" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is FloatSchema)
             {
-                var readSingle = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadSingle), Type.EmptyTypes);
+                var getSingle = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetSingle), Type.EmptyTypes);
 
-                result.Expression = GenerateConversion(Expression.Call(context.Reader, readSingle), resolution.Type);
-            }
-            else
-            {
-                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, getSingle), resolution.Type);
             }
 
             return result;
@@ -1196,7 +1354,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="IntSchema" /> and attempts to map it
     /// to any provided type.
     /// </summary>
-    public class IntDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class IntDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds an int deserializer for a type-schema pair.
@@ -1217,20 +1375,16 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="long" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is IntSchema)
             {
-                var readInteger = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+                var getInt32 = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetInt32), Type.EmptyTypes);
 
-                result.Expression = GenerateConversion(Expression.Call(context.Reader, readInteger), resolution.Type);
-            }
-            else
-            {
-                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, getInt32), resolution.Type);
             }
 
             return result;
@@ -1241,7 +1395,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="LongSchema" /> and attempts to map it
     /// to any provided type.
     /// </summary>
-    public class LongDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class LongDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a long deserializer for a type-schema pair.
@@ -1262,20 +1416,19 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="long" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is LongSchema)
             {
-                var readInteger = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+                var read = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.Read), Type.EmptyTypes);
 
-                result.Expression = GenerateConversion(Expression.Call(context.Reader, readInteger), resolution.Type);
-            }
-            else
-            {
-                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+                var getInt64 = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetInt64), Type.EmptyTypes);
+
+                result.Expression = GenerateConversion(Expression.Call(context.Reader, getInt64), resolution.Type);
             }
 
             return result;
@@ -1286,12 +1439,12 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="MapSchema" /> and attempts to map it
     /// to dictionary types.
     /// </summary>
-    public class MapDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class MapDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// The deserializer builder to use to build key and value deserializers.
         /// </summary>
-        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
+        public IJsonDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Creates a new map deserializer builder case.
@@ -1299,9 +1452,9 @@ namespace Chr.Avro.Serialization
         /// <param name="deserializerBuilder">
         /// The deserializer builder to use to build key and value deserializers.
         /// </param>
-        public MapDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+        public MapDeserializerBuilderCase(IJsonDeserializerBuilder deserializerBuilder)
         {
-            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "JSON deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -1323,9 +1476,9 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the resolved type is not assignable from <see cref="Dictionary{TKey, TValue}" />.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is MapSchema mapSchema)
             {
@@ -1336,15 +1489,39 @@ namespace Chr.Avro.Serialization
                     var readKey = DeserializerBuilder.BuildExpression(mapResolution.KeyType, new StringSchema(), context);
                     var readValue = DeserializerBuilder.BuildExpression(mapResolution.ValueType, mapSchema.Value, context);
                     var dictionary = Expression.Parameter(create.Type);
+                    var key = Expression.Parameter(readKey.Type);
+                    var loop = Expression.Label();
+
+                    var tokenType = typeof(Utf8JsonReader)
+                        .GetProperty(nameof(Utf8JsonReader.TokenType));
+
+                    var read = typeof(Utf8JsonReader)
+                        .GetMethod(nameof(Utf8JsonReader.Read), Type.EmptyTypes);
 
                     var add = dictionary.Type.GetMethod("Add", new[] { readKey.Type, readValue.Type });
 
                     Expression expression = Expression.Block(
                         new[] { dictionary },
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.StartObject)),
+                            Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.StartObject))),
                         Expression.Assign(dictionary, create),
-                        GenerateIteration(context.Reader, Expression.Call(dictionary, add, readKey, readValue)),
-                        dictionary
-                    );
+                        Expression.Loop(
+                            Expression.Block(
+                                new[] { key },
+                                Expression.Call(context.Reader, read),
+                                Expression.IfThen(
+                                    Expression.Equal(
+                                        Expression.Property(context.Reader, tokenType),
+                                        Expression.Constant(JsonTokenType.EndObject)),
+                                    Expression.Break(loop)),
+                                Expression.Assign(key, readKey),
+                                Expression.Call(context.Reader, read),
+                                Expression.Call(dictionary, add, key, readValue)),
+                            loop),
+                        dictionary);
 
                     if (!mapResolution.Type.IsAssignableFrom(expression.Type) && FindDictionaryConstructor(mapResolution) is ConstructorResolution constructorResolution)
                     {
@@ -1432,7 +1609,7 @@ namespace Chr.Avro.Serialization
     /// <summary>
     /// A deserializer builder case that matches <see cref="NullSchema" />.
     /// </summary>
-    public class NullDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class NullDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a null deserializer for a type-schema pair.
@@ -1450,13 +1627,22 @@ namespace Chr.Avro.Serialization
         /// A successful result if the schema is a <see cref="NullSchema" />; an unsuccessful
         /// result otherwise.
         /// </returns>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is NullSchema)
             {
-                result.Expression = Expression.Default(resolution.Type);
+                var tokenType = typeof(Utf8JsonReader)
+                    .GetProperty(nameof(Utf8JsonReader.TokenType));
+
+                result.Expression = Expression.Block(
+                    Expression.IfThen(
+                        Expression.NotEqual(
+                            Expression.Property(context.Reader, tokenType),
+                            Expression.Constant(JsonTokenType.Null)),
+                        Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.Null))),
+                    Expression.Default(resolution.Type));
             }
             else
             {
@@ -1471,12 +1657,12 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="RecordSchema" /> and attempts to map
     /// it to classes or structs using property/fields to set values.
     /// </summary>
-    public class RecordDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class RecordDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// The deserializer builder to use to build field deserializers.
         /// </summary>
-        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
+        public IJsonDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Creates a new record deserializer builder case.
@@ -1484,9 +1670,9 @@ namespace Chr.Avro.Serialization
         /// <param name="deserializerBuilder">
         /// The deserializer builder to use to build field deserializers.
         /// </param>
-        public RecordDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+        public RecordDeserializerBuilderCase(IJsonDeserializerBuilder deserializerBuilder)
         {
-            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "JSON deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -1505,9 +1691,9 @@ namespace Chr.Avro.Serialization
         /// A successful result if the resolution is a <see cref="RecordResolution" /> and the
         /// schema is a <see cref="RecordSchema" />; an unsuccessful result otherwise.
         /// </returns>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is RecordSchema recordSchema)
             {
@@ -1524,6 +1710,17 @@ namespace Chr.Avro.Serialization
                     {
                         Expression expression;
 
+                        var loop = Expression.Label();
+
+                        var tokenType = typeof(Utf8JsonReader)
+                            .GetProperty(nameof(Utf8JsonReader.TokenType));
+
+                        var read = typeof(Utf8JsonReader)
+                            .GetMethod(nameof(Utf8JsonReader.Read), Type.EmptyTypes);
+
+                        var getString = typeof(Utf8JsonReader)
+                            .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+
                         if (FindRecordConstructor(recordResolution, recordSchema) is ConstructorResolution constructorResolution)
                         {
                             // map constructor parameters to fields:
@@ -1535,29 +1732,49 @@ namespace Chr.Avro.Serialization
                                     var parameter = Expression.Parameter(match.Type);
 
                                     return (
+                                        Field: field,
                                         Match: match,
                                         Parameter: parameter,
-                                        Assignment: (Expression)Expression.Assign(
-                                            parameter,
-                                            DeserializerBuilder.BuildExpression(match.Type, field.Type, context))
-                                    );
+                                        Assignment: (Expression)Expression.Block(
+                                            Expression.Call(context.Reader, read),
+                                            Expression.Assign(
+                                                parameter,
+                                                DeserializerBuilder.BuildExpression(match.Type, field.Type, context))));
                                 })
-                                .ToDictionary(r => r.Match, r => (r.Parameter, r.Assignment));
+                                .ToDictionary(r => r.Match);
 
                             expression = Expression.Block(
                                 mapping
                                     .Select(d => d.Value.Parameter),
-                                mapping
-                                    .Select(d => d.Value.Assignment)
-                                    .Concat(new[]
-                                    {
-                                        Expression.New(
-                                            constructorResolution.Constructor,
-                                            constructorResolution.Parameters
-                                                .Select(parameter => mapping.ContainsKey(parameter)
-                                                    ? (Expression)mapping[parameter].Parameter
-                                                    : Expression.Constant(parameter.Parameter.DefaultValue)))
-                                    }));
+                                Expression.IfThen(
+                                    Expression.NotEqual(
+                                        Expression.Property(context.Reader, tokenType),
+                                        Expression.Constant(JsonTokenType.StartObject)),
+                                    Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.StartObject))),
+                                Expression.Loop(
+                                    Expression.Block(
+                                        Expression.Call(context.Reader, read),
+                                        Expression.IfThen(
+                                            Expression.Equal(
+                                                Expression.Property(context.Reader, tokenType),
+                                                Expression.Constant(JsonTokenType.EndObject)),
+                                            Expression.Break(loop)),
+                                        Expression.Switch(
+                                            Expression.Call(context.Reader, getString),
+                                            Expression.Throw(GenerateEncodingException(context.Reader, Expression.Constant("Unknown record field name."))),
+                                            mapping
+                                                .Select(pair =>
+                                                    Expression.SwitchCase(
+                                                        Expression.Block(pair.Value.Assignment, Expression.Empty()),
+                                                        Expression.Constant(pair.Value.Field.Name)))
+                                                .ToArray())),
+                                    loop),
+                                Expression.New(
+                                    constructorResolution.Constructor,
+                                    constructorResolution.Parameters
+                                        .Select(parameter => mapping.ContainsKey(parameter)
+                                            ? (Expression)mapping[parameter].Parameter
+                                            : Expression.Constant(parameter.Parameter.DefaultValue))));
                         }
                         else
                         {
@@ -1565,26 +1782,48 @@ namespace Chr.Avro.Serialization
 
                             expression = Expression.Block(
                                 new[] { value },
-                                new[] { (Expression)Expression.Assign(value, Expression.New(value.Type)) }
-                                    .Concat(recordSchema.Fields.Select(field =>
-                                    {
-                                        var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
-                                        var schema = match == null ? CreateSurrogateSchema(field.Type) : field.Type;
-                                        var type = match == null ? CreateSurrogateType(schema) : match.Type;
+                                Expression.Assign(value, Expression.New(value.Type)),
+                                Expression.IfThen(
+                                    Expression.NotEqual(
+                                        Expression.Property(context.Reader, tokenType),
+                                        Expression.Constant(JsonTokenType.StartObject)),
+                                    Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.StartObject))),
+                                Expression.Loop(
+                                    Expression.Block(
+                                        Expression.Call(context.Reader, read),
+                                        Expression.IfThen(
+                                            Expression.Equal(
+                                                Expression.Property(context.Reader, tokenType),
+                                                Expression.Constant(JsonTokenType.EndObject)),
+                                            Expression.Break(loop)),
+                                        Expression.Switch(
+                                            Expression.Call(context.Reader, getString),
+                                            Expression.Throw(GenerateEncodingException(context.Reader, Expression.Constant("Unknown record field name."))),
+                                            recordSchema.Fields
+                                                .Select(field =>
+                                                {
+                                                    var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
+                                                    var schema = match == null ? CreateSurrogateSchema(field.Type) : field.Type;
+                                                    var type = match == null ? CreateSurrogateType(schema) : match.Type;
 
-                                        // always read to advance the stream:
-                                        var expression = DeserializerBuilder.BuildExpression(type, schema, context);
+                                                    // always read to advance the stream:
+                                                    Expression expression = Expression.Block(
+                                                        Expression.Call(context.Reader, read),
+                                                        DeserializerBuilder.BuildExpression(type, schema, context));
 
-                                        if (match != null)
-                                        {
-                                            // and assign if a field matches:
-                                            expression = Expression.Assign(Expression.PropertyOrField(value, match.Member.Name), expression);
-                                        }
+                                                    if (match != null)
+                                                    {
+                                                        // and assign if a field matches:
+                                                        expression = Expression.Assign(Expression.PropertyOrField(value, match.Member.Name), expression);
+                                                    }
 
-                                        return expression;
-                                    }))
-                                    .Concat(new[] { value })
-                            );
+                                                    return Expression.SwitchCase(
+                                                        Expression.Block(expression, Expression.Empty()),
+                                                        Expression.Constant(field.Name));
+                                                })
+                                                .ToArray())),
+                                    loop),
+                                value);
                         }
 
                         expression = Expression.Lambda(parameter.Type, expression, $"{recordSchema.Name} deserializer", new[] { context.Reader });
@@ -1622,7 +1861,7 @@ namespace Chr.Avro.Serialization
             return schema switch
             {
                 ArraySchema array => new ArraySchema(CreateSurrogateSchema(array.Item)),
-                EnumSchema _ => new LongSchema(),
+                EnumSchema _ => new StringSchema(),
                 MapSchema map => new MapSchema(CreateSurrogateSchema(map.Value)),
                 UnionSchema union => new UnionSchema(union.Schemas.Select(CreateSurrogateSchema).ToList()),
                 _ => schema
@@ -1694,7 +1933,7 @@ namespace Chr.Avro.Serialization
     /// A deserializer builder case that matches <see cref="StringSchema" /> and attempts to map it
     /// to any provided type.
     /// </summary>
-    public class StringDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class StringDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a string deserializer for a type-schema pair.
@@ -1715,20 +1954,32 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="string" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is StringSchema)
             {
-                var readString = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadString), Type.EmptyTypes);
+                var tokenType = typeof(Utf8JsonReader)
+                    .GetProperty(nameof(Utf8JsonReader.TokenType));
 
-                result.Expression = GenerateConversion(Expression.Call(context.Reader, readString), resolution.Type);
-            }
-            else
-            {
-                result.Exceptions.Add(new UnsupportedSchemaException(schema));
+                var getString = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+
+                result.Expression = GenerateConversion(
+                    Expression.Block(
+                        // ensure token is not null:
+                        Expression.IfThen(
+                            Expression.And(
+                                Expression.NotEqual(
+                                    Expression.Property(context.Reader, tokenType),
+                                    Expression.Constant(JsonTokenType.PropertyName)),
+                                Expression.NotEqual(
+                                    Expression.Property(context.Reader, tokenType),
+                                    Expression.Constant(JsonTokenType.String))),
+                            Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.PropertyName, JsonTokenType.String))),
+                        Expression.Call(context.Reader, getString)),
+                    resolution.Type);
             }
 
             return result;
@@ -1815,7 +2066,7 @@ namespace Chr.Avro.Serialization
     /// or <see cref="MillisecondTimestampLogicalType" /> and attempts to map them to
     /// <see cref="DateTime" /> or <see cref="DateTimeOffset" />.
     /// </summary>
-    public class TimestampDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class TimestampDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// Builds a timestamp deserializer for a type-schema pair.
@@ -1841,9 +2092,9 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="DateTime" /> cannot be converted to the resolved type.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema.LogicalType is TimestampLogicalType)
             {
@@ -1870,10 +2121,10 @@ namespace Chr.Avro.Serialization
                         throw new UnsupportedSchemaException(schema);
                     }
 
-                    var readInteger = typeof(BinaryReader)
-                        .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+                    var getInt64 = typeof(Utf8JsonReader)
+                        .GetMethod(nameof(Utf8JsonReader.GetInt64), Type.EmptyTypes);
 
-                    Expression expression = Expression.Call(context.Reader, readInteger);
+                    Expression expression = Expression.Call(context.Reader, getInt64);
 
                     var addTicks = typeof(DateTime)
                         .GetMethod(nameof(DateTime.AddTicks));
@@ -1881,8 +2132,7 @@ namespace Chr.Avro.Serialization
                     // result = epoch.AddTicks(value * factor);
                     result.Expression = GenerateConversion(
                         Expression.Call(epoch, addTicks, Expression.Multiply(expression, factor)),
-                        resolution.Type
-                    );
+                        resolution.Type);
                 }
                 else
                 {
@@ -1897,17 +2147,16 @@ namespace Chr.Avro.Serialization
             return result;
         }
     }
-
     /// <summary>
     /// A deserializer builder case that matches <see cref="UnionSchema" /> and attempts to map it
     /// to any provided type.
     /// </summary>
-    public class UnionDeserializerBuilderCase : BinaryDeserializerBuilderCase
+    public class UnionDeserializerBuilderCase : JsonDeserializerBuilderCase
     {
         /// <summary>
         /// The deserializer builder to use to build child deserializers.
         /// </summary>
-        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
+        public IJsonDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Creates a new record deserializer builder case.
@@ -1915,9 +2164,9 @@ namespace Chr.Avro.Serialization
         /// <param name="deserializerBuilder">
         /// The deserializer builder to use to build child deserializers.
         /// </param>
-        public UnionDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+        public UnionDeserializerBuilderCase(IJsonDeserializerBuilder deserializerBuilder)
         {
-            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "JSON deserializer builder cannot be null.");
         }
 
         /// <summary>
@@ -1942,9 +2191,9 @@ namespace Chr.Avro.Serialization
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the type cannot be mapped to each schema in the union.
         /// </exception>
-        public override IBinaryDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IBinaryDeserializerBuilderContext context)
+        public override IJsonDeserializerBuildResult BuildExpression(TypeResolution resolution, Schema schema, IJsonDeserializerBuilderContext context)
         {
-            var result = new BinaryDeserializerBuildResult();
+            var result = new JsonDeserializerBuildResult();
 
             if (schema is UnionSchema unionSchema)
             {
@@ -1953,39 +2202,77 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                var readInteger = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+                var tokenType = typeof(Utf8JsonReader)
+                    .GetProperty(nameof(Utf8JsonReader.TokenType));
 
-                Expression expression = Expression.Call(context.Reader, readInteger);
+                var read = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.Read), Type.EmptyTypes);
 
-                // create a mapping for each schema in the union:
-                var cases = unionSchema.Schemas.Select((child, index) =>
+                var getString = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+
+                var schemas = unionSchema.Schemas.ToList();
+                var candidates = schemas.Where(s => !(s is NullSchema)).ToList();
+                var @null = schemas.Find(s => s is NullSchema);
+
+                var cases = candidates.Select(child =>
                 {
                     var selected = SelectType(resolution, child);
+
+                    return Expression.SwitchCase(
+                        GenerateConversion(
+                            Expression.Block(
+                                Expression.Call(context.Reader, read),
+                                DeserializerBuilder.BuildExpression(selected.Type, child, context)),
+                            resolution.Type),
+                        Expression.Constant(GetSchemaName(child)));
+                }).ToArray();
+
+                var value = Expression.Parameter(resolution.Type);
+
+                Expression expression = Expression.Block(
+                    new[] { value },
+                    Expression.IfThen(
+                        Expression.NotEqual(
+                            Expression.Property(context.Reader, tokenType),
+                            Expression.Constant(JsonTokenType.StartObject)),
+                        Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.StartObject))),
+                    Expression.Call(context.Reader, read),
+                    Expression.Assign(
+                        value,
+                        Expression.Switch(
+                            Expression.Call(context.Reader, getString),
+                            Expression.Throw(GenerateEncodingException(context.Reader, Expression.Constant("Unknown union member.")), resolution.Type),
+                            cases)),
+                    Expression.Call(context.Reader, read),
+                    Expression.IfThen(
+                        Expression.NotEqual(
+                            Expression.Property(context.Reader, tokenType),
+                            Expression.Constant(JsonTokenType.EndObject)),
+                        Expression.Throw(GenerateTokenException(context.Reader, JsonTokenType.EndObject))),
+                    value);
+
+                if (@null != null)
+                {
+                    var selected = SelectType(resolution, @null);
                     var underlying = Nullable.GetUnderlyingType(selected.Type);
 
-                    if (child is NullSchema && selected.Type.IsValueType && underlying == null)
+                    if (selected.Type.IsValueType && underlying == null)
                     {
                         throw new UnsupportedTypeException(resolution.Type, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {selected.Type.FullName}.");
                     }
 
-                    underlying = selected.Type;
+                    expression = Expression.Condition(
+                        Expression.Equal(
+                            Expression.Property(context.Reader, tokenType),
+                            Expression.Constant(JsonTokenType.Null)),
+                        GenerateConversion(
+                            DeserializerBuilder.BuildExpression(selected.Type, @null, context),
+                            resolution.Type),
+                        expression);
+                }
 
-                    var @case = DeserializerBuilder.BuildExpression(underlying, child, context);
-
-                    return Expression.SwitchCase(
-                        GenerateConversion(@case, resolution.Type),
-                        Expression.Constant((long)index)
-                    );
-                });
-
-                var exceptionConstructor = typeof(OverflowException)
-                    .GetConstructor(new[] { typeof(string) });
-
-                var exception = Expression.New(exceptionConstructor, Expression.Constant("Union index out of range."));
-
-                // generate a switch on the index:
-                result.Expression = Expression.Switch(expression, Expression.Throw(exception, resolution.Type), cases.ToArray());
+                result.Expression = expression;
             }
             else
             {
@@ -1993,6 +2280,36 @@ namespace Chr.Avro.Serialization
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Gets the name of the property used to disambiguate a union.
+        /// </summary>
+        /// <param name="schema">
+        /// A child of the union schema.
+        /// </param>
+        /// <returns>
+        /// If <paramref name="schema" /> is a <see cref="NamedSchema" />, the fully-qualified
+        /// name; the type name otherwise.
+        /// </returns>
+        protected virtual string GetSchemaName(Schema schema)
+        {
+            return schema switch
+            {
+                NamedSchema namedSchema => namedSchema.FullName,
+
+                ArraySchema => JsonSchemaToken.Array,
+                BooleanSchema => JsonSchemaToken.Boolean,
+                BytesSchema => JsonSchemaToken.Bytes,
+                DoubleSchema => JsonSchemaToken.Double,
+                FloatSchema => JsonSchemaToken.Float,
+                IntSchema => JsonSchemaToken.Int,
+                LongSchema => JsonSchemaToken.Long,
+                MapSchema => JsonSchemaToken.Map,
+                StringSchema => JsonSchemaToken.String,
+
+                _ => throw new UnsupportedSchemaException(schema)
+            };
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-namespace Chr.Avro.Representation
+namespace Chr.Avro
 {
     /// <summary>
     /// JSON object keys defined by the Avro spec.
