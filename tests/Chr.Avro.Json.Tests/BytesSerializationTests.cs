@@ -2,22 +2,23 @@ using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
-    public class FixedSerializationTests
+    public class BytesSerializationTests
     {
-        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder _deserializerBuilder;
 
-        private readonly IBinarySerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder _serializerBuilder;
 
         private readonly MemoryStream _stream;
 
-        public FixedSerializationTests()
+        public BytesSerializationTests()
         {
-            _deserializerBuilder = new BinaryDeserializerBuilder();
-            _serializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new JsonDeserializerBuilder();
+            _serializerBuilder = new JsonSerializerBuilder();
             _stream = new MemoryStream();
         }
 
@@ -27,17 +28,17 @@ namespace Chr.Avro.Serialization.Tests
         [InlineData(new byte[] { 0xf0, 0x9f, 0x92, 0x81, 0xf0, 0x9f, 0x8e, 0x8d })]
         public void ByteArrayValues(byte[] value)
         {
-            var schema = new FixedSchema("test", value.Length);
+            var schema = new BytesSchema();
 
             var deserialize = _deserializerBuilder.BuildDelegate<byte[]>(schema);
             var serialize = _serializerBuilder.BuildDelegate<byte[]>(schema);
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -46,17 +47,17 @@ namespace Chr.Avro.Serialization.Tests
         [MemberData(nameof(GuidData))]
         public void GuidValues(Guid value)
         {
-            var schema = new FixedSchema("test", 16);
+            var schema = new BytesSchema();
 
             var deserialize = _deserializerBuilder.BuildDelegate<Guid>(schema);
             var serialize = _serializerBuilder.BuildDelegate<Guid>(schema);
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -65,17 +66,17 @@ namespace Chr.Avro.Serialization.Tests
         [MemberData(nameof(GuidData))]
         public void NullableGuidValues(Guid value)
         {
-            var schema = new FixedSchema("test", 16);
+            var schema = new BytesSchema();
 
             var deserialize = _deserializerBuilder.BuildDelegate<Guid?>(schema);
             var serialize = _serializerBuilder.BuildDelegate<Guid>(schema);
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }

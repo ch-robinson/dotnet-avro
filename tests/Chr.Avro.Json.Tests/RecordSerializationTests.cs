@@ -1,22 +1,23 @@
 using Chr.Avro.Abstract;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class RecordSerializationTests
     {
-        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder _deserializerBuilder;
 
-        private readonly IBinarySerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder _serializerBuilder;
 
         private readonly MemoryStream _stream;
 
         public RecordSerializationTests()
         {
-            _deserializerBuilder = new BinaryDeserializerBuilder();
-            _serializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new JsonDeserializerBuilder();
+            _serializerBuilder = new JsonSerializerBuilder();
             _stream = new MemoryStream();
         }
 
@@ -60,10 +61,10 @@ namespace Chr.Avro.Serialization.Tests
                             }
                         }
                     }
-                }, new BinaryWriter(_stream));
+                }, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             var n5 = deserialize(ref reader);
 
@@ -133,10 +134,10 @@ namespace Chr.Avro.Serialization.Tests
                             }
                         }
                     }
-                }, new BinaryWriter(_stream));
+                }, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             var n5 = deserialize(ref reader);
 
@@ -213,10 +214,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value.Seventh, deserialize(ref reader).Seventh);
         }
@@ -244,10 +245,10 @@ namespace Chr.Avro.Serialization.Tests
                         Children = new Node[0]
                     },
                     RelatedNodes = new Node[0]
-                }, new BinaryWriter(_stream));
+                }, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             var root = deserialize(ref reader);
 

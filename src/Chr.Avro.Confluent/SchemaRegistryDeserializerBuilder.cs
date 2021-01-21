@@ -1,5 +1,6 @@
 using Chr.Avro.Abstract;
 using Chr.Avro.Representation;
+using Chr.Avro.Serialization;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using System;
@@ -16,7 +17,6 @@ namespace Chr.Avro.Confluent
     /// </summary>
     public interface ISchemaRegistryDeserializerBuilder
     {
-
         /// <summary>
         /// Builds a deserializer for a specific schema.
         /// </summary>
@@ -74,7 +74,7 @@ namespace Chr.Avro.Confluent
         /// <summary>
         /// The deserializer builder used to generate deserialization functions for C# types.
         /// </summary>
-        public Serialization.IBinaryDeserializerBuilder DeserializerBuilder { get; }
+        public IBinaryDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// The client used for Schema Registry operations.
@@ -106,7 +106,7 @@ namespace Chr.Avro.Confluent
         /// </param>
         public SchemaRegistryDeserializerBuilder(
             IEnumerable<KeyValuePair<string, string>> registryConfiguration,
-            Serialization.IBinaryDeserializerBuilder deserializerBuilder = null,
+            IBinaryDeserializerBuilder deserializerBuilder = null,
             IJsonSchemaReader schemaReader = null
         ) : this(
             new CachedSchemaRegistryClient(registryConfiguration),
@@ -135,12 +135,12 @@ namespace Chr.Avro.Confluent
         /// </exception>
         public SchemaRegistryDeserializerBuilder(
             ISchemaRegistryClient registryClient,
-            Serialization.IBinaryDeserializerBuilder deserializerBuilder = null,
+            IBinaryDeserializerBuilder deserializerBuilder = null,
             IJsonSchemaReader schemaReader = null
         ) {
             _disposeRegistryClient = false;
 
-            DeserializerBuilder = deserializerBuilder ?? new Serialization.BinaryDeserializerBuilder();
+            DeserializerBuilder = deserializerBuilder ?? new BinaryDeserializerBuilder();
             RegistryClient = registryClient ?? throw new ArgumentNullException(nameof(registryClient));
             SchemaReader = schemaReader ?? new JsonSchemaReader();
         }
@@ -289,42 +289,7 @@ namespace Chr.Avro.Confluent
                 }
             }
 
-            var deserialize = DeserializerBuilder.BuildDelegate<T>(schema);
-
-            return new DelegateDeserializer<T>((data, isNull, context) =>
-            {
-                if (isNull && tombstoneBehavior != TombstoneBehavior.None)
-                {
-                    if (context.Component == MessageComponentType.Value || tombstoneBehavior != TombstoneBehavior.Strict)
-                    {
-                        return default;
-                    }
-                }
-
-                using (var stream = new MemoryStream(data, false))
-                {
-                    var bytes = new byte[4];
-
-                    if (stream.ReadByte() != 0x00 || stream.Read(bytes, 0, bytes.Length) != bytes.Length)
-                    {
-                        throw new InvalidDataException("Data does not conform to the Confluent wire format.");
-                    }
-
-                    if (BitConverter.IsLittleEndian)
-                    {
-                        Array.Reverse(bytes);
-                    }
-
-                    var received = BitConverter.ToInt32(bytes, 0);
-
-                    if (received != id)
-                    {
-                        throw new InvalidDataException($"The received schema ({received}) does not match the specified schema ({id}).");
-                    }
-
-                    return deserialize(stream);
-                }
-            });
+            return new DelegateDeserializer<T>(DeserializerBuilder.BuildDelegate<T>(schema), id, tombstoneBehavior);
         }
     }
 }

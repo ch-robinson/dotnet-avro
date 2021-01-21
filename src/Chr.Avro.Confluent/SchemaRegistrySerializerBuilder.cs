@@ -339,37 +339,7 @@ namespace Chr.Avro.Confluent
                 }
             }
 
-            var bytes = BitConverter.GetBytes(id);
-
-            if (BitConverter.IsLittleEndian)
-            {
-                Array.Reverse(bytes);
-            }
-
-            var serialize = SerializerBuilder.BuildDelegate<T>(schema);
-
-            return new DelegateSerializer<T>((data, context) =>
-            {
-                if (data == null && tombstoneBehavior != TombstoneBehavior.None)
-                {
-                    if (context.Component == MessageComponentType.Value || tombstoneBehavior != TombstoneBehavior.Strict)
-                    {
-                        return null;
-                    }
-                }
-
-                var stream = new MemoryStream();
-
-                using (stream)
-                {
-                    stream.WriteByte(0x00);
-                    stream.Write(bytes, 0, bytes.Length);
-
-                    serialize(data, stream);
-                }
-
-                return stream.ToArray();
-            });
+            return new DelegateSerializer<T>(SerializerBuilder.BuildDelegate<T>(schema), id, tombstoneBehavior);
         }
     }
 }

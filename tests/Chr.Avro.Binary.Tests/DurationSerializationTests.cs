@@ -1,20 +1,24 @@
 using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class DurationSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly MemoryStream _stream;
 
         public DurationSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new BinaryDeserializerBuilder();
+            _serializerBuilder = new BinarySerializerBuilder();
+            _stream = new MemoryStream();
         }
 
         [Fact]
@@ -25,8 +29,12 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new DurationLogicalType()
             };
 
-            var serializer = SerializerBuilder.BuildSerializer<TimeSpan>(schema);
-            Assert.Throws<OverflowException>(() => serializer.Serialize(TimeSpan.FromMilliseconds(-1)));
+            var serialize = _serializerBuilder.BuildDelegate<TimeSpan>(schema);
+
+            using (_stream)
+            {
+                Assert.Throws<OverflowException>(() => serialize(TimeSpan.FromMilliseconds(-1), new BinaryWriter(_stream)));
+            }
         }
 
         [Theory]
@@ -38,11 +46,19 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new DurationLogicalType()
             };
 
-            var serializer = SerializerBuilder.BuildSerializer<TimeSpan>(schema);
-            Assert.Equal(encoding, serializer.Serialize(value));
+            var deserialize = _deserializerBuilder.BuildDelegate<TimeSpan>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<TimeSpan>(schema);
-            Assert.Equal(value, deserializer.Deserialize(encoding));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var encoded = _stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -54,11 +70,19 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new DurationLogicalType()
             };
 
-            var serializer = SerializerBuilder.BuildSerializer<TimeSpan>(schema);
-            Assert.Equal(encoding, serializer.Serialize(value));
+            var deserialize = _deserializerBuilder.BuildDelegate<TimeSpan?>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<TimeSpan?>(schema);
-            Assert.Equal(value, deserializer.Deserialize(encoding));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var encoded = _stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         public static IEnumerable<object[]> TimeSpanEncodings => new List<object[]>

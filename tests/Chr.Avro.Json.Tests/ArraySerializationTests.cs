@@ -5,22 +5,23 @@ using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class ArraySerializationTests
     {
-        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder _deserializerBuilder;
 
-        private readonly IBinarySerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder _serializerBuilder;
 
         private readonly MemoryStream _stream;
 
         public ArraySerializationTests()
         {
-            _deserializerBuilder = new BinaryDeserializerBuilder();
-            _serializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new JsonDeserializerBuilder();
+            _serializerBuilder = new JsonSerializerBuilder();
             _stream = new MemoryStream();
         }
 
@@ -35,10 +36,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -54,10 +55,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -73,10 +74,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(new Collection<int>(value), new BinaryWriter(_stream));
+                serialize(new Collection<int>(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -92,10 +93,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -111,10 +112,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -130,10 +131,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -149,10 +150,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value.ToImmutableList(), new BinaryWriter(_stream));
+                serialize(value.ToImmutableList(), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -168,10 +169,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(ImmutableQueue.CreateRange(value), new BinaryWriter(_stream));
+                serialize(ImmutableQueue.CreateRange(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -187,10 +188,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value.ToImmutableHashSet(), new BinaryWriter(_stream));
+                serialize(value.ToImmutableHashSet(), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader).OrderBy(v => v));
         }
@@ -206,10 +207,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(ImmutableStack.CreateRange(value), new BinaryWriter(_stream));
+                serialize(ImmutableStack.CreateRange(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -225,10 +226,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -244,10 +245,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -263,10 +264,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -282,10 +283,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader).OrderBy(v => v));
         }
@@ -301,10 +302,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value.ToImmutableArray(), new BinaryWriter(_stream));
+                serialize(value.ToImmutableArray(), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -320,10 +321,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value.ToImmutableHashSet(), new BinaryWriter(_stream));
+                serialize(value.ToImmutableHashSet(), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader).OrderBy(v => v));
         }
@@ -339,10 +340,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value.ToImmutableList(), new BinaryWriter(_stream));
+                serialize(value.ToImmutableList(), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -358,10 +359,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(ImmutableQueue.CreateRange(value), new BinaryWriter(_stream));
+                serialize(ImmutableQueue.CreateRange(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -377,10 +378,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value.ToImmutableSortedSet(), new BinaryWriter(_stream));
+                serialize(value.ToImmutableSortedSet(), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -396,10 +397,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(ImmutableStack.CreateRange(value), new BinaryWriter(_stream));
+                serialize(ImmutableStack.CreateRange(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -415,10 +416,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -434,10 +435,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(new LinkedList<int>(value), new BinaryWriter(_stream));
+                serialize(new LinkedList<int>(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -453,10 +454,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value.ToList(), new BinaryWriter(_stream));
+                serialize(value.ToList(), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -472,10 +473,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(new Queue<int>(value), new BinaryWriter(_stream));
+                serialize(new Queue<int>(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -491,10 +492,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(new SortedSet<string>(value), new BinaryWriter(_stream));
+                serialize(new SortedSet<string>(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -510,10 +511,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(new Stack<int>(value), new BinaryWriter(_stream));
+                serialize(new Stack<int>(value), new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }

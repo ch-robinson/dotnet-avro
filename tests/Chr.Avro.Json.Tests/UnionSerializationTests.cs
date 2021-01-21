@@ -4,22 +4,23 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class UnionSerializationTests
     {
-        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder _deserializerBuilder;
 
-        private readonly IBinarySerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder _serializerBuilder;
 
         private readonly MemoryStream _stream;
 
         public UnionSerializationTests()
         {
-            _deserializerBuilder = new BinaryDeserializerBuilder();
-            _serializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new JsonDeserializerBuilder();
+            _serializerBuilder = new JsonSerializerBuilder();
             _stream = new MemoryStream();
         }
 
@@ -33,8 +34,8 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [MemberData(nameof(NullAndIntUnionEncodings))]
-        public void NullAndIntUnionToInt32Type(int? value, byte[] encoding)
+        [MemberData(nameof(NullAndIntValues))]
+        public void NullAndIntUnionToInt32Type(int? value)
         {
             var schema = new UnionSchema(new Schema[]
             {
@@ -48,18 +49,16 @@ namespace Chr.Avro.Serialization.Tests
             {
                 using (_stream)
                 {
-                    serialize(value.Value, new BinaryWriter(_stream));
+                    serialize(value.Value, new Utf8JsonWriter(_stream));
                 }
-
-                Assert.Equal(encoding, _stream.ToArray());
             }
 
             Assert.Throws<UnsupportedTypeException>(() => _deserializerBuilder.BuildDelegate<int>(schema));
         }
 
         [Theory]
-        [MemberData(nameof(NullAndIntUnionEncodings))]
-        public void NullAndIntUnionToNullableInt32Type(int? value, byte[] encoding)
+        [MemberData(nameof(NullAndIntValues))]
+        public void NullAndIntUnionToNullableInt32Type(int? value)
         {
             var schema = new UnionSchema(new Schema[]
             {
@@ -72,13 +71,11 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var encoded = _stream.ToArray();
-            var reader = new BinaryReader(encoded);
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
-            Assert.Equal(encoding, encoded);
             Assert.Equal(value, deserialize(ref reader));
         }
 
@@ -96,8 +93,8 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [MemberData(nameof(NullAndStringUnionEncodings))]
-        public void NullAndStringUnionToStringType(string value, byte[] encoding)
+        [MemberData(nameof(NullAndStringValues))]
+        public void NullAndStringUnionToStringType(string value)
         {
             var schema = new UnionSchema(new Schema[]
             {
@@ -110,19 +107,17 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var encoded = _stream.ToArray();
-            var reader = new BinaryReader(encoded);
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
-            Assert.Equal(encoding, encoded);
             Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
-        [MemberData(nameof(NullUnionEncodings))]
-        public void NullUnionToStringType(string value, byte[] encoding)
+        [MemberData(nameof(NullValues))]
+        public void NullUnionToStringType(string value)
         {
             var schema = new UnionSchema(new Schema[]
             {
@@ -134,13 +129,11 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var encoded = _stream.ToArray();
-            var reader = new BinaryReader(encoded);
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
-            Assert.Equal(encoding, encoded);
             Assert.Equal(value, deserialize(ref reader));
         }
 
@@ -167,7 +160,7 @@ namespace Chr.Avro.Serialization.Tests
 
             var deserialize = _deserializerBuilder.BuildDelegate<OrderCreatedEvent>(schema);
 
-            var serialize = new BinarySerializerBuilder(BinarySerializerBuilder.DefaultCaseBuilders
+            var serialize = new JsonSerializerBuilder(JsonSerializerBuilder.DefaultCaseBuilders
                 .Prepend(builder => new OrderSerializerBuilderCase(resolver, builder)))
                 .BuildDelegate<OrderEvent>(schema);
 
@@ -179,10 +172,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             var result = deserialize(ref reader);
             Assert.Equal(value.Timestamp, result.Timestamp);
@@ -213,11 +206,11 @@ namespace Chr.Avro.Serialization.Tests
 
             var resolver = new ReflectionResolver();
 
-            var deserialize = new BinaryDeserializerBuilder(BinaryDeserializerBuilder.DefaultCaseBuilders
+            var deserialize = new JsonDeserializerBuilder(JsonDeserializerBuilder.DefaultCaseBuilders
                 .Prepend(builder => new OrderDeserializerBuilderCase(resolver, builder)))
                 .BuildDelegate<EventContainer>(schema);
 
-            var serialize = new BinarySerializerBuilder(BinarySerializerBuilder.DefaultCaseBuilders
+            var serialize = new JsonSerializerBuilder(JsonSerializerBuilder.DefaultCaseBuilders
                 .Prepend(builder => new OrderSerializerBuilderCase(resolver, builder)))
                 .BuildDelegate<EventContainer>(schema);
 
@@ -240,17 +233,17 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(creation, new BinaryWriter(_stream));
+                serialize(creation, new Utf8JsonWriter(_stream));
 
-                var reader = new BinaryReader(_stream.ToArray());
+                var reader = new Utf8JsonReader(_stream.ToArray());
 
                 var result = deserialize(ref reader);
                 Assert.IsType<OrderCreatedEvent>(result.Event);
 
                 _stream.Position = 0;
-                serialize(cancellation, new BinaryWriter(_stream));
+                serialize(cancellation, new Utf8JsonWriter(_stream));
 
-                reader = new BinaryReader(_stream.ToArray());
+                reader = new Utf8JsonReader(_stream.ToArray());
 
                 result = deserialize(ref reader);
                 Assert.IsType<OrderCancelledEvent>(result.Event);
@@ -258,8 +251,8 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [MemberData(nameof(StringUnionEncodings))]
-        public void StringUnionToStringType(string value, byte[] encoding)
+        [MemberData(nameof(StringValues))]
+        public void StringUnionToStringType(string value)
         {
             var schema = new UnionSchema(new Schema[]
             {
@@ -271,36 +264,34 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var encoded = _stream.ToArray();
-            var reader = new BinaryReader(encoded);
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
-            Assert.Equal(encoding, encoded);
             Assert.Equal(value, deserialize(ref reader));
         }
 
-        public static IEnumerable<object[]> NullAndIntUnionEncodings => new List<object[]>
+        public static IEnumerable<object[]> NullAndIntValues => new List<object[]>
         {
-            new object[] { null, new byte[] { 0x00 } },
-            new object[] { 2, new byte[] { 0x02, 0x04 } },
+            new object[] { null },
+            new object[] { 2 },
         };
 
-        public static IEnumerable<object[]> NullAndStringUnionEncodings => new List<object[]>
+        public static IEnumerable<object[]> NullAndStringValues => new List<object[]>
         {
-            new object[] { null, new byte[] { 0x00 } },
-            new object[] { "test", new byte[] { 0x02, 0x08, 0x74, 0x65, 0x73, 0x74 } },
+            new object[] { null },
+            new object[] { "test" },
         };
 
-        public static IEnumerable<object[]> NullUnionEncodings => new List<object[]>
+        public static IEnumerable<object[]> NullValues => new List<object[]>
         {
-            new object[] { null, new byte[] { 0x00 } },
+            new object[] { null },
         };
 
-        public static IEnumerable<object[]> StringUnionEncodings => new List<object[]>
+        public static IEnumerable<object[]> StringValues => new List<object[]>
         {
-            new object[] { "test", new byte[] { 0x00, 0x08, 0x74, 0x65, 0x73, 0x74 } },
+            new object[] { "test" },
         };
 
         public class EventContainer
@@ -329,7 +320,7 @@ namespace Chr.Avro.Serialization.Tests
         {
             public ITypeResolver Resolver { get; }
 
-            public OrderDeserializerBuilderCase(ITypeResolver resolver, IBinaryDeserializerBuilder builder) : base(builder)
+            public OrderDeserializerBuilderCase(ITypeResolver resolver, IJsonDeserializerBuilder builder) : base(builder)
             {
                 Resolver = resolver;
             }
@@ -359,7 +350,7 @@ namespace Chr.Avro.Serialization.Tests
         {
             public ITypeResolver Resolver { get; }
 
-            public OrderSerializerBuilderCase(ITypeResolver resolver, IBinarySerializerBuilder builder) : base(builder)
+            public OrderSerializerBuilderCase(ITypeResolver resolver, IJsonSerializerBuilder builder) : base(builder)
             {
                 Resolver = resolver;
             }

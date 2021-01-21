@@ -1,20 +1,24 @@
 using Chr.Avro.Abstract;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class TimestampSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder _serializerBuilder;
+
+        private readonly MemoryStream _stream;
 
         public TimestampSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new BinaryDeserializerBuilder();
+            _serializerBuilder = new BinarySerializerBuilder();
+            _stream = new MemoryStream();
         }
 
         [Theory]
@@ -26,11 +30,19 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new MicrosecondTimestampLogicalType()
             };
 
-            var serializer = SerializerBuilder.BuildSerializer<DateTime>(schema);
-            Assert.Equal(encoding, serializer.Serialize(value));
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTime>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTime>(schema);
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTime>(schema);
-            Assert.Equal(value, deserializer.Deserialize(encoding));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var encoded = _stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -42,11 +54,19 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new MicrosecondTimestampLogicalType()
             };
 
-            var serializer = SerializerBuilder.BuildSerializer<DateTimeOffset>(schema);
-            Assert.Equal(encoding, serializer.Serialize(value));
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTimeOffset>(schema);
-            Assert.Equal(value, deserializer.Deserialize(encoding));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var encoded = _stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -58,11 +78,19 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new MillisecondTimestampLogicalType()
             };
 
-            var serializer = SerializerBuilder.BuildSerializer<DateTime>(schema);
-            Assert.Equal(encoding, serializer.Serialize(value));
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTime>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTime>(schema);
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTime>(schema);
-            Assert.Equal(value, deserializer.Deserialize(encoding));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var encoded = _stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
@@ -74,11 +102,19 @@ namespace Chr.Avro.Serialization.Tests
                 LogicalType = new MillisecondTimestampLogicalType()
             };
 
-            var serializer = SerializerBuilder.BuildSerializer<DateTimeOffset>(schema);
-            Assert.Equal(encoding, serializer.Serialize(value));
+            var deserialize = _deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var serialize = _serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<DateTimeOffset>(schema);
-            Assert.Equal(value, deserializer.Deserialize(encoding));
+            using (_stream)
+            {
+                serialize(value, new BinaryWriter(_stream));
+            }
+
+            var encoded = _stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         public static IEnumerable<object[]> MicrosecondDateTimeEncodings => new List<object[]>

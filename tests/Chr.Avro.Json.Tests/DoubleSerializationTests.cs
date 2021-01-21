@@ -1,31 +1,29 @@
 using Chr.Avro.Abstract;
 using System.IO;
+using System.Text.Json;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests
 {
     public class DoubleSerializationTests
     {
-        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder _deserializerBuilder;
 
-        private readonly IBinarySerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder _serializerBuilder;
 
         private readonly MemoryStream _stream;
 
         public DoubleSerializationTests()
         {
-            _deserializerBuilder = new BinaryDeserializerBuilder();
-            _serializerBuilder = new BinarySerializerBuilder();
+            _deserializerBuilder = new JsonDeserializerBuilder();
+            _serializerBuilder = new JsonSerializerBuilder();
             _stream = new MemoryStream();
         }
 
         [Theory]
-        [InlineData(double.NaN)]
-        [InlineData(double.NegativeInfinity)]
         [InlineData(double.MinValue)]
         [InlineData(0.0)]
         [InlineData(double.MaxValue)]
-        [InlineData(double.PositiveInfinity)]
         public void DoubleValues(double value)
         {
             var schema = new DoubleSchema();
@@ -35,10 +33,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -56,10 +54,10 @@ namespace Chr.Avro.Serialization.Tests
 
             using (_stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new Utf8JsonWriter(_stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(_stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
