@@ -82,8 +82,8 @@ namespace Example
 
             using (var registry = new CachedSchemaRegistryClient(registryConfig))
             {
-                builder.SetAvroKeySerializer(registry);
-                builder.SetAvroValueSerializer(registry);
+                builder.SetAvroKeyDeserializer(registry);
+                builder.SetAvroValueDeserializer(registry);
 
                 using (var consumer = builder.Build())
                 {
