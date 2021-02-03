@@ -148,6 +148,10 @@ namespace Example
 }
 ```
 
+### Union Types
+
+A sample using union types and the custom cases can be found in the [samples directory](samples).
+
 ## Contributing
 
 Check out the [contribution guidelines](CONTRIBUTING.md) prior to opening an issue or creating a pull request. More information about the [benchmark applications](benchmarks) and [documentation site](docs) can be found in their respective directories.
