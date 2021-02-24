@@ -1,13 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../../Chr.Avro.Build.props" />
-
   <PropertyGroup>
     <Description>Avro schema models</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Collections.Immutable" Version="5.0.0" />
+  </ItemGroup>
 
 </Project>

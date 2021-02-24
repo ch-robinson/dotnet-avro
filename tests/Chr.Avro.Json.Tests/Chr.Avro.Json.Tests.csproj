@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Chr.Avro.Fixtures\Chr.Avro.Fixtures.csproj" />
     <ProjectReference Include="..\..\src\Chr.Avro.Json\Chr.Avro.Json.csproj" />
   </ItemGroup>
 

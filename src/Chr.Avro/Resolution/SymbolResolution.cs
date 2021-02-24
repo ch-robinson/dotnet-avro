@@ -1,69 +1,24 @@
-using System;
-using System.Reflection;
-
 namespace Chr.Avro.Resolution
 {
+    using System;
+    using System.Reflection;
+
     /// <summary>
-    /// Contains resolved information about an enum symbol.
+    /// Represents resolved information about an enum symbol.
     /// </summary>
     public class SymbolResolution
     {
-        private MemberInfo member = null!;
+        private MemberInfo member = default!;
 
-        private IdentifierResolution name = null!;
+        private IdentifierResolution name = default!;
 
-        private object value = null!;
-
-        /// <summary>
-        /// The resolved static field reflection info.
-        /// </summary>
-        public virtual MemberInfo Member
-        {
-            get
-            {
-                return member ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                member = value ?? throw new ArgumentNullException(nameof(value), "Symbol reflection info cannot be null.");
-            }
-        }
+        private object value = default!;
 
         /// <summary>
-        /// The symbol name.
-        /// </summary>
-        public virtual IdentifierResolution Name
-        {
-            get
-            {
-                return name ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                name = value ?? throw new ArgumentNullException(nameof(value), "Symbol name cannot be null.");
-            }
-        }
-
-        /// <summary>
-        /// The raw symbol value.
-        /// </summary>
-        public virtual object Value
-        {
-            get
-            {
-                return value ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                this.value = value ?? throw new ArgumentNullException(nameof(value), "Symbol value cannot be null.");
-            }
-        }
-
-        /// <summary>
-        /// Creates a new symbol resolution.
+        /// Initializes a new instance of the <see cref="SymbolResolution" /> class.
         /// </summary>
         /// <param name="member">
-        /// The resolved static field reflection info.
+        /// The resolved static <see cref="MemberInfo" />.
         /// </param>
         /// <param name="name">
         /// The symbol name.
@@ -76,6 +31,54 @@ namespace Chr.Avro.Resolution
             Member = member;
             Name = name;
             Value = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the resolved static <see cref="MemberInfo" />.
+        /// </summary>
+        public virtual MemberInfo Member
+        {
+            get
+            {
+                return member ?? throw new InvalidOperationException();
+            }
+
+            set
+            {
+                member = value ?? throw new ArgumentNullException(nameof(value), "Symbol reflection info cannot be null.");
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the symbol name.
+        /// </summary>
+        public virtual IdentifierResolution Name
+        {
+            get
+            {
+                return name ?? throw new InvalidOperationException();
+            }
+
+            set
+            {
+                name = value ?? throw new ArgumentNullException(nameof(value), "Symbol name cannot be null.");
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the raw symbol value.
+        /// </summary>
+        public virtual object Value
+        {
+            get
+            {
+                return value ?? throw new InvalidOperationException();
+            }
+
+            set
+            {
+                this.value = value ?? throw new ArgumentNullException(nameof(value), "Symbol value cannot be null.");
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
-using System;
-
 namespace Chr.Avro
 {
+    using System;
+
     /// <summary>
     /// An exception thrown when an operation does not support a .NET type.
     /// </summary>
@@ -9,12 +9,7 @@ namespace Chr.Avro
     public class UnsupportedTypeException : Exception
     {
         /// <summary>
-        /// The type that caused the exception to be thrown.
-        /// </summary>
-        public Type? UnsupportedType { get; }
-
-        /// <summary>
-        /// Creates an exception describing the error.
+        /// Initializes a new instance of the <see cref="UnsupportedTypeException" /> class.
         /// </summary>
         /// <param name="type">
         /// The type that caused the exception to be thrown.
@@ -25,9 +20,15 @@ namespace Chr.Avro
         /// <param name="inner">
         /// An underlying error that may provide additional context.
         /// </param>
-        public UnsupportedTypeException(Type? type, string? message = null, Exception? inner = null) : base(message ?? $"{type?.FullName ?? "The .NET type"} is not supported.", inner)
+        public UnsupportedTypeException(Type type, string? message = null, Exception? inner = null)
+            : base(message ?? $"Failed to operate on {type.FullName}.", inner)
         {
-            UnsupportedType = type;
+            UnsupportedType = type ?? throw new ArgumentNullException(nameof(type), "Type cannot be null.");
         }
+
+        /// <summary>
+        /// Gets the <see cref="Type" /> that caused the exception to be thrown.
+        /// </summary>
+        public Type UnsupportedType { get; }
     }
 }

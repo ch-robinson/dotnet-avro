@@ -1,26 +1,32 @@
-using Chr.Avro.Abstract;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text.Json;
+    using Chr.Avro.Abstract;
+    using Xunit;
+
     public class BytesSerializationTests
     {
-        private readonly IJsonDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder deserializerBuilder;
 
-        private readonly IJsonSerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream _stream;
+        private readonly MemoryStream stream;
 
         public BytesSerializationTests()
         {
-            _deserializerBuilder = new JsonDeserializerBuilder();
-            _serializerBuilder = new JsonSerializerBuilder();
-            _stream = new MemoryStream();
+            deserializerBuilder = new JsonDeserializerBuilder();
+            serializerBuilder = new JsonSerializerBuilder();
+            stream = new MemoryStream();
         }
+
+        public static IEnumerable<object[]> GuidData => new List<object[]>
+        {
+            new object[] { Guid.Empty },
+            new object[] { Guid.Parse("ed7ba470-8e54-465e-825c-99712043e01c") },
+        };
 
         [Theory]
         [InlineData(new byte[] { })]
@@ -30,15 +36,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new BytesSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<byte[]>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<byte[]>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<byte[]>(schema);
+            var serialize = serializerBuilder.BuildDelegate<byte[]>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -49,15 +55,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new BytesSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<Guid>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<Guid>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<Guid>(schema);
+            var serialize = serializerBuilder.BuildDelegate<Guid>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -68,23 +74,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new BytesSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<Guid?>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<Guid>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<Guid?>(schema);
+            var serialize = serializerBuilder.BuildDelegate<Guid>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
-
-        public static IEnumerable<object[]> GuidData => new List<object[]>
-        {
-            new object[] { Guid.Empty },
-            new object[] { Guid.Parse("ed7ba470-8e54-465e-825c-99712043e01c") }
-        };
     }
 }

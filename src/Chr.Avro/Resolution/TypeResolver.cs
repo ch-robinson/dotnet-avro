@@ -1,110 +1,37 @@
-using System;
-using System.Collections.Generic;
-
 namespace Chr.Avro.Resolution
 {
-    /// <summary>
-    /// Resolves .NET type information.
-    /// </summary>
-    /// <remarks>
-    /// See the <see cref="TypeResolution" /> class for more information about the resolution
-    /// framework.
-    /// </remarks>
-    public interface ITypeResolver
-    {
-        /// <summary>
-        /// Resolves information for a .NET type.
-        /// </summary>
-        /// <typeparam name="T">
-        /// The type to resolve.
-        /// </typeparam>
-        /// <returns>
-        /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
-        /// </returns>
-        TypeResolution ResolveType<T>();
-
-        /// <summary>
-        /// Resolves information for a .NET type.
-        /// </summary>
-        /// <param name="type">
-        /// The type to resolve.
-        /// </param>
-        /// <returns>
-        /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
-        /// </returns>
-        TypeResolution ResolveType(Type type);
-    }
+    using System;
+    using System.Collections.Generic;
+    using System.Reflection;
 
     /// <summary>
-    /// Represents the outcome of a type resolver case.
+    /// Resolves information for .NET <see cref="Type" />s.
     /// </summary>
-    public interface ITypeResolutionResult
-    {
-        /// <summary>
-        /// Any exceptions related to the applicability of the case. If <see cref="TypeResolution" />
-        /// is not null, these exceptions should be interpreted as warnings.
-        /// </summary>
-        ICollection<Exception> Exceptions { get; }
-
-        /// <summary>
-        /// The result of applying the case. If null, the case was not applied successfully.
-        /// </summary>
-        TypeResolution? TypeResolution { get; }
-    }
-
-    /// <summary>
-    /// Resolves information for specific .NET types. Used by <see cref="TypeResolver" /> to break
-    /// apart resolution logic.
-    /// </summary>
-    /// <remarks>
-    /// See the <see cref="TypeResolution" /> class for more information about the resolution
-    /// framework.
-    /// </remarks>
-    public interface ITypeResolverCase
-    {
-        /// <summary>
-        /// Resolves information for a .NET type. If the case does not apply to the provided type,
-        /// this method should throw <see cref="UnsupportedTypeException" />.
-        /// </summary>
-        /// <param name="type">
-        /// The type to resolve.
-        /// </param>
-        /// <returns>
-        /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
-        /// </returns>
-        ITypeResolutionResult ResolveType(Type type);
-    }
-
-    /// <summary>
-    /// A customizable type resolver backed by a list of cases.
-    /// </summary>
-    /// <remarks>
-    /// See the <see cref="TypeResolution" /> class for more information about the resolution
-    /// framework.
-    /// </remarks>
     public class TypeResolver : ITypeResolver
     {
         /// <summary>
-        /// A list of cases that the resolver will attempt to apply. If the first case does not
-        /// match, the resolver will try the next case, and so on until all cases have been tested.
+        /// Initializes a new instance of the <see cref="TypeResolver" /> class configured with the
+        /// default list of cases.
         /// </summary>
-        public IEnumerable<ITypeResolverCase> Cases { get; }
-
-        /// <summary>
-        /// Whether to resolve reference types as nullable.
-        /// </summary>
-        public bool ResolveReferenceTypesAsNullable { get; }
-
-        /// <summary>
-        /// Creates a new type resolver.
-        /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags to use to select fields and properties.
+        /// </param>
+        /// <param name="resolveUnderlyingEnumTypes">
+        /// Whether to resolve enum types as their underlying integral <see cref="Type" />s.
+        /// </param>
         /// <param name="resolveReferenceTypesAsNullable">
         /// Whether to resolve reference types as nullable.
         /// </param>
-        public TypeResolver(bool resolveReferenceTypesAsNullable = false) : this(new List<Func<TypeResolver, ITypeResolverCase>>(), resolveReferenceTypesAsNullable) { }
+        public TypeResolver(
+            BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance,
+            bool resolveReferenceTypesAsNullable = false,
+            bool resolveUnderlyingEnumTypes = false)
+        : this(CreateDefaultCaseBuilders(memberVisibility, resolveUnderlyingEnumTypes), resolveReferenceTypesAsNullable)
+        {
+        }
 
         /// <summary>
-        /// Creates a new type resolver.
+        /// Initializes a new instance of the <see cref="TypeResolver" /> class.
         /// </summary>
         /// <param name="caseBuilders">
         /// A list of case builders.
@@ -112,9 +39,11 @@ namespace Chr.Avro.Resolution
         /// <param name="resolveReferenceTypesAsNullable">
         /// Whether to resolve reference types as nullable.
         /// </param>
-        public TypeResolver(IEnumerable<Func<TypeResolver, ITypeResolverCase>> caseBuilders, bool resolveReferenceTypesAsNullable = false)
+        public TypeResolver(
+            IEnumerable<Func<ITypeResolver, ITypeResolverCase<TypeResolverCaseResult>>> caseBuilders,
+            bool resolveReferenceTypesAsNullable = false)
         {
-            var cases = new List<ITypeResolverCase>();
+            var cases = new List<ITypeResolverCase<TypeResolverCaseResult>>();
 
             Cases = cases;
             ResolveReferenceTypesAsNullable = resolveReferenceTypesAsNullable;
@@ -127,35 +56,150 @@ namespace Chr.Avro.Resolution
         }
 
         /// <summary>
-        /// Resolves information for a .NET type.
+        /// Gets the list of cases that the type resolver will attempt to apply. If the first case
+        /// does not match, the type resolver will try the next case, and so on until all cases
+        /// have been tried.
         /// </summary>
-        /// <typeparam name="T">
-        /// The type to resolve.
-        /// </typeparam>
+        public virtual IEnumerable<ITypeResolverCase<TypeResolverCaseResult>> Cases { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether reference <see cref="Type" />s should be resolved as
+        /// nullable.
+        /// </summary>
+        public virtual bool ResolveReferenceTypesAsNullable { get; }
+
+        /// <summary>
+        /// Creates a default list of case builders that rely on <see cref="Type" /> information as
+        /// well as <see cref="System.Runtime.Serialization" /> attributes.
+        /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags to use to select fields and properties.
+        /// </param>
+        /// <param name="resolveUnderlyingEnumTypes">
+        /// Whether to resolve enum types as their underlying integral <see cref="Type" />s.
+        /// </param>
         /// <returns>
-        /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
+        /// A list of case builders capable of handling most .NET <see cref="Type" />s.
         /// </returns>
-        /// <exception cref="AggregateException">
-        /// Thrown when no case matches the type. <see cref="AggregateException.InnerExceptions" />
-        /// will be contain the exceptions thrown by each case.
+        public static IEnumerable<Func<ITypeResolver, ITypeResolverCase<TypeResolverCaseResult>>> CreateDefaultCaseBuilders(
+            BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance,
+            bool resolveUnderlyingEnumTypes = false)
+        {
+            return new Func<ITypeResolver, ITypeResolverCase<TypeResolverCaseResult>>[]
+            {
+                // nullables:
+                resolver => new NullableTypeResolverCase(resolver),
+
+                // primitives:
+                resolver => new BooleanTypeResolverCase(),
+                resolver => new ByteTypeResolverCase(),
+                resolver => new ByteArrayTypeResolverCase(),
+                resolver => new DecimalTypeResolverCase(),
+                resolver => new DoubleTypeResolverCase(),
+                resolver => new SingleTypeResolverCase(),
+                resolver => new Int16TypeResolverCase(),
+                resolver => new Int32TypeResolverCase(),
+                resolver => new Int64TypeResolverCase(),
+                resolver => new SByteTypeResolverCase(),
+                resolver => new StringTypeResolverCase(),
+                resolver => new UInt16TypeResolverCase(),
+                resolver => new UInt32TypeResolverCase(),
+                resolver => new UInt64TypeResolverCase(),
+
+                // enums:
+                resolver => resolveUnderlyingEnumTypes
+                    ? new EnumUnderlyingTypeResolverCase(resolver)
+                    : new DataContractEnumTypeResolverCase(),
+
+                // dictionaries:
+                resolver => new DictionaryTypeResolverCase(memberVisibility),
+
+                // enumerables:
+                resolver => new EnumerableTypeResolverCase(memberVisibility),
+
+                // built-ins:
+                resolver => new DateTimeTypeResolverCase(),
+                resolver => new GuidTypeResolverCase(),
+                resolver => new TimeSpanTypeResolverCase(),
+                resolver => new UriTypeResolverCase(),
+
+                // classes and structs:
+                resolver => new DataContractObjectTypeResolverCase(memberVisibility),
+            };
+        }
+
+        /// <summary>
+        /// Creates a list of case builders that rely only on <see cref="Type" /> information.
+        /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags to use to select fields and properties.
+        /// </param>
+        /// <param name="resolveUnderlyingEnumTypes">
+        /// Whether to resolve enum types as their underlying integral <see cref="Type" />s.
+        /// </param>
+        /// <returns>
+        /// A list of case builders capable of handling most .NET <see cref="Type" />s.
+        /// </returns>
+        public static IEnumerable<Func<ITypeResolver, ITypeResolverCase<TypeResolverCaseResult>>> CreateReflectionCaseBuilders(
+            BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance,
+            bool resolveUnderlyingEnumTypes = false)
+        {
+            return new Func<ITypeResolver, ITypeResolverCase<TypeResolverCaseResult>>[]
+            {
+                // nullables:
+                resolver => new NullableTypeResolverCase(resolver),
+
+                // primitives:
+                resolver => new BooleanTypeResolverCase(),
+                resolver => new ByteTypeResolverCase(),
+                resolver => new ByteArrayTypeResolverCase(),
+                resolver => new DecimalTypeResolverCase(),
+                resolver => new DoubleTypeResolverCase(),
+                resolver => new SingleTypeResolverCase(),
+                resolver => new Int16TypeResolverCase(),
+                resolver => new Int32TypeResolverCase(),
+                resolver => new Int64TypeResolverCase(),
+                resolver => new SByteTypeResolverCase(),
+                resolver => new StringTypeResolverCase(),
+                resolver => new UInt16TypeResolverCase(),
+                resolver => new UInt32TypeResolverCase(),
+                resolver => new UInt64TypeResolverCase(),
+
+                // enums:
+                resolver => resolveUnderlyingEnumTypes
+                    ? new EnumUnderlyingTypeResolverCase(resolver)
+                    : new EnumTypeResolverCase(),
+
+                // dictionaries:
+                resolver => new DictionaryTypeResolverCase(memberVisibility),
+
+                // enumerables:
+                resolver => new EnumerableTypeResolverCase(memberVisibility),
+
+                // built-ins:
+                resolver => new DateTimeTypeResolverCase(),
+                resolver => new GuidTypeResolverCase(),
+                resolver => new TimeSpanTypeResolverCase(),
+                resolver => new UriTypeResolverCase(),
+
+                // classes and structs:
+                resolver => new ObjectTypeResolverCase(memberVisibility),
+            };
+        }
+
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when no case matches <typeparamref name="T" /> or when a matching case fails.
         /// </exception>
+        /// <inheritdoc />
         public virtual TypeResolution ResolveType<T>()
         {
             return ResolveType(typeof(T));
         }
 
-        /// <summary>
-        /// Resolves information for a .NET type.
-        /// </summary>
-        /// <param name="type">
-        /// The type to resolve.
-        /// </param>
-        /// <returns>
-        /// A subclass of <see cref="TypeResolution" /> that contains information about the type.
-        /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when no case matches the type.
+        /// Thrown when no case matches <paramref name="type" /> or when a matching case fails.
         /// </exception>
+        /// <inheritdoc />
         public virtual TypeResolution ResolveType(Type type)
         {
             var exceptions = new List<Exception>();
@@ -166,7 +210,7 @@ namespace Chr.Avro.Resolution
 
                 if (result.TypeResolution != null)
                 {
-                    if (ResolveReferenceTypesAsNullable && !type.IsValueType)
+                    if (ResolveReferenceTypesAsNullable && !result.TypeResolution.Type.IsValueType)
                     {
                         result.TypeResolution.IsNullable = true;
                     }
@@ -177,45 +221,7 @@ namespace Chr.Avro.Resolution
                 exceptions.AddRange(result.Exceptions);
             }
 
-            throw new UnsupportedTypeException(type, $"No type resolver case could be applied to {type.FullName}.", new AggregateException(exceptions));
+            throw new UnsupportedTypeException(type, $"No type resolver case could be applied to {type}.", new AggregateException(exceptions));
         }
-    }
-
-    /// <summary>
-    /// A base <see cref="ITypeResolutionResult" /> implementation.
-    /// </summary>
-    public class TypeResolutionResult : ITypeResolutionResult
-    {
-        /// <summary>
-        /// Any exceptions related to the applicability of the case. If <see cref="TypeResolution" />
-        /// is not null, these exceptions should be interpreted as warnings.
-        /// </summary>
-        public ICollection<Exception> Exceptions { get; set; } = new List<Exception>();
-
-        /// <summary>
-        /// The result of applying the case. If null, the case was not applied successfully.
-        /// </summary>
-        public TypeResolution? TypeResolution { get; set; }
-    }
-
-    /// <summary>
-    /// A base <see cref="ITypeResolverCase" /> implementation.
-    /// </summary>
-    /// <remarks>
-    /// See the <see cref="TypeResolution" /> class for more information about the resolution
-    /// framework.
-    /// </remarks>
-    public abstract class TypeResolverCase : ITypeResolverCase
-    {
-        /// <summary>
-        /// Resolves information for a .NET type.
-        /// </summary>
-        /// <param name="type">
-        /// The type to resolve.
-        /// </param>
-        /// <returns>
-        /// A resolution result.
-        /// </returns>
-        public abstract ITypeResolutionResult ResolveType(Type type);
     }
 }

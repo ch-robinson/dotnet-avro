@@ -1,7 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../../Chr.Avro.Build.props" />
-
   <PropertyGroup>
     <Description>A tool for working with Avro from the command line</Description>
     <IsPackable>true</IsPackable>

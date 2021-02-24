@@ -1,44 +1,18 @@
-using System.Collections.Generic;
-using Xunit;
-
 namespace Chr.Avro.Representation.Tests
 {
+    using System.Collections.Generic;
+    using Xunit;
+
     public class JsonRepresentationTests
     {
-        protected readonly JsonSchemaReader Reader;
+        private readonly JsonSchemaReader reader;
 
-        protected readonly JsonSchemaWriter Writer;
+        private readonly JsonSchemaWriter writer;
 
         public JsonRepresentationTests()
         {
-            Reader = new JsonSchemaReader();
-            Writer = new JsonSchemaWriter();
-        }
-
-        [Theory]
-        [MemberData(nameof(PrimitiveSchemaRepresentations))]
-        public void AsymmetricRepresentations(string @out, string @in)
-        {
-            Assert.Equal(@out, Writer.Write(Reader.Read(@out)));
-            Assert.Equal(@out, Writer.Write(Reader.Read(@in)));
-        }
-
-        [Theory]
-        [MemberData(nameof(ArraySchemaRepresentations))]
-        [MemberData(nameof(DateLogicalTypeRepresentations))]
-        [MemberData(nameof(DecimalLogicalTypeRepresentations))]
-        [MemberData(nameof(DurationLogicalTypeRepresentations))]
-        [MemberData(nameof(EnumSchemaRepresentations))]
-        [MemberData(nameof(FixedSchemaRepresentations))]
-        [MemberData(nameof(MapSchemaRepresentations))]
-        [MemberData(nameof(RecordSchemaRepresentations))]
-        [MemberData(nameof(TimeLogicalTypeRepresentations))]
-        [MemberData(nameof(TimestampLogicalTypeRepresentations))]
-        [MemberData(nameof(UnionSchemaRepresentations))]
-        [MemberData(nameof(UuidLogicalTypeRepresentations))]
-        public void SymmetricRepresentations(string schema)
-        {
-            Assert.Equal(schema, Writer.Write(Reader.Read(schema)));
+            reader = new JsonSchemaReader();
+            writer = new JsonSchemaWriter();
         }
 
         public static IEnumerable<object[]> ArraySchemaRepresentations => new List<object[]>
@@ -128,5 +102,31 @@ namespace Chr.Avro.Representation.Tests
         {
             new object[] { "{\"type\":\"string\",\"logicalType\":\"uuid\"}" },
         };
+
+        [Theory]
+        [MemberData(nameof(PrimitiveSchemaRepresentations))]
+        public void AsymmetricRepresentations(string @out, string @in)
+        {
+            Assert.Equal(@out, writer.Write(reader.Read(@out)));
+            Assert.Equal(@out, writer.Write(reader.Read(@in)));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArraySchemaRepresentations))]
+        [MemberData(nameof(DateLogicalTypeRepresentations))]
+        [MemberData(nameof(DecimalLogicalTypeRepresentations))]
+        [MemberData(nameof(DurationLogicalTypeRepresentations))]
+        [MemberData(nameof(EnumSchemaRepresentations))]
+        [MemberData(nameof(FixedSchemaRepresentations))]
+        [MemberData(nameof(MapSchemaRepresentations))]
+        [MemberData(nameof(RecordSchemaRepresentations))]
+        [MemberData(nameof(TimeLogicalTypeRepresentations))]
+        [MemberData(nameof(TimestampLogicalTypeRepresentations))]
+        [MemberData(nameof(UnionSchemaRepresentations))]
+        [MemberData(nameof(UuidLogicalTypeRepresentations))]
+        public void SymmetricRepresentations(string schema)
+        {
+            Assert.Equal(schema, writer.Write(reader.Read(schema)));
+        }
     }
 }

@@ -1,72 +1,27 @@
-using System.Collections.Generic;
-using System.IO;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using Xunit;
+
+    using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
+
     public class BinaryWriterTests
     {
-        private readonly MemoryStream _stream;
+        private readonly MemoryStream stream;
 
-        private readonly BinaryWriter _writer;
+        private readonly BinaryWriter writer;
 
         public BinaryWriterTests()
         {
-            _stream = new MemoryStream();
-            _writer = new BinaryWriter(_stream);
-        }
-
-        [Theory]
-        [MemberData(nameof(BooleanEncodings))]
-        public void WritesBooleans(bool value, byte[] encoding)
-        {
-            using (_stream)
-            {
-                _writer.WriteBoolean(value);
-            }
-
-            Assert.Equal(encoding, _stream.ToArray());
-        }
-
-        [Theory]
-        [MemberData(nameof(DoubleEncodings))]
-        public void WritesDoubles(double value, byte[] encoding)
-        {
-            using (_stream)
-            {
-                _writer.WriteDouble(value);
-            }
-
-            Assert.Equal(encoding, _stream.ToArray());
-        }
-
-        [Theory]
-        [MemberData(nameof(IntegerEncodings))]
-        public void WritesIntegers(long value, byte[] encoding)
-        {
-            using (_stream)
-            {
-                _writer.WriteInteger(value);
-            }
-
-            Assert.Equal(encoding, _stream.ToArray());
-        }
-
-        [Theory]
-        [MemberData(nameof(SingleEncodings))]
-        public void WritesSingles(float value, byte[] encoding)
-        {
-            using (_stream)
-            {
-                _writer.WriteSingle(value);
-            }
-
-            Assert.Equal(encoding, _stream.ToArray());
+            stream = new MemoryStream();
+            writer = new BinaryWriter(stream);
         }
 
         public static IEnumerable<object[]> BlockEncodings => new List<object[]>
         {
-            new object[] { new byte[] { }, new byte[] { 0x00 } },
+            new object[] { Array.Empty<byte>(), new byte[] { 0x00 } },
             new object[] { new byte[] { 0x00, 0x01, 0x02 }, new byte[] { 0x06, 0x00, 0x01, 0x02, 0x00 } },
         };
 
@@ -127,5 +82,53 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { float.MaxValue, new byte[] { 0xff, 0xff, 0x7f, 0x7f } },
             new object[] { float.PositiveInfinity, new byte[] { 0x00, 0x00, 0x80, 0x7f } },
         };
+
+        [Theory]
+        [MemberData(nameof(BooleanEncodings))]
+        public void WritesBooleans(bool value, byte[] encoding)
+        {
+            using (stream)
+            {
+                writer.WriteBoolean(value);
+            }
+
+            Assert.Equal(encoding, stream.ToArray());
+        }
+
+        [Theory]
+        [MemberData(nameof(DoubleEncodings))]
+        public void WritesDoubles(double value, byte[] encoding)
+        {
+            using (stream)
+            {
+                writer.WriteDouble(value);
+            }
+
+            Assert.Equal(encoding, stream.ToArray());
+        }
+
+        [Theory]
+        [MemberData(nameof(IntegerEncodings))]
+        public void WritesIntegers(long value, byte[] encoding)
+        {
+            using (stream)
+            {
+                writer.WriteInteger(value);
+            }
+
+            Assert.Equal(encoding, stream.ToArray());
+        }
+
+        [Theory]
+        [MemberData(nameof(SingleEncodings))]
+        public void WritesSingles(float value, byte[] encoding)
+        {
+            using (stream)
+            {
+                writer.WriteSingle(value);
+            }
+
+            Assert.Equal(encoding, stream.ToArray());
+        }
     }
 }

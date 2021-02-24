@@ -1,9 +1,9 @@
-using System;
-
 namespace Chr.Avro.Abstract
 {
+    using System;
+
     /// <summary>
-    /// An exception thrown when a name does not conform to the Avro naming rules.
+    /// The exception thrown when a name does not conform to the Avro naming rules.
     /// </summary>
     /// <remarks>
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#names">Avro spec</a>
@@ -13,19 +13,20 @@ namespace Chr.Avro.Abstract
     public class InvalidNameException : Exception
     {
         /// <summary>
-        /// The name that caused the exception to be thrown.
-        /// </summary>
-        public string Name { get; private set; }
-
-        /// <summary>
-        /// Creates an exception describing an invalid name.
+        /// Initializes a new instance of the <see cref="InvalidNameException" /> class.
         /// </summary>
         /// <param name="name">
         /// The invalid name.
         /// </param>
-        public InvalidNameException(string name) : base($"\"{name}\" is not a valid Avro name.")
+        public InvalidNameException(string name)
+            : base($"\"{name}\" is not a valid Avro name.")
         {
-            Name = name;
+            Name = name ?? throw new ArgumentNullException(nameof(name), "Name cannot be null.");
         }
+
+        /// <summary>
+        /// Gets the name that caused the exception to be thrown.
+        /// </summary>
+        public string Name { get; private set; }
     }
 }

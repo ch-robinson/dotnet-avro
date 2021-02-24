@@ -1,21 +1,34 @@
-using System;
-using System.Reflection;
-
 namespace Chr.Avro.Resolution
 {
+    using System;
+    using System.Reflection;
+
     /// <summary>
-    /// Contains resolved information about a constructor or method parameter.
+    /// Represents resolved information about a constructor or method parameter.
     /// </summary>
     public class ParameterResolution
     {
-        private ParameterInfo parameter = null!;
+        private ParameterInfo parameter = default!;
 
-        private IdentifierResolution name = null!;
-
-        private Type type = null!;
+        private IdentifierResolution name = default!;
 
         /// <summary>
-        /// The resolved parameter reflection info.
+        /// Initializes a new instance of the <see cref="ParameterResolution" /> class.
+        /// </summary>
+        /// <param name="parameter">
+        /// The resolved <see cref="ParameterInfo" />.
+        /// </param>
+        /// <param name="name">
+        /// The parameter name.
+        /// </param>
+        public ParameterResolution(ParameterInfo parameter, IdentifierResolution name)
+        {
+            Parameter = parameter;
+            Name = name;
+        }
+
+        /// <summary>
+        /// Gets or sets the resolved <see cref="ParameterInfo" />.
         /// </summary>
         public virtual ParameterInfo Parameter
         {
@@ -23,6 +36,7 @@ namespace Chr.Avro.Resolution
             {
                 return parameter ?? throw new InvalidOperationException();
             }
+
             set
             {
                 parameter = value ?? throw new ArgumentNullException(nameof(value), "Parameter reflection info cannot be null.");
@@ -30,7 +44,7 @@ namespace Chr.Avro.Resolution
         }
 
         /// <summary>
-        /// The parameter name.
+        /// Gets or sets the parameter name.
         /// </summary>
         public virtual IdentifierResolution Name
         {
@@ -38,44 +52,11 @@ namespace Chr.Avro.Resolution
             {
                 return name ?? throw new InvalidOperationException();
             }
+
             set
             {
                 name = value ?? throw new ArgumentNullException(nameof(value), "Parameter name cannot be null.");
             }
-        }
-
-        /// <summary>
-        /// The parameter type.
-        /// </summary>
-        public virtual Type Type
-        {
-            get
-            {
-                return type ?? throw new InvalidOperationException();
-            }
-            set
-            {
-                type = value ?? throw new ArgumentNullException(nameof(value), "Parameter type cannot be null.");
-            }
-        }
-
-        /// <summary>
-        /// Creates a new parameter resolution.
-        /// </summary>
-        /// <param name="parameter">
-        /// The resolved parameter reflection info.
-        /// </param>
-        /// <param name="type">
-        /// The parameter type.
-        /// </param>
-        /// <param name="name">
-        /// The parameter name.
-        /// </param>
-        public ParameterResolution(ParameterInfo parameter, Type type, IdentifierResolution name)
-        {
-            Parameter = parameter;
-            Name = name;
-            Type = type;
         }
     }
 }

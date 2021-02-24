@@ -1,64 +1,12 @@
-using System;
-using System.Collections.Generic;
-using Xunit;
-using Xunit.Sdk;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System;
+    using System.Collections.Generic;
+    using Xunit;
+    using Xunit.Sdk;
+
     public class BinaryReaderTests
     {
-        [Theory]
-        [MemberData(nameof(BooleanEncodings))]
-        [InlineData(true, new byte[] { 0x02 })]
-        public void ReadsBooleans(bool value, byte[] encoding)
-        {
-            var reader = new BinaryReader(encoding);
-            Assert.Equal(value, reader.ReadBoolean());
-        }
-
-        [Theory]
-        [MemberData(nameof(DoubleEncodings))]
-        public void ReadsDoubles(double value, byte[] encoding)
-        {
-            var reader = new BinaryReader(encoding);
-            Assert.Equal(value, reader.ReadDouble());
-        }
-
-        [Theory]
-        [MemberData(nameof(Int64Encodings))]
-        public void ReadsIntegers(long value, byte[] encoding)
-        {
-            var reader = new BinaryReader(encoding);
-            Assert.Equal(value, reader.ReadInteger());
-        }
-
-        [Theory]
-        [MemberData(nameof(SingleEncodings))]
-        public void ReadsSingles(float value, byte[] encoding)
-        {
-            var reader = new BinaryReader(encoding);
-            Assert.Equal(value, reader.ReadSingle());
-        }
-
-        [Theory]
-        [InlineData(new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01 })]
-        public void ThrowsOnIntegerOverflow(byte[] encoding)
-        {
-            var reader = new BinaryReader(encoding);
-
-            try
-            {
-                var result = reader.ReadInteger();
-
-                // since the reader is a ref struct, can't do Assert.Throws
-                throw new ThrowsException(typeof(OverflowException));
-            }
-            catch (OverflowException)
-            {
-                //
-            }
-        }
-
         public static IEnumerable<object[]> BooleanEncodings => new object[][]
         {
             new object[] { false, new byte[] { 0x00 } },
@@ -105,5 +53,56 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { float.MaxValue, new byte[] { 0xff, 0xff, 0x7f, 0x7f } },
             new object[] { float.PositiveInfinity, new byte[] { 0x00, 0x00, 0x80, 0x7f } },
         };
+
+        [Theory]
+        [MemberData(nameof(BooleanEncodings))]
+        [InlineData(true, new byte[] { 0x02 })]
+        public void ReadsBooleans(bool value, byte[] encoding)
+        {
+            var reader = new BinaryReader(encoding);
+            Assert.Equal(value, reader.ReadBoolean());
+        }
+
+        [Theory]
+        [MemberData(nameof(DoubleEncodings))]
+        public void ReadsDoubles(double value, byte[] encoding)
+        {
+            var reader = new BinaryReader(encoding);
+            Assert.Equal(value, reader.ReadDouble());
+        }
+
+        [Theory]
+        [MemberData(nameof(Int64Encodings))]
+        public void ReadsIntegers(long value, byte[] encoding)
+        {
+            var reader = new BinaryReader(encoding);
+            Assert.Equal(value, reader.ReadInteger());
+        }
+
+        [Theory]
+        [MemberData(nameof(SingleEncodings))]
+        public void ReadsSingles(float value, byte[] encoding)
+        {
+            var reader = new BinaryReader(encoding);
+            Assert.Equal(value, reader.ReadSingle());
+        }
+
+        [Theory]
+        [InlineData(new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01 })]
+        public void ThrowsOnIntegerOverflow(byte[] encoding)
+        {
+            var reader = new BinaryReader(encoding);
+
+            try
+            {
+                var result = reader.ReadInteger();
+
+                // since the reader is a ref struct, can't do Assert.Throws
+                throw new ThrowsException(typeof(InvalidEncodingException));
+            }
+            catch (InvalidEncodingException)
+            {
+            }
+        }
     }
 }

@@ -1,11 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../../Chr.Avro.Build.props" />
-
   <PropertyGroup>
     <Description>Experimental utilities to generate code from Avro schemas</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>

@@ -1,26 +1,33 @@
-using Chr.Avro.Abstract;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text.Json;
+    using Chr.Avro.Abstract;
+    using Xunit;
+
     public class TimestampSerializationTests
     {
-        private readonly IJsonDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder deserializerBuilder;
 
-        private readonly IJsonSerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream _stream;
+        private readonly MemoryStream stream;
 
         public TimestampSerializationTests()
         {
-            _deserializerBuilder = new JsonDeserializerBuilder();
-            _serializerBuilder = new JsonSerializerBuilder();
-            _stream = new MemoryStream();
+            deserializerBuilder = new JsonDeserializerBuilder();
+            serializerBuilder = new JsonSerializerBuilder();
+            stream = new MemoryStream();
         }
+
+        public static IEnumerable<object[]> DateTimes => new List<object[]>
+        {
+            new object[] { new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+            new object[] { new DateTime(1969, 12, 31, 23, 59, 59, 999, DateTimeKind.Utc) },
+            new object[] { new DateTime(1970, 1, 1, 0, 0, 0, 1, DateTimeKind.Utc) },
+        };
 
         [Theory]
         [MemberData(nameof(DateTimes))]
@@ -28,18 +35,18 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema()
             {
-                LogicalType = new MicrosecondTimestampLogicalType()
+                LogicalType = new MicrosecondTimestampLogicalType(),
             };
 
-            var deserialize = _deserializerBuilder.BuildDelegate<DateTime>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<DateTime>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<DateTime>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTime>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -50,18 +57,18 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema()
             {
-                LogicalType = new MicrosecondTimestampLogicalType()
+                LogicalType = new MicrosecondTimestampLogicalType(),
             };
 
-            var deserialize = _deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -72,18 +79,18 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema()
             {
-                LogicalType = new MillisecondTimestampLogicalType()
+                LogicalType = new MillisecondTimestampLogicalType(),
             };
 
-            var deserialize = _deserializerBuilder.BuildDelegate<DateTime>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<DateTime>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<DateTime>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTime>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -94,27 +101,20 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema()
             {
-                LogicalType = new MillisecondTimestampLogicalType()
+                LogicalType = new MillisecondTimestampLogicalType(),
             };
 
-            var deserialize = _deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
-
-        public static IEnumerable<object[]> DateTimes => new List<object[]>
-        {
-            new object[] { new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-            new object[] { new DateTime(1969, 12, 31, 23, 59, 59, 999, DateTimeKind.Utc) },
-            new object[] { new DateTime(1970, 1, 1, 0, 0, 0, 1, DateTimeKind.Utc) },
-        };
     }
 }

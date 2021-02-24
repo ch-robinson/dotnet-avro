@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Chr.Avro\Chr.Avro.csproj" />
+    <ProjectReference Include="..\..\src\Chr.Avro.Fixtures\Chr.Avro.Fixtures.csproj" />
   </ItemGroup>
 
 </Project>

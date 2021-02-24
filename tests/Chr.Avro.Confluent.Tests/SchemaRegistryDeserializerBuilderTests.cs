@@ -1,19 +1,19 @@
-using Confluent.Kafka;
-using Confluent.SchemaRegistry;
-using Moq;
-using System.IO;
-using System.Threading.Tasks;
-using Xunit;
-
 namespace Chr.Avro.Confluent.Tests
 {
+    using System.IO;
+    using System.Threading.Tasks;
+    using global::Confluent.Kafka;
+    using global::Confluent.SchemaRegistry;
+    using Moq;
+    using Xunit;
+
     public class SchemaRegistryDeserializerBuilderTests
     {
-        protected readonly Mock<ISchemaRegistryClient> RegistryMock;
+        private readonly Mock<ISchemaRegistryClient> registryMock;
 
         public SchemaRegistryDeserializerBuilderTests()
         {
-            RegistryMock = new Mock<ISchemaRegistryClient>(MockBehavior.Strict);
+            registryMock = new Mock<ISchemaRegistryClient>(MockBehavior.Strict);
         }
 
         [Fact]
@@ -22,17 +22,16 @@ namespace Chr.Avro.Confluent.Tests
             var id = 6;
             var json = @"[""null"",""int""]";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
                 .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                await builder.Build<int?>(id);
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
 
-                RegistryMock.Verify();
-                RegistryMock.VerifyNoOtherCalls();
-            }
+            await builder.Build<int?>(id);
+
+            registryMock.Verify();
+            registryMock.VerifyNoOtherCalls();
         }
 
         [Fact]
@@ -43,17 +42,16 @@ namespace Chr.Avro.Confluent.Tests
             var subject = "test-subject";
             var version = 4;
 
-            RegistryMock.Setup(r => r.GetLatestSchemaAsync(subject))
+            registryMock.Setup(r => r.GetLatestSchemaAsync(subject))
                 .ReturnsAsync(new RegisteredSchema(subject, version, id, json, SchemaType.Avro, null))
                 .Verifiable();
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                await builder.Build<string>(subject);
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
 
-                RegistryMock.Verify();
-                RegistryMock.VerifyNoOtherCalls();
-            }
+            await builder.Build<string>(subject);
+
+            registryMock.Verify();
+            registryMock.VerifyNoOtherCalls();
         }
 
         [Fact]
@@ -64,21 +62,20 @@ namespace Chr.Avro.Confluent.Tests
             var subject = "test-subject";
             var version = 4;
 
-            RegistryMock.Setup(r => r.GetRegisteredSchemaAsync(subject, version))
+            registryMock.Setup(r => r.GetRegisteredSchemaAsync(subject, version))
                 .ReturnsAsync(new RegisteredSchema(subject, version, id, json, SchemaType.Avro, null))
                 .Verifiable();
 
-            RegistryMock.Setup(r => r.GetSchemaIdAsync(subject, It.Is<Schema>(s => s.SchemaString == json)))
+            registryMock.Setup(r => r.GetSchemaIdAsync(subject, It.Is<Schema>(s => s.SchemaString == json)))
                 .ReturnsAsync(id)
                 .Verifiable();
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                await builder.Build<string>(subject, version);
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
 
-                RegistryMock.Verify();
-                RegistryMock.VerifyNoOtherCalls();
-            }
+            await builder.Build<string>(subject, version);
+
+            registryMock.Verify();
+            registryMock.VerifyNoOtherCalls();
         }
 
         [Theory]
@@ -89,18 +86,17 @@ namespace Chr.Avro.Confluent.Tests
             var id = 12;
             var json = @"""string""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
                 .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             var context = new SerializationContext(MessageComponentType.Value, "test-topic");
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                var deserializer = await builder.Build<string>(id);
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
 
-                Assert.Equal(data, deserializer.Deserialize(encoding, false, context));
-            }
+            var deserializer = await builder.Build<string>(id);
+
+            Assert.Equal(data, deserializer.Deserialize(encoding, false, context));
         }
 
         [Fact]
@@ -109,15 +105,14 @@ namespace Chr.Avro.Confluent.Tests
             var id = 4;
             var json = @"""int""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
                 .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                await Assert.ThrowsAsync<UnsupportedTypeException>(
-                    () => builder.Build<int>(id, TombstoneBehavior.Strict));
-            }
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
+
+            await Assert.ThrowsAsync<UnsupportedTypeException>(
+                () => builder.Build<int>(id, TombstoneBehavior.Strict));
         }
 
         [Fact]
@@ -126,15 +121,14 @@ namespace Chr.Avro.Confluent.Tests
             var id = 1;
             var json = @"""null""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
                 .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                await Assert.ThrowsAsync<UnsupportedSchemaException>(
-                    () => builder.Build<int?>(id, TombstoneBehavior.Strict));
-            }
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
+
+            await Assert.ThrowsAsync<UnsupportedSchemaException>(
+                () => builder.Build<int?>(id, TombstoneBehavior.Strict));
         }
 
         [Fact]
@@ -143,15 +137,14 @@ namespace Chr.Avro.Confluent.Tests
             var id = 6;
             var json = @"[""null"",""int""]";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
                 .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                await Assert.ThrowsAsync<UnsupportedSchemaException>(
-                    () => builder.Build<int?>(id, TombstoneBehavior.Strict));
-            }
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
+
+            await Assert.ThrowsAsync<UnsupportedSchemaException>(
+                () => builder.Build<int?>(id, TombstoneBehavior.Strict));
         }
 
         [Theory]
@@ -161,19 +154,18 @@ namespace Chr.Avro.Confluent.Tests
             var id = 12;
             var json = @"""string""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
                 .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             var context = new SerializationContext(MessageComponentType.Value, "test-topic");
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                var deserializer = await builder.Build<string>(id);
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
 
-                Assert.Throws<InvalidDataException>(
-                    () => deserializer.Deserialize(encoding, false, context));
-            }
+            var deserializer = await builder.Build<string>(id);
+
+            Assert.Throws<InvalidEncodingException>(
+                () => deserializer.Deserialize(encoding, false, context));
         }
 
         [Theory]
@@ -184,19 +176,18 @@ namespace Chr.Avro.Confluent.Tests
             var id = 12;
             var json = @"""string""";
 
-            RegistryMock.Setup(r => r.GetSchemaAsync(id, null))
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
                 .ReturnsAsync(new Schema(json, SchemaType.Avro))
                 .Verifiable();
 
             var context = new SerializationContext(MessageComponentType.Value, "test-topic");
 
-            using (var builder = new SchemaRegistryDeserializerBuilder(RegistryMock.Object))
-            {
-                var deserializer = await builder.Build<string>(id);
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
 
-                Assert.Throws<InvalidDataException>(() =>
-                    deserializer.Deserialize(encoding, false, context));
-            }
+            var deserializer = await builder.Build<string>(id);
+
+            Assert.Throws<InvalidEncodingException>(() =>
+                deserializer.Deserialize(encoding, false, context));
         }
     }
 }

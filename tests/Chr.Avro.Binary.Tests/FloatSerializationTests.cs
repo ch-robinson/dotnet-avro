@@ -1,22 +1,25 @@
-using Chr.Avro.Abstract;
-using System.IO;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System.IO;
+    using Chr.Avro.Abstract;
+    using Xunit;
+
+    using BinaryReader = Chr.Avro.Serialization.BinaryReader;
+    using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
+
     public class FloatSerializationTests
     {
-        private readonly IBinaryDeserializerBuilder _deserializerBuilder;
+        private readonly IBinaryDeserializerBuilder deserializerBuilder;
 
-        private readonly IBinarySerializerBuilder _serializerBuilder;
+        private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream _stream;
+        private readonly MemoryStream stream;
 
         public FloatSerializationTests()
         {
-            _deserializerBuilder = new BinaryDeserializerBuilder();
-            _serializerBuilder = new BinarySerializerBuilder();
-            _stream = new MemoryStream();
+            deserializerBuilder = new BinaryDeserializerBuilder();
+            serializerBuilder = new BinarySerializerBuilder();
+            stream = new MemoryStream();
         }
 
         [Theory]
@@ -27,15 +30,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new FloatSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<float>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<int>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<float>(schema);
+            var serialize = serializerBuilder.BuildDelegate<int>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new BinaryWriter(stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new BinaryReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -51,15 +54,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new FloatSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<float>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<float>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<float>(schema);
+            var serialize = serializerBuilder.BuildDelegate<float>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new BinaryWriter(_stream));
+                serialize(value, new BinaryWriter(stream));
             }
 
-            var reader = new BinaryReader(_stream.ToArray());
+            var reader = new BinaryReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }

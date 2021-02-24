@@ -1,0 +1,31 @@
+<Project>
+
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)\Chr.Avro.snk</AssemblyOriginatorKeyFile>
+    <AssemblyVersion>7.0.0.0</AssemblyVersion>
+    <Authors>C.H. Robinson</Authors>
+    <Company>C.H. Robinson</Company>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <IncludeSymbols>true</IncludeSymbols>
+    <LangVersion>9.0</LangVersion>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/ch-robinson/dotnet-avro</RepositoryUrl>
+    <SignAssembly>true</SignAssembly>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Version>7.0.4</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
+      <IncludeAssets>Analyzers</IncludeAssets>
+      <PrivateAssets>All</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)\docs\static\nuget-icon.png" Pack="true" PackagePath="icon.png" />
+    <None Include="$(MSBuildThisFileDirectory)\LICENSE.md" Pack="true" PackagePath="LICENSE.md" />
+  </ItemGroup>
+
+</Project>

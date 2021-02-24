@@ -1,18 +1,34 @@
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-
 namespace Chr.Avro.Resolution
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Reflection;
+
     /// <summary>
-    /// Contains resolved information about a constructor.
+    /// Represents resolved information about a constructor.
     /// </summary>
     public class ConstructorResolution
     {
-        private ConstructorInfo constructor = null!;
+        private ConstructorInfo constructor = default!;
 
         /// <summary>
-        /// The resolved constructor reflection info.
+        /// Initializes a new instance of the <see cref="ConstructorResolution" /> class.
+        /// </summary>
+        /// <param name="constructor">
+        /// The resolved <see cref="ConstructorInfo" />.
+        /// </param>
+        /// <param name="parameters">
+        /// The resolved <see cref="ParameterResolution" />s.
+        /// </param>
+        public ConstructorResolution(ConstructorInfo constructor, IEnumerable<ParameterResolution>? parameters = null)
+        {
+            Constructor = constructor;
+            Parameters = parameters?.ToList() ?? new List<ParameterResolution>();
+        }
+
+        /// <summary>
+        /// Gets or sets the resolved <see cref="ConstructorInfo" />.
         /// </summary>
         public virtual ConstructorInfo Constructor
         {
@@ -20,6 +36,7 @@ namespace Chr.Avro.Resolution
             {
                 return constructor ?? throw new InvalidOperationException();
             }
+
             set
             {
                 constructor = value ?? throw new ArgumentNullException(nameof(value), "Constructor reflection info cannot be null.");
@@ -27,23 +44,8 @@ namespace Chr.Avro.Resolution
         }
 
         /// <summary>
-        /// The constructors parameters.
+        /// Gets or sets the resolved <see cref="ParameterResolution" />s.
         /// </summary>
         public virtual ICollection<ParameterResolution> Parameters { get; set; }
-
-        /// <summary>
-        /// Creates a new constructor resolution.
-        /// </summary>
-        /// <param name="constructor">
-        /// The resolved constructor reflection info.
-        /// </param>
-        /// <param name="parameters">
-        /// The constructors parameters.
-        /// </param>
-        public ConstructorResolution(ConstructorInfo constructor, ICollection<ParameterResolution>? parameters = null)
-        {
-            Constructor = constructor;
-            Parameters = parameters ?? new List<ParameterResolution>();
-        }
     }
 }

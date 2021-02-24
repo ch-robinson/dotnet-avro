@@ -1,40 +1,48 @@
-using Chr.Avro.Abstract;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text.Json;
+    using Chr.Avro.Abstract;
+    using Xunit;
+
     public class DurationSerializationTests
     {
-        private readonly IJsonDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder deserializerBuilder;
 
-        private readonly IJsonSerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream _stream;
+        private readonly MemoryStream stream;
 
         public DurationSerializationTests()
         {
-            _deserializerBuilder = new JsonDeserializerBuilder();
-            _serializerBuilder = new JsonSerializerBuilder();
-            _stream = new MemoryStream();
+            deserializerBuilder = new JsonDeserializerBuilder();
+            serializerBuilder = new JsonSerializerBuilder();
+            stream = new MemoryStream();
         }
+
+        public static IEnumerable<object[]> TimeSpans => new List<object[]>
+        {
+            new object[] { TimeSpan.Zero },
+            new object[] { new TimeSpan(0, 0, 0, 0, 1) },
+            new object[] { new TimeSpan(1, 0, 0, 0) },
+            new object[] { TimeSpan.MaxValue.Subtract(TimeSpan.FromTicks(TimeSpan.MaxValue.Ticks % TimeSpan.TicksPerMillisecond)) },
+        };
 
         [Fact]
         public void NegativeTimeSpanValues()
         {
             var schema = new FixedSchema("duration", DurationLogicalType.DurationSize)
             {
-                LogicalType = new DurationLogicalType()
+                LogicalType = new DurationLogicalType(),
             };
 
-            var serialize = _serializerBuilder.BuildDelegate<TimeSpan>(schema);
+            var serialize = serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                Assert.Throws<OverflowException>(() => serialize(TimeSpan.FromMilliseconds(-1), new Utf8JsonWriter(_stream)));
+                Assert.Throws<OverflowException>(() => serialize(TimeSpan.FromMilliseconds(-1), new Utf8JsonWriter(stream)));
             }
         }
 
@@ -44,18 +52,18 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new FixedSchema("duration", DurationLogicalType.DurationSize)
             {
-                LogicalType = new DurationLogicalType()
+                LogicalType = new DurationLogicalType(),
             };
 
-            var deserialize = _deserializerBuilder.BuildDelegate<TimeSpan>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<TimeSpan>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<TimeSpan>(schema);
+            var serialize = serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -66,28 +74,20 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new FixedSchema("duration", DurationLogicalType.DurationSize)
             {
-                LogicalType = new DurationLogicalType()
+                LogicalType = new DurationLogicalType(),
             };
 
-            var deserialize = _deserializerBuilder.BuildDelegate<TimeSpan?>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<TimeSpan>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<TimeSpan?>(schema);
+            var serialize = serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
-
-        public static IEnumerable<object[]> TimeSpans => new List<object[]>
-        {
-            new object[] { TimeSpan.Zero },
-            new object[] { new TimeSpan(0, 0, 0, 0, 1) },
-            new object[] { new TimeSpan(1, 0, 0, 0) },
-            new object[] { TimeSpan.MaxValue.Subtract(TimeSpan.FromTicks(TimeSpan.MaxValue.Ticks % TimeSpan.TicksPerMillisecond)) }
-        };
     }
 }

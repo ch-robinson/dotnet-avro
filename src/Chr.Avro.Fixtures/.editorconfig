@@ -1,0 +1,4 @@
+[*.cs]
+dotnet_diagnostic.SA0001.severity = none  # no XML documentation for fixture projects
+dotnet_diagnostic.SA1600.severity = none  # no need to document fixture elements
+dotnet_diagnostic.SA1602.severity = none  # no need to document fixture enum members

@@ -1,23 +1,23 @@
-using Chr.Avro.Abstract;
-using System.IO;
-using System.Text.Json;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System.IO;
+    using System.Text.Json;
+    using Chr.Avro.Abstract;
+    using Xunit;
+
     public class BooleanSerializationTests
     {
-        private readonly IJsonDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder deserializerBuilder;
 
-        private readonly IJsonSerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream _stream;
+        private readonly MemoryStream stream;
 
         public BooleanSerializationTests()
         {
-            _deserializerBuilder = new JsonDeserializerBuilder();
-            _serializerBuilder = new JsonSerializerBuilder();
-            _stream = new MemoryStream();
+            deserializerBuilder = new JsonDeserializerBuilder();
+            serializerBuilder = new JsonSerializerBuilder();
+            stream = new MemoryStream();
         }
 
         [Theory]
@@ -27,15 +27,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new BooleanSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<bool>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<bool>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<bool>(schema);
+            var serialize = serializerBuilder.BuildDelegate<bool>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }

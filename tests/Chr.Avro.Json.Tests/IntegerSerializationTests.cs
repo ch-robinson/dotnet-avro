@@ -1,25 +1,25 @@
-using Chr.Avro.Abstract;
-using System;
-using System.IO;
-using System.Text.Json;
-using Xunit;
-using Xunit.Sdk;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System;
+    using System.IO;
+    using System.Text.Json;
+    using Chr.Avro.Abstract;
+    using Xunit;
+    using Xunit.Sdk;
+
     public class IntegerSerializationTests
     {
-        private readonly IJsonDeserializerBuilder _deserializerBuilder;
+        private readonly IJsonDeserializerBuilder deserializerBuilder;
 
-        private readonly IJsonSerializerBuilder _serializerBuilder;
+        private readonly IJsonSerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream _stream;
+        private readonly MemoryStream stream;
 
         public IntegerSerializationTests()
         {
-            _deserializerBuilder = new JsonDeserializerBuilder();
-            _serializerBuilder = new JsonSerializerBuilder();
-            _stream = new MemoryStream();
+            deserializerBuilder = new JsonDeserializerBuilder();
+            serializerBuilder = new JsonSerializerBuilder();
+            stream = new MemoryStream();
         }
 
         [Theory]
@@ -29,15 +29,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<byte>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<byte>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<byte>(schema);
+            var serialize = serializerBuilder.BuildDelegate<byte>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -50,15 +50,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<DateTimeKind>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<DateTimeKind>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<DateTimeKind>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTimeKind>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -71,15 +71,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<short>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<short>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<short>(schema);
+            var serialize = serializerBuilder.BuildDelegate<short>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -92,15 +92,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<int>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<int>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<int>(schema);
+            var serialize = serializerBuilder.BuildDelegate<int>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -113,15 +113,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<long>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<long>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<long>(schema);
+            var serialize = serializerBuilder.BuildDelegate<long>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -131,17 +131,17 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<int>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<ulong>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<int>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ulong>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                Assert.Throws<OverflowException>(() => serialize(ulong.MaxValue, new Utf8JsonWriter(_stream)));
+                Assert.Throws<OverflowException>(() => serialize(ulong.MaxValue, new Utf8JsonWriter(stream)));
 
-                serialize((ulong)int.MaxValue + 1, new Utf8JsonWriter(_stream));
+                serialize((ulong)int.MaxValue + 1, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             try
             {
@@ -152,7 +152,6 @@ namespace Chr.Avro.Serialization.Tests
             }
             catch (OverflowException)
             {
-                //
             }
         }
 
@@ -164,15 +163,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<sbyte>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<sbyte>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<sbyte>(schema);
+            var serialize = serializerBuilder.BuildDelegate<sbyte>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -184,15 +183,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new IntSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<ushort>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<ushort>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<ushort>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ushort>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -204,15 +203,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<uint>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<uint>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<uint>(schema);
+            var serialize = serializerBuilder.BuildDelegate<uint>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -224,15 +223,15 @@ namespace Chr.Avro.Serialization.Tests
         {
             var schema = new LongSchema();
 
-            var deserialize = _deserializerBuilder.BuildDelegate<ulong>(schema);
-            var serialize = _serializerBuilder.BuildDelegate<ulong>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<ulong>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ulong>(schema);
 
-            using (_stream)
+            using (stream)
             {
-                serialize(value, new Utf8JsonWriter(_stream));
+                serialize(value, new Utf8JsonWriter(stream));
             }
 
-            var reader = new Utf8JsonReader(_stream.ToArray());
+            var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
