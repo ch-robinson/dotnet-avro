@@ -4,8 +4,8 @@ namespace Chr.Avro.Serialization
     using System.Collections.Generic;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Reflection;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Builds binary Avro deserializers for .NET <see cref="Type" />s.
@@ -16,13 +16,12 @@ namespace Chr.Avro.Serialization
         /// Initializes a new instance of the <see cref="BinaryDeserializerBuilder" /> class
         /// configured with the default list of cases.
         /// </summary>
-        /// <param name="resolver">
-        /// The <see cref="ITypeResolver" /> that should be used to retrieve type information. If
-        /// no <see cref="ITypeResolver" /> is provided, the <see cref="BinaryDeserializerBuilder" />
-        /// will use a <see cref="TypeResolver" /> with the default set of cases.
+        /// <param name="memberVisibility">
+        /// The binding flags the builder should use to select fields and properties.
         /// </param>
-        public BinaryDeserializerBuilder(ITypeResolver? resolver = default)
-            : this(CreateDefaultCaseBuilders(), resolver)
+        public BinaryDeserializerBuilder(
+            BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance)
+            : this(CreateDefaultCaseBuilders(memberVisibility))
         {
         }
 
@@ -33,19 +32,12 @@ namespace Chr.Avro.Serialization
         /// <param name="caseBuilders">
         /// A list of case builders.
         /// </param>
-        /// <param name="resolver">
-        /// The <see cref="ITypeResolver" /> that should be used to retrieve type information. If
-        /// no <see cref="ITypeResolver" /> is provided, the <see cref="BinaryDeserializerBuilder" />
-        /// will use a <see cref="TypeResolver" /> with the default set of cases.
-        /// </param>
         public BinaryDeserializerBuilder(
-            IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> caseBuilders,
-            ITypeResolver? resolver = default)
+            IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> caseBuilders)
         {
             var cases = new List<IBinaryDeserializerBuilderCase>();
 
             Cases = cases;
-            Resolver = resolver ?? new TypeResolver();
 
             foreach (var builder in caseBuilders)
             {
@@ -61,17 +53,16 @@ namespace Chr.Avro.Serialization
         public IEnumerable<IBinaryDeserializerBuilderCase> Cases { get; }
 
         /// <summary>
-        /// Gets the resolver that will be used to retrieve type information.
-        /// </summary>
-        public ITypeResolver Resolver { get; }
-
-        /// <summary>
         /// Creates the default list of case builders.
         /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags to use to select fields and properties.
+        /// </param>
         /// <returns>
-        /// A list of case builders that matches most <see cref="TypeResolution" />s.
+        /// A list of case builders that matches most <see cref="Type" />s.
         /// </returns>
-        public static IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> CreateDefaultCaseBuilders()
+        public static IEnumerable<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> CreateDefaultCaseBuilders(
+            BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance)
         {
             return new Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>[]
             {
@@ -99,7 +90,7 @@ namespace Chr.Avro.Serialization
                 builder => new BinaryEnumDeserializerBuilderCase(),
 
                 // records:
-                builder => new BinaryRecordDeserializerBuilderCase(builder),
+                builder => new BinaryRecordDeserializerBuilderCase(builder, memberVisibility),
 
                 // unions:
                 builder => new BinaryUnionDeserializerBuilderCase(builder),
@@ -141,12 +132,11 @@ namespace Chr.Avro.Serialization
         /// <inheritdoc />
         public virtual Expression BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
-            var resolution = Resolver.ResolveType(type);
             var exceptions = new List<Exception>();
 
             foreach (var @case in Cases)
             {
-                var result = @case.BuildExpression(resolution, schema, context);
+                var result = @case.BuildExpression(type, schema, context);
 
                 if (result.Expression != null)
                 {
@@ -156,7 +146,7 @@ namespace Chr.Avro.Serialization
                 exceptions.AddRange(result.Exceptions);
             }
 
-            throw new UnsupportedTypeException(resolution.Type, $"No deserializer builder case could be applied to {resolution.Type} (as {resolution.GetType().Name}).", new AggregateException(exceptions));
+            throw new UnsupportedTypeException(type, $"No deserializer builder case could be applied to {type}.", new AggregateException(exceptions));
         }
     }
 }

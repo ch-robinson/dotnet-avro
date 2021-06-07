@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinarySerializerBuilder" /> case that matches <see cref="DurationLogicalType" />
@@ -16,8 +15,7 @@ namespace Chr.Avro.Serialization
         /// </summary>
         /// <returns>
         /// A successful <see cref="BinarySerializerBuilderCaseResult" /> if <paramref name="schema" />
-        /// has a <see cref="DurationLogicalType" /> and <paramref name="resolution" /> is a
-        /// <see cref="DurationResolution" />; an unsuccessful <see cref="BinarySerializerBuilderCaseResult" />
+        /// has a <see cref="DurationLogicalType" />; an unsuccessful <see cref="BinarySerializerBuilderCaseResult" />
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
@@ -25,67 +23,60 @@ namespace Chr.Avro.Serialization
         /// <c>12</c>.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> cannot be converted to <see cref="TimeSpan" />.
+        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="TimeSpan" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (schema.LogicalType is DurationLogicalType)
             {
-                if (resolution is DurationResolution)
+                if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == 12))
                 {
-                    if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == 12))
+                    throw new UnsupportedSchemaException(schema);
+                }
+
+                Expression Write(Expression value)
+                {
+                    var getBytes = typeof(BitConverter)
+                        .GetMethod(nameof(BitConverter.GetBytes), new[] { value.Type });
+
+                    Expression bytes = Expression.Call(null, getBytes, value);
+
+                    if (!BitConverter.IsLittleEndian)
                     {
-                        throw new UnsupportedSchemaException(schema);
+                        var buffer = Expression.Variable(bytes.Type);
+                        var reverse = typeof(Array)
+                            .GetMethod(nameof(Array.Reverse), new[] { bytes.Type });
+
+                        bytes = Expression.Block(
+                            new[] { buffer },
+                            Expression.Assign(buffer, bytes),
+                            Expression.Call(null, reverse, buffer),
+                            buffer);
                     }
 
-                    Expression Write(Expression value)
-                    {
-                        var getBytes = typeof(BitConverter)
-                            .GetMethod(nameof(BitConverter.GetBytes), new[] { value.Type });
+                    var writeFixed = typeof(BinaryWriter)
+                        .GetMethod(nameof(BinaryWriter.WriteFixed), new[] { bytes.Type });
 
-                        Expression bytes = Expression.Call(null, getBytes, value);
-
-                        if (!BitConverter.IsLittleEndian)
-                        {
-                            var buffer = Expression.Variable(bytes.Type);
-                            var reverse = typeof(Array)
-                                .GetMethod(nameof(Array.Reverse), new[] { bytes.Type });
-
-                            bytes = Expression.Block(
-                                new[] { buffer },
-                                Expression.Assign(buffer, bytes),
-                                Expression.Call(null, reverse, buffer),
-                                buffer);
-                        }
-
-                        var writeFixed = typeof(BinaryWriter)
-                            .GetMethod(nameof(BinaryWriter.WriteFixed), new[] { bytes.Type });
-
-                        return Expression.Call(context.Writer, writeFixed, bytes);
-                    }
-
-                    var totalDays = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalDays));
-                    var totalMs = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalMilliseconds));
-
-                    return BinarySerializerBuilderCaseResult.FromExpression(
-                        Expression.Block(
-                            Write(Expression.Constant(0U)),
-                            Write(
-                                Expression.ConvertChecked(Expression.Property(value, totalDays), typeof(uint))),
-                            Write(
-                                Expression.ConvertChecked(
-                                    Expression.Subtract(
-                                        Expression.Convert(Expression.Property(value, totalMs), typeof(ulong)),
-                                        Expression.Multiply(
-                                            Expression.Convert(Expression.Property(value, totalDays), typeof(ulong)),
-                                            Expression.Constant(86400000UL))),
-                                    typeof(uint)))));
+                    return Expression.Call(context.Writer, writeFixed, bytes);
                 }
-                else
-                {
-                    return BinarySerializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BinaryDurationSerializerBuilderCase)} can only be applied to {nameof(DurationResolution)}s."));
-                }
+
+                var totalDays = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalDays));
+                var totalMs = typeof(TimeSpan).GetProperty(nameof(TimeSpan.TotalMilliseconds));
+
+                return BinarySerializerBuilderCaseResult.FromExpression(
+                    Expression.Block(
+                        Write(Expression.Constant(0U)),
+                        Write(
+                            Expression.ConvertChecked(Expression.Property(value, totalDays), typeof(uint))),
+                        Write(
+                            Expression.ConvertChecked(
+                                Expression.Subtract(
+                                    Expression.Convert(Expression.Property(value, totalMs), typeof(ulong)),
+                                    Expression.Multiply(
+                                        Expression.Convert(Expression.Property(value, totalDays), typeof(ulong)),
+                                        Expression.Constant(86400000UL))),
+                                typeof(uint)))));
             }
             else
             {

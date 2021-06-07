@@ -1,11 +1,9 @@
 namespace Chr.Avro.Abstract
 {
     using System;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
 
     /// <summary>
-    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="UriResolution" />.
+    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="Uri" />.
     /// </summary>
     public class UriSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
@@ -14,31 +12,31 @@ namespace Chr.Avro.Abstract
         /// </summary>
         /// <returns>
         /// A successful <see cref="SchemaBuilderCaseResult" /> with a <see cref="StringSchema" />
-        /// if <paramref name="resolution" /> is a <see cref="UriResolution" />; an unsuccessful
+        /// if <paramref name="type" /> is <see cref="Uri" />; an unsuccessful
         /// <see cref="SchemaBuilderCaseResult" /> with an <see cref="UnsupportedTypeException" />
         /// otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual SchemaBuilderCaseResult BuildSchema(TypeResolution resolution, SchemaBuilderContext context)
+        public virtual SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            if (resolution is UriResolution uriResolution)
+            if (type == typeof(Uri))
             {
                 var uriSchema = new StringSchema();
 
                 try
                 {
-                    context.Schemas.Add(uriResolution.Type.GetUnderlyingType(), uriSchema);
+                    context.Schemas.Add(type, uriSchema);
                 }
                 catch (ArgumentException exception)
                 {
-                    throw new InvalidOperationException($"A schema for {uriResolution.Type} already exists on the schema builder context.", exception);
+                    throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
                 return SchemaBuilderCaseResult.FromSchema(uriSchema);
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(UriSchemaBuilderCase)} can only be applied to {nameof(UriResolution)}s."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(UriSchemaBuilderCase)} can only be applied to the {nameof(Uri)} type."));
             }
         }
     }

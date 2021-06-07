@@ -5,8 +5,9 @@ namespace Chr.Avro.Serialization
     using System.Collections.Immutable;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Reflection;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
+    using Chr.Avro.Infrastructure;
 
     /// <summary>
     /// Provides a base implementation for deserializer builder cases that match <see cref="MapSchema" />.
@@ -38,63 +39,82 @@ namespace Chr.Avro.Serialization
         /// This method includes conditions to support deserializing to concrete dictionary types
         /// that ship with .NET.
         /// </remarks>
-        /// <param name="resolution">
-        /// A <see cref="MapResolution" /> containing information about the target <see cref="Type" />.
+        /// <param name="type">
+        /// A dictionary <see cref="Type" />.
         /// </param>
         /// <returns>
         /// An <see cref="Expression" /> representing the creation of a dictionary that can be
-        /// converted to the <see cref="Type" /> described by <paramref name="resolution" />.
+        /// converted to <paramref name="type" />.
         /// </returns>
-        protected virtual Expression BuildIntermediateDictionary(MapResolution resolution)
+        protected virtual Expression BuildIntermediateDictionary(Type type)
         {
-            if (resolution.Type.IsAssignableFrom(typeof(ImmutableDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)))
+            var (keyType, valueType) = type.GetDictionaryTypes() ?? throw new ArgumentException($"{type} is not a dictionary type.");
+
+            if (type.IsAssignableFrom(typeof(ImmutableDictionary<,>).MakeGenericType(keyType, valueType)))
             {
                 var createBuilder = typeof(ImmutableDictionary)
                     .GetMethod(nameof(ImmutableDictionary.CreateBuilder), Type.EmptyTypes)
-                    .MakeGenericMethod(resolution.KeyType, resolution.ValueType);
+                    .MakeGenericMethod(keyType, valueType);
 
                 return Expression.Call(null, createBuilder);
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(ImmutableSortedDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)))
+            if (type.IsAssignableFrom(typeof(ImmutableSortedDictionary<,>).MakeGenericType(keyType, valueType)))
             {
                 var createBuilder = typeof(ImmutableSortedDictionary)
                     .GetMethod(nameof(ImmutableSortedDictionary.CreateBuilder), Type.EmptyTypes)
-                    .MakeGenericMethod(resolution.KeyType, resolution.ValueType);
+                    .MakeGenericMethod(keyType, valueType);
 
                 return Expression.Call(null, createBuilder);
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(SortedDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)))
+            if (type.IsAssignableFrom(typeof(SortedDictionary<,>).MakeGenericType(keyType, valueType)))
             {
-                return Expression.New(typeof(SortedDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType).GetConstructor(Type.EmptyTypes));
+                return Expression.New(typeof(SortedDictionary<,>).MakeGenericType(keyType, valueType).GetConstructor(Type.EmptyTypes));
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(SortedList<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)))
+            if (type.IsAssignableFrom(typeof(SortedList<,>).MakeGenericType(keyType, valueType)))
             {
-                return Expression.New(typeof(SortedList<,>).MakeGenericType(resolution.KeyType, resolution.ValueType).GetConstructor(Type.EmptyTypes));
+                return Expression.New(typeof(SortedList<,>).MakeGenericType(keyType, valueType).GetConstructor(Type.EmptyTypes));
             }
 
-            return Expression.New(typeof(Dictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType).GetConstructor(Type.EmptyTypes));
+            return Expression.New(typeof(Dictionary<,>).MakeGenericType(keyType, valueType).GetConstructor(Type.EmptyTypes));
         }
 
         /// <summary>
         /// Gets a constructor that can be used to instantiate a dictionary type.
         /// </summary>
-        /// <param name="resolution">
-        /// A <see cref="MapResolution" /> containing information about the dictionary
-        /// <see cref="Type" />.
+        /// <param name="type">
+        /// A dictionary <see cref="Type" />.
         /// </param>
         /// <returns>
-        /// A <see cref="ConstructorResolution" /> from <paramref name="resolution" /> if one
-        /// matches; <c>null</c> otherwise.
+        /// A <see cref="ConstructorInfo" /> from <paramref name="type" /> if one matches;
+        /// <c>null</c> otherwise.
         /// </returns>
-        protected virtual ConstructorResolution? FindDictionaryConstructor(MapResolution resolution)
+        protected virtual ConstructorInfo? GetDictionaryConstructor(Type type)
         {
-            return resolution.Constructors
-                .Where(constructor => constructor.Parameters.Count == 1)
-                .FirstOrDefault(constructor => constructor.Parameters.First().Parameter.ParameterType
-                    .IsAssignableFrom(typeof(IDictionary<,>).MakeGenericType(resolution.KeyType, resolution.ValueType)));
+            var (keyType, valueType) = type.GetDictionaryTypes() ?? throw new ArgumentException($"{type} is not a dictionary type.");
+
+            return type.GetConstructors()
+                .Where(constructor => constructor.GetParameters().Count() == 1)
+                .FirstOrDefault(constructor => constructor.GetParameters().First().ParameterType
+                    .IsAssignableFrom(typeof(IDictionary<,>).MakeGenericType(keyType, valueType)));
+        }
+
+        /// <summary>
+        /// Gets the item <see cref="Type" /> of a dictionary <see cref="Type" />.
+        /// </summary>
+        /// <param name="type">
+        /// A <see cref="Type" /> object that describes a generic dictionary.
+        /// </param>
+        /// <returns>
+        /// If <paramref name="type" /> implements (or is) <see cref="IEnumerable{T}" /> and the
+        /// item type is <see cref="KeyValuePair{TKey, TValue}" />, its type arguments; <c>null</c>
+        /// otherwise.
+        /// </returns>
+        protected virtual (Type Key, Type Value)? GetDictionaryTypes(Type type)
+        {
+            return type.GetDictionaryTypes();
         }
     }
 }

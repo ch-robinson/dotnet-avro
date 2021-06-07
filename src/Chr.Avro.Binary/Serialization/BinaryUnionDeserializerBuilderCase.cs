@@ -4,7 +4,6 @@ namespace Chr.Avro.Serialization
     using System.Linq;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="UnionSchema" />
@@ -40,11 +39,11 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="schema" /> has no <see cref="UnionSchema.Schemas" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <paramref name="resolution" /> cannot be mapped to each <see cref="Schema" />
-        /// in <paramref name="schema" />.
+        /// Thrown when <paramref name="type" /> cannot be mapped to each <see cref="Schema" /> in
+        /// <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema is UnionSchema unionSchema)
             {
@@ -61,18 +60,18 @@ namespace Chr.Avro.Serialization
                 // create a mapping for each schema in the union:
                 var cases = unionSchema.Schemas.Select((child, index) =>
                 {
-                    var selected = SelectType(resolution, child);
-                    var underlying = Nullable.GetUnderlyingType(selected.Type);
+                    var selected = SelectType(type, child);
+                    var underlying = Nullable.GetUnderlyingType(selected);
 
-                    if (child is NullSchema && selected.Type.IsValueType && underlying == null)
+                    if (child is NullSchema && selected.IsValueType && underlying == null)
                     {
-                        throw new UnsupportedTypeException(resolution.Type, $"A deserializer for {unionSchema} cannot be built for {selected.Type} because it contains {nameof(NullSchema)}.");
+                        throw new UnsupportedTypeException(type, $"A deserializer for {unionSchema} cannot be built for {selected} because it contains {nameof(NullSchema)}.");
                     }
 
-                    var @case = DeserializerBuilder.BuildExpression(selected.Type, child, context);
+                    var @case = DeserializerBuilder.BuildExpression(selected, child, context);
 
                     return Expression.SwitchCase(
-                        BuildConversion(@case, resolution.Type),
+                        BuildConversion(@case, type),
                         Expression.Constant((long)index));
                 });
 
@@ -94,12 +93,12 @@ namespace Chr.Avro.Serialization
                                     Expression.Property(context.Reader, position),
                                     Expression.Constant($"Invalid union index; expected a value in [0-{unionSchema.Schemas.Count}). This may indicate invalid encoding earlier in the stream."),
                                     Expression.Constant(null, typeof(Exception))),
-                                resolution.Type),
+                                type),
                             cases.ToArray()));
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {unionSchema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {unionSchema} to {type}.", exception);
                 }
             }
             else

@@ -1,9 +1,9 @@
 namespace Chr.Avro.Serialization
 {
+    using System;
     using System.Linq.Expressions;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonDeserializerBuilder" /> case that matches <see cref="NullSchema" />.
@@ -19,7 +19,7 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual JsonDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, JsonDeserializerBuilderContext context)
+        public virtual JsonDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, JsonDeserializerBuilderContext context)
         {
             if (schema is NullSchema)
             {
@@ -41,7 +41,7 @@ namespace Chr.Avro.Serialization
                                     getUnexpectedTokenException,
                                     context.Reader,
                                     Expression.Constant(new[] { JsonTokenType.Null })))),
-                        Expression.Default(resolution.Type)));
+                        Expression.Default(type)));
             }
             else
             {

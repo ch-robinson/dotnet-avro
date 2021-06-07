@@ -1,27 +1,49 @@
 namespace Chr.Avro.Abstract
 {
     using System;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
+    using System.Linq;
+    using System.Reflection;
 
     /// <summary>
-    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="RecordResolution" />.
+    /// Implements a <see cref="SchemaBuilder" /> case that matches any non-array or non-primitive
+    /// <see cref="Type" />.
     /// </summary>
     public class RecordSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="RecordSchemaBuilderCase" /> class.
         /// </summary>
-        /// <param name="schemaBuilder">
-        /// A schema builder instance that will be used to resolve record field types.
+        /// <param name="memberVisibility">
+        /// The binding flags to use to select fields and properties.
         /// </param>
-        public RecordSchemaBuilderCase(ISchemaBuilder schemaBuilder)
+        /// <param name="nullableReferenceTypeBehavior">
+        /// The behavior to use to determine nullability of reference types.
+        /// </param>
+        /// <param name="schemaBuilder">
+        /// A schema builder instance that will be used to build schemas for field types.
+        /// </param>
+        public RecordSchemaBuilderCase(
+            BindingFlags memberVisibility,
+            NullableReferenceTypeBehavior nullableReferenceTypeBehavior,
+            ISchemaBuilder schemaBuilder)
         {
+            MemberVisibility = memberVisibility;
+            NullableReferenceTypeBehavior = nullableReferenceTypeBehavior;
             SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder cannot be null.");
         }
 
         /// <summary>
-        /// Gets the schema builder instance that will be used to resolve record field types.
+        /// Gets the binding flags used to select fields and properties.
+        /// </summary>
+        public BindingFlags MemberVisibility { get; }
+
+        /// <summary>
+        /// Gets the behavior used to determine nullability of reference types.
+        /// </summary>
+        public NullableReferenceTypeBehavior NullableReferenceTypeBehavior { get; }
+
+        /// <summary>
+        /// Gets the schema builder instance that will be used to build schemas for field types.
         /// </summary>
         public ISchemaBuilder SchemaBuilder { get; }
 
@@ -30,49 +52,59 @@ namespace Chr.Avro.Abstract
         /// </summary>
         /// <returns>
         /// A successful <see cref="SchemaBuilderCaseResult" /> with a <see cref="RecordSchema" />
-        /// if <paramref name="resolution" /> is a <see cref="RecordResolution" />; an unsuccessful
+        /// if <paramref name="type" /> is not an array or primitve type; an unsuccessful
         /// <see cref="SchemaBuilderCaseResult" /> with an <see cref="UnsupportedTypeException" />
         /// otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual SchemaBuilderCaseResult BuildSchema(TypeResolution resolution, SchemaBuilderContext context)
+        public virtual SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            var result = new SchemaBuilderCaseResult();
-
-            if (resolution is RecordResolution recordResolution)
+            if (!type.IsArray && !type.IsPrimitive)
             {
                 // defer setting the field schemas so the record schema can be cached:
-                var recordSchema = new RecordSchema(
-                    recordResolution.Namespace == null
-                        ? recordResolution.Name.Value
-                        : $"{recordResolution.Namespace.Value}.{recordResolution.Name.Value}");
+                var recordSchema = new RecordSchema(type.Name)
+                {
+                    Namespace = string.IsNullOrEmpty(type.Namespace) ? null : type.Namespace,
+                };
+
+                Schema schema = recordSchema;
+
+                if (!type.IsValueType && NullableReferenceTypeBehavior == NullableReferenceTypeBehavior.All)
+                {
+                    schema = new UnionSchema(new[] { new NullSchema(), schema });
+                }
 
                 try
                 {
-                    context.Schemas.Add(recordResolution.Type.GetUnderlyingType(), recordSchema);
+                    context.Schemas.Add(type, schema);
                 }
                 catch (ArgumentException exception)
                 {
-                    throw new InvalidOperationException($"A schema for {recordResolution.Type} already exists on the schema builder context.", exception);
+                    throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
-                foreach (var field in recordResolution.Fields)
+                foreach (var member in type.GetMembers(MemberVisibility).OrderBy(member => member.Name))
                 {
-                    try
+                    var memberType = member switch
                     {
-                        recordSchema.Fields.Add(new RecordField(field.Name.Value, SchemaBuilder.BuildSchema(field.Type, context)));
-                    }
-                    catch (Exception exception)
+                        FieldInfo fieldMember => fieldMember.FieldType,
+                        PropertyInfo propertyMember => propertyMember.PropertyType,
+                        _ => null
+                    };
+
+                    if (memberType == null)
                     {
-                        throw new UnsupportedTypeException(recordResolution.Type, $"A schema could not be built for the {field.Name} field on {recordResolution.Type}.", exception);
+                        continue;
                     }
+
+                    recordSchema.Fields.Add(new RecordField(member.Name, SchemaBuilder.BuildSchema(memberType, context)));
                 }
 
-                return SchemaBuilderCaseResult.FromSchema(recordSchema);
+                return SchemaBuilderCaseResult.FromSchema(schema);
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(RecordSchemaBuilderCase)} can only be applied to {nameof(RecordResolution)}s."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(RecordSchemaBuilderCase)} cannot be applied to array or primitive types."));
             }
         }
     }

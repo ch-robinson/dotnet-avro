@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="BooleanSchema" />
@@ -20,10 +19,10 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <see cref="bool" /> cannot be converted to the resolved <see cref="Type" />.
+        /// Thrown when <see cref="bool" /> cannot be converted to <paramref name="type" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema is BooleanSchema booleanSchema)
             {
@@ -33,11 +32,11 @@ namespace Chr.Avro.Serialization
                 try
                 {
                     return BinaryDeserializerBuilderCaseResult.FromExpression(
-                        BuildConversion(Expression.Call(context.Reader, readBoolean), resolution.Type));
+                        BuildConversion(Expression.Call(context.Reader, readBoolean), type));
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {booleanSchema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {booleanSchema} to {type}.", exception);
                 }
             }
             else

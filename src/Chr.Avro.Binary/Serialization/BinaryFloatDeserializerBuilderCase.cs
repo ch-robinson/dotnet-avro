@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="FloatSchema" />
@@ -20,10 +19,10 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <see cref="float" /> cannot be converted to the resolved <see cref="Type" />.
+        /// Thrown when <see cref="float" /> cannot be converted to <paramref name="type" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema is FloatSchema floatSchema)
             {
@@ -33,11 +32,11 @@ namespace Chr.Avro.Serialization
                 try
                 {
                     return BinaryDeserializerBuilderCaseResult.FromExpression(
-                        BuildConversion(Expression.Call(context.Reader, readSingle), resolution.Type));
+                        BuildConversion(Expression.Call(context.Reader, readSingle), type));
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {floatSchema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {floatSchema} to {type}.", exception);
                 }
             }
             else

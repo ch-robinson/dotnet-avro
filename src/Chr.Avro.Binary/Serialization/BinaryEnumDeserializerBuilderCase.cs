@@ -3,8 +3,8 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Reflection;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="EnumSchema" />
@@ -16,20 +16,22 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="BinaryDeserializer{T}" /> for an <see cref="EnumSchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is an <see ref="EnumResolution" /> and <paramref name="schema" /> is an <see cref="EnumSchema" />;
-        /// an unsuccessful <see cref="BinaryDeserializerBuilderCaseResult" /> otherwise.
+        /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is an enum and <paramref name="schema" /> is an <see cref="EnumSchema" />; an
+        /// unsuccessful <see cref="BinaryDeserializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <paramref name="resolution" /> does not contain a matching symbol for each
-        /// symbol in <paramref name="schema" />.
+        /// Thrown when <paramref name="type" /> does not have a matching member for each symbol in
+        /// <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema is EnumSchema enumSchema)
             {
-                if (resolution is EnumResolution enumResolution)
+                var underlying = Nullable.GetUnderlyingType(type) ?? type;
+
+                if (underlying.IsEnum)
                 {
                     var readInteger = typeof(BinaryReader)
                         .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
@@ -38,18 +40,21 @@ namespace Chr.Avro.Serialization
                         Expression.Call(context.Reader, readInteger),
                         typeof(int));
 
+                    // enum fields will always be public static, so no need to expose binding flags:
+                    var fields = underlying.GetFields(BindingFlags.Public | BindingFlags.Static);
+
                     // find a match for each enum in the schema:
-                    var cases = enumSchema.Symbols.Select((name, index) =>
+                    var cases = enumSchema.Symbols.Select((symbol, index) =>
                     {
-                        var match = enumResolution.Symbols.SingleOrDefault(s => s.Name.IsMatch(name));
+                        var match = fields.SingleOrDefault(field => IsMatch(symbol, field.Name));
 
                         if (match == null)
                         {
-                            throw new UnsupportedTypeException(resolution.Type, $"{resolution.Type.Name} has no value that matches {name}.");
+                            throw new UnsupportedTypeException(type, $"{type} has no value that matches {symbol}.");
                         }
 
                         return Expression.SwitchCase(
-                            BuildConversion(Expression.Constant(match.Value), resolution.Type),
+                            BuildConversion(Expression.Constant(Enum.Parse(underlying, match.Name)), type),
                             Expression.Constant(index));
                     });
 
@@ -72,17 +77,17 @@ namespace Chr.Avro.Serialization
                                         Expression.Property(context.Reader, position),
                                         Expression.Constant($"Invalid enum index; expected a value in [0-{enumSchema.Symbols.Count}). This may indicate invalid encoding earlier in the stream."),
                                         Expression.Constant(null, typeof(Exception))),
-                                    resolution.Type),
+                                    type),
                                 cases.ToArray()));
                     }
                     catch (InvalidOperationException exception)
                     {
-                        throw new UnsupportedTypeException(resolution.Type, $"Failed to map {enumSchema} to {resolution.Type}.", exception);
+                        throw new UnsupportedTypeException(type, $"Failed to map {enumSchema} to {type}.", exception);
                     }
                 }
                 else
                 {
-                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BinaryEnumDeserializerBuilderCase)} can only be applied to {nameof(EnumResolution)}s."));
+                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(BinaryEnumDeserializerBuilderCase)} can only be applied to enum types."));
                 }
             }
             else

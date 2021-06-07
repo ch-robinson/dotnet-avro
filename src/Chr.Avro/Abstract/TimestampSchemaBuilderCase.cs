@@ -1,11 +1,10 @@
 namespace Chr.Avro.Abstract
 {
     using System;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
 
     /// <summary>
-    /// Implements a schema builder case that matches <see cref="TimestampResolution" />.
+    /// Implements a schema builder case that matches <see cref="DateTime" /> and
+    /// <see cref="DateTimeOffset" />.
     /// </summary>
     public class TimestampSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
@@ -34,14 +33,14 @@ namespace Chr.Avro.Abstract
         /// <returns>
         /// A successful <see cref="SchemaBuilderCaseResult" /> with a <see cref="LongSchema" />
         /// and <see cref="TimestampLogicalType" /> or <see cref="StringSchema" /> if
-        /// <paramref name="resolution" /> is an <see cref="TimestampResolution" />; an unsuccessful
-        /// <see cref="SchemaBuilderCaseResult" /> with an <see cref="UnsupportedTypeException" />
-        /// otherwise.
+        /// <paramref name="type" /> is <see cref="DateTime" /> or <see cref="DateTimeOffset" />;
+        /// an unsuccessful <see cref="SchemaBuilderCaseResult" /> with an
+        /// <see cref="UnsupportedTypeException" /> otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual SchemaBuilderCaseResult BuildSchema(TypeResolution resolution, SchemaBuilderContext context)
+        public virtual SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            if (resolution is TimestampResolution timestampResolution)
+            if (type == typeof(DateTime) || type == typeof(DateTimeOffset))
             {
                 Schema timestampSchema = TemporalBehavior switch
                 {
@@ -59,18 +58,18 @@ namespace Chr.Avro.Abstract
 
                 try
                 {
-                    context.Schemas.Add(timestampResolution.Type.GetUnderlyingType(), timestampSchema);
+                    context.Schemas.Add(type, timestampSchema);
                 }
                 catch (ArgumentException exception)
                 {
-                    throw new InvalidOperationException($"A schema for {timestampResolution.Type} already exists on the schema builder context.", exception);
+                    throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
                 return SchemaBuilderCaseResult.FromSchema(timestampSchema);
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(TimestampSchemaBuilderCase)} can only be applied to {nameof(TimestampResolution)}s."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(TimestampSchemaBuilderCase)} can only be applied to the {nameof(DateTime)} and {nameof(DateTimeOffset)} types."));
             }
         }
     }

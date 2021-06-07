@@ -5,7 +5,6 @@ namespace Chr.Avro.Cli
     using System.Threading.Tasks;
     using Chr.Avro.Abstract;
     using Chr.Avro.Representation;
-    using Chr.Avro.Resolution;
     using CommandLine;
     using CommandLine.Text;
 
@@ -60,11 +59,10 @@ namespace Chr.Avro.Cli
         {
             var type = ((IClrTypeOptions)this).ResolveType();
 
-            var resolver = new TypeResolver(
-                resolveReferenceTypesAsNullable: NullableReferences,
-                resolveUnderlyingEnumTypes: EnumsAsIntegers);
-
-            var builder = new SchemaBuilder(TemporalBehavior, resolver);
+            var builder = new SchemaBuilder(
+                enumBehavior: EnumsAsIntegers ? EnumBehavior.Integral : EnumBehavior.Symbolic,
+                nullableReferenceTypeBehavior: NullableReferences ? NullableReferenceTypeBehavior.All : NullableReferenceTypeBehavior.None,
+                temporalBehavior: TemporalBehavior);
 
             try
             {

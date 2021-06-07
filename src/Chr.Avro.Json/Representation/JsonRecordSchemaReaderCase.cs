@@ -14,7 +14,7 @@ namespace Chr.Avro.Representation
         /// Initializes a new instance of the <see cref="JsonRecordSchemaReaderCase" /> class.
         /// </summary>
         /// <param name="reader">
-        /// A schema reader instance that will be used to read item types.
+        /// A schema reader instance that will be used to read field types.
         /// </param>
         public JsonRecordSchemaReaderCase(IJsonSchemaReader reader)
         {
@@ -22,7 +22,7 @@ namespace Chr.Avro.Representation
         }
 
         /// <summary>
-        /// Gets the schema reader instance that will be used to resolve field types.
+        /// Gets the schema reader instance that will be used to read field types.
         /// </summary>
         public IJsonSchemaReader Reader { get; }
 

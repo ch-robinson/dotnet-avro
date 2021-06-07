@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinarySerializerBuilder" /> case that matches <see cref="IntSchema" />
@@ -20,10 +19,10 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> cannot be converted to <see cref="long" />.
+        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="long" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (schema is IntSchema intSchema)
             {
@@ -37,7 +36,7 @@ namespace Chr.Avro.Serialization
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {intSchema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {intSchema} to {type}.", exception);
                 }
             }
             else

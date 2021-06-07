@@ -1,11 +1,9 @@
 namespace Chr.Avro.Abstract
 {
     using System;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
 
     /// <summary>
-    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="DurationResolution" />.
+    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="TimeSpan" />.
     /// </summary>
     public class DurationSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
@@ -14,31 +12,31 @@ namespace Chr.Avro.Abstract
         /// </summary>
         /// <returns>
         /// A successful <see cref="SchemaBuilderCaseResult" /> with a <see cref="StringSchema" />
-        /// if <paramref name="resolution" /> is a <see cref="DurationResolution" />; an unsuccessful
+        /// if <paramref name="type" /> is <see cref="TimeSpan" />; an unsuccessful
         /// <see cref="SchemaBuilderCaseResult" /> with an <see cref="UnsupportedTypeException" />
         /// otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual SchemaBuilderCaseResult BuildSchema(TypeResolution resolution, SchemaBuilderContext context)
+        public virtual SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            if (resolution is DurationResolution durationResolution)
+            if (type == typeof(TimeSpan))
             {
                 var durationSchema = new StringSchema();
 
                 try
                 {
-                    context.Schemas.Add(durationResolution.Type.GetUnderlyingType(), durationSchema);
+                    context.Schemas.Add(type, durationSchema);
                 }
                 catch (ArgumentException exception)
                 {
-                    throw new InvalidOperationException($"A schema for {durationResolution.Type} already exists on the schema builder context.", exception);
+                    throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
                 return SchemaBuilderCaseResult.FromSchema(durationSchema);
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(DurationSchemaBuilderCase)} can only be applied to {nameof(DurationResolution)}s."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(DurationSchemaBuilderCase)} can only be applied to the {nameof(TimeSpan)} type."));
             }
         }
     }

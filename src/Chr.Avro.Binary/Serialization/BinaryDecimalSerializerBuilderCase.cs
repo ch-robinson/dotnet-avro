@@ -4,7 +4,6 @@ namespace Chr.Avro.Serialization
     using System.Linq.Expressions;
     using System.Numerics;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinarySerializerBuilder" /> case that matches <see cref="DecimalLogicalType" />
@@ -25,10 +24,10 @@ namespace Chr.Avro.Serialization
         /// <see cref="FixedSchema "/>.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> cannot be converted to <see cref="decimal" />.
+        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="decimal" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (schema.LogicalType is DecimalLogicalType decimalLogicalType)
             {
@@ -43,7 +42,7 @@ namespace Chr.Avro.Serialization
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {schema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {schema} to {type}.", exception);
                 }
 
                 // declare variables for in-place transformation:

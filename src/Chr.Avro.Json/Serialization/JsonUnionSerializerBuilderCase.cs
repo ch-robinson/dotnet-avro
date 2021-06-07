@@ -6,7 +6,6 @@ namespace Chr.Avro.Serialization
     using System.Linq.Expressions;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonSerializerBuilder" /> case that matches <see cref="UnionSchema" />
@@ -42,11 +41,11 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="schema" /> has no <see cref="UnionSchema.Schemas" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <paramref name="resolution" /> cannot be mapped to at least one
-        /// <see cref="Schema" /> in <paramref name="schema" />.
+        /// Thrown when <paramref name="type" /> cannot be mapped to at least one <see cref="Schema" />
+        /// in <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, JsonSerializerBuilderContext context)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
         {
             if (schema is UnionSchema unionSchema)
             {
@@ -81,14 +80,14 @@ namespace Chr.Avro.Serialization
 
                     foreach (var candidate in candidates)
                     {
-                        var selected = SelectType(resolution, candidate);
+                        var selected = SelectType(type, candidate);
 
-                        if (cases.ContainsKey(selected.Type))
+                        if (cases.ContainsKey(selected))
                         {
                             continue;
                         }
 
-                        var underlying = Nullable.GetUnderlyingType(selected.Type) ?? selected.Type;
+                        var underlying = Nullable.GetUnderlyingType(selected) ?? selected;
 
                         Expression body;
 
@@ -106,26 +105,26 @@ namespace Chr.Avro.Serialization
                             continue;
                         }
 
-                        if (@null != null && !(selected.Type.IsValueType && Nullable.GetUnderlyingType(selected.Type) == null))
+                        if (@null != null && !(selected.IsValueType && Nullable.GetUnderlyingType(selected) == null))
                         {
                             body = Expression.IfThenElse(
-                                Expression.Equal(value, Expression.Constant(null, selected.Type)),
+                                Expression.Equal(value, Expression.Constant(null, selected)),
                                 Expression.Call(context.Writer, writeNull),
                                 body);
                         }
 
-                        cases.Add(selected.Type, body);
+                        cases.Add(selected, body);
                     }
 
                     if (cases.Count == 0)
                     {
                         throw new UnsupportedTypeException(
-                            resolution.Type,
-                            $"{resolution.Type.Name} does not match any non-null members of {unionSchema}.",
+                            type,
+                            $"{type.Name} does not match any non-null members of {unionSchema}.",
                             new AggregateException(exceptions));
                     }
 
-                    if (cases.Count == 1 && cases.First() is var first && first.Key == resolution.Type)
+                    if (cases.Count == 1 && cases.First() is var first && first.Key == type)
                     {
                         expression = first.Value;
                     }
@@ -136,7 +135,7 @@ namespace Chr.Avro.Serialization
 
                         expression = Expression.Throw(Expression.New(
                             exceptionConstructor,
-                            Expression.Constant($"Unexpected type encountered serializing to {resolution.Type}.")));
+                            Expression.Constant($"Unexpected type encountered serializing to {type}.")));
 
                         foreach (var @case in cases)
                         {

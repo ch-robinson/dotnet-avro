@@ -52,7 +52,31 @@ namespace Chr.Avro.Infrastructure
         }
 
         /// <summary>
-        /// Gets the element <see cref="Type" /> of an enumerable <see cref="Type" />.
+        /// Gets the key and value <see cref="Type" />s of a dictionary <see cref="Type" />.
+        /// </summary>
+        /// <param name="type">
+        /// A <see cref="Type" /> object that describes a generic dictionary.
+        /// </param>
+        /// <returns>
+        /// If <paramref name="type" /> implements (or is) <see cref="IDictionary{TKey,TValue}" />,
+        /// its key and value arguments; <c>null</c> otherwise.
+        /// </returns>
+        public static (Type Key, Type Value)? GetDictionaryTypes(this Type type)
+        {
+            var pairType = type.GetEnumerableType();
+
+            if (pairType != null && pairType.IsGenericType && pairType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+            {
+                return (
+                    pairType.GetGenericArguments().ElementAt(0),
+                    pairType.GetGenericArguments().ElementAt(1));
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the item <see cref="Type" /> of an enumerable <see cref="Type" />.
         /// </summary>
         /// <param name="type">
         /// A <see cref="Type" /> object that describes a generic enumerable.
@@ -68,21 +92,6 @@ namespace Chr.Avro.Infrastructure
                 .SingleOrDefault(candidate => candidate.IsGenericType && candidate.GetGenericTypeDefinition() == typeof(IEnumerable<>))?
                 .GetGenericArguments()?
                 .ElementAt(0);
-        }
-
-        /// <summary>
-        /// Gets the underlying <see cref="Type" /> of a <see cref="Nullable{T}" />.
-        /// </summary>
-        /// <param name="type">
-        /// A <see cref="Type" /> object that may be a nullable value type.
-        /// </param>
-        /// <returns>
-        /// If <paramref name="type" /> is a nullable value type, its underlying <see cref="Type" />;
-        /// <paramref name="type" /> otherwise.
-        /// </returns>
-        public static Type GetUnderlyingType(this Type type)
-        {
-            return Nullable.GetUnderlyingType(type) ?? type;
         }
 
         /// <summary>

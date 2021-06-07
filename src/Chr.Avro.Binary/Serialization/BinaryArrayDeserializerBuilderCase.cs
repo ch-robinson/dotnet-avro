@@ -2,8 +2,8 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Linq.Expressions;
+    using System.Reflection;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="ArraySchema" />
@@ -31,29 +31,29 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="BinaryDeserializer{T}" /> for an <see cref="ArraySchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is an <see ref="ArrayResolution" /> and <paramref name="schema" /> is an <see cref="ArraySchema" />;
+        /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is an enumerable type and <paramref name="schema" /> is an <see cref="ArraySchema" />;
         /// an unsuccessful <see cref="BinaryDeserializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> is not assignable from any supported array
-        /// or collection <see cref="Type" /> and does not have a constructor that can be used to
+        /// Thrown when <paramref name="type" /> is not assignable from any supported array or
+        /// collection <see cref="Type" /> and does not have a constructor that can be used to
         /// instantiate it.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema is ArraySchema arraySchema)
             {
-                if (resolution is ArrayResolution arrayResolution)
+                if (GetEnumerableType(type) is Type itemType)
                 {
-                    var instantiateCollection = BuildIntermediateCollection(arrayResolution);
+                    var instantiateCollection = BuildIntermediateCollection(type);
 
                     var readInteger = typeof(BinaryReader)
                         .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
 
                     var readItem = DeserializerBuilder
-                        .BuildExpression(arrayResolution.ItemType, arraySchema.Item, context);
+                        .BuildExpression(itemType, arraySchema.Item, context);
 
                     var collection = Expression.Parameter(instantiateCollection.Type);
                     var index = Expression.Variable(typeof(long));
@@ -118,24 +118,24 @@ namespace Chr.Avro.Serialization
                             outer),
                         collection);
 
-                    if (!arrayResolution.Type.IsAssignableFrom(expression.Type) && FindEnumerableConstructor(arrayResolution) is ConstructorResolution constructorResolution)
+                    if (!type.IsAssignableFrom(expression.Type) && GetCollectionConstructor(type) is ConstructorInfo constructor)
                     {
-                        expression = Expression.New(constructorResolution.Constructor, expression);
+                        expression = Expression.New(constructor, expression);
                     }
 
                     try
                     {
                         return BinaryDeserializerBuilderCaseResult.FromExpression(
-                            BuildConversion(expression, arrayResolution.Type));
+                            BuildConversion(expression, type));
                     }
                     catch (InvalidOperationException exception)
                     {
-                        throw new UnsupportedTypeException(resolution.Type, $"Failed to map {arraySchema} to {resolution.Type}.", exception);
+                        throw new UnsupportedTypeException(type, $"Failed to map {arraySchema} to {type}.", exception);
                     }
                 }
                 else
                 {
-                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BinaryArrayDeserializerBuilderCase)} can only be applied to {nameof(ArrayResolution)}s."));
+                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(BinaryArrayDeserializerBuilderCase)} can only be applied to enumerable types."));
                 }
             }
             else

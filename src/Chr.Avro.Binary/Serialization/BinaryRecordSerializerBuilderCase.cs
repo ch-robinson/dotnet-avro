@@ -3,8 +3,8 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Reflection;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinarySerializerBuilder" /> case that matches <see cref="RecordSchema" />
@@ -15,13 +15,24 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Initializes a new instance of the <see cref="BinaryRecordSerializerBuilderCase" /> class.
         /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags to use to select fields and properties.
+        /// </param>
         /// <param name="serializerBuilder">
         /// A serializer builder instance that will be used to build field serializers.
         /// </param>
-        public BinaryRecordSerializerBuilderCase(IBinarySerializerBuilder serializerBuilder)
+        public BinaryRecordSerializerBuilderCase(
+            BindingFlags memberVisibility,
+            IBinarySerializerBuilder serializerBuilder)
         {
+            MemberVisibility = memberVisibility;
             SerializerBuilder = serializerBuilder ?? throw new ArgumentNullException(nameof(serializerBuilder), "Binary serializer builder cannot be null.");
         }
+
+        /// <summary>
+        /// Gets the binding flags used to select fields and properties.
+        /// </summary>
+        public BindingFlags MemberVisibility { get; }
 
         /// <summary>
         /// Gets the serializer builder instance that will be used to build field serializers.
@@ -32,46 +43,48 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="BinarySerializer{T}" /> for a <see cref="RecordSchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="BinarySerializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is a <see cref="RecordResolution" /> and <paramref name="schema" /> is a <see cref="RecordSchema" />;
+        /// A successful <see cref="BinarySerializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is not an array or primitive type and <paramref name="schema" /> is a <see cref="RecordSchema" />;
         /// an unsuccessful <see cref="BinarySerializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> does not have a matching member for each
+        /// Thrown when <paramref name="type" /> does not have a matching member for each
         /// <see cref="RecordField" /> on <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (schema is RecordSchema recordSchema)
             {
-                if (resolution is RecordResolution recordResolution)
+                if (!type.IsArray && !type.IsPrimitive)
                 {
                     // since record serialization is potentially recursive, create a top-level
                     // reference:
                     var parameter = Expression.Parameter(
-                        Expression.GetDelegateType(resolution.Type, context.Writer.Type, typeof(void)));
+                        Expression.GetDelegateType(type, context.Writer.Type, typeof(void)));
 
-                    if (!context.References.TryGetValue((recordSchema, resolution.Type), out var reference))
+                    if (!context.References.TryGetValue((recordSchema, type), out var reference))
                     {
-                        context.References.Add((recordSchema, resolution.Type), reference = parameter);
+                        context.References.Add((recordSchema, type), reference = parameter);
                     }
 
                     // then build/set the delegate if it hasn’t been built yet:
                     if (parameter == reference)
                     {
-                        var argument = Expression.Variable(resolution.Type);
+                        var members = type.GetMembers(MemberVisibility);
+
+                        var argument = Expression.Variable(type);
                         var writes = recordSchema.Fields
                             .Select(field =>
                             {
-                                var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
+                                var match = members.SingleOrDefault(member => IsMatch(field, member.Name));
 
                                 if (match == null)
                                 {
-                                    throw new UnsupportedTypeException(resolution.Type, $"{resolution.Type} does not have a field or property that matches the {field.Name} field on {recordSchema.Name}.");
+                                    throw new UnsupportedTypeException(type, $"{type} does not have a field or property that matches the {field.Name} field on {recordSchema.Name}.");
                                 }
 
-                                return SerializerBuilder.BuildExpression(Expression.PropertyOrField(argument, match.Member.Name), field.Type, context);
+                                return SerializerBuilder.BuildExpression(Expression.PropertyOrField(argument, match.Name), field.Type, context);
                             })
                             .ToList();
 
@@ -94,7 +107,7 @@ namespace Chr.Avro.Serialization
                 }
                 else
                 {
-                    return BinarySerializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BinaryRecordSerializerBuilderCase)} can only be applied to {nameof(RecordResolution)}s."));
+                    return BinarySerializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(BinaryRecordSerializerBuilderCase)} cannot be applied to array or primitive types."));
                 }
             }
             else

@@ -1,44 +1,70 @@
 namespace Chr.Avro.Abstract
 {
     using System;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
 
     /// <summary>
-    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="ByteArrayResolution" />.
+    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="T:System.Byte[]" />.
     /// </summary>
     public class BytesSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BytesSchemaBuilderCase" /> class.
+        /// </summary>
+        /// <param name="nullableReferenceTypeBehavior">
+        /// The behavior to use to determine nullability of reference types.
+        /// </param>
+        public BytesSchemaBuilderCase(NullableReferenceTypeBehavior nullableReferenceTypeBehavior)
+        {
+            NullableReferenceTypeBehavior = nullableReferenceTypeBehavior;
+        }
+
+        /// <summary>
+        /// Gets the behavior used to determine nullability of reference types.
+        /// </summary>
+        public NullableReferenceTypeBehavior NullableReferenceTypeBehavior { get; }
+
         /// <summary>
         /// Builds a <see cref="BytesSchema" />.
         /// </summary>
         /// <returns>
         /// A successful <see cref="SchemaBuilderCaseResult" /> with a <see cref="BytesSchema" />
-        /// if <paramref name="resolution" /> is a <see cref="ByteArrayResolution" />; an unsuccessful
+        /// if <paramref name="type" /> is <see cref="T:System.Byte[]" />; an unsuccessful
         /// <see cref="SchemaBuilderCaseResult" /> with an <see cref="UnsupportedTypeException" />
         /// otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual SchemaBuilderCaseResult BuildSchema(TypeResolution resolution, SchemaBuilderContext context)
+        public virtual SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            if (resolution is ByteArrayResolution byteArrayResolution)
+            if (type == typeof(byte[]))
             {
                 var bytesSchema = new BytesSchema();
 
+                Schema schema = bytesSchema;
+
+                if (!type.IsValueType && NullableReferenceTypeBehavior == NullableReferenceTypeBehavior.All)
+                {
+                    if (!context.Schemas.TryGetValue(NullableType, out var nullSchema))
+                    {
+                        context.Schemas.Add(NullableType, nullSchema = new NullSchema());
+                    }
+
+                    schema = new UnionSchema(new[] { nullSchema, schema });
+                }
+
                 try
                 {
-                    context.Schemas.Add(byteArrayResolution.Type.GetUnderlyingType(), bytesSchema);
+                    context.Schemas.Add(type, schema);
                 }
                 catch (ArgumentException exception)
                 {
-                    throw new InvalidOperationException($"A schema for {byteArrayResolution.Type} already exists on the schema builder context.", exception);
+                    throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
-                return SchemaBuilderCaseResult.FromSchema(bytesSchema);
+                return SchemaBuilderCaseResult.FromSchema(schema);
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BytesSchemaBuilderCase)} can only be applied to {nameof(ByteArrayResolution)}s."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(BytesSchemaBuilderCase)} can only be applied to the {typeof(byte[])} type."));
             }
         }
     }

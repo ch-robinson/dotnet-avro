@@ -6,7 +6,6 @@ namespace Chr.Avro.Serialization.Tests
     using System.Linq;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
     using Xunit;
 
     public class UnionSerializationTests
@@ -191,13 +190,11 @@ namespace Chr.Avro.Serialization.Tests
                 },
             });
 
-            var resolver = new TypeResolver();
-
             var deserialize = deserializerBuilder.BuildDelegate<OrderCreatedEvent>(schema);
 
             var serialize = new JsonSerializerBuilder(JsonSerializerBuilder
                 .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(resolver, builder)))
+                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
                 .BuildDelegate<OrderEvent>(schema);
 
             var value = new OrderCreatedEvent
@@ -253,16 +250,14 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            var resolver = new TypeResolver();
-
             var deserialize = new JsonDeserializerBuilder(JsonDeserializerBuilder
                 .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderDeserializerBuilderCase(resolver, builder)))
+                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
                 .BuildDelegate<EventContainer>(schema);
 
             var serialize = new JsonSerializerBuilder(JsonSerializerBuilder
                 .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(resolver, builder)))
+                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
                 .BuildDelegate<EventContainer>(schema);
 
             var creation = new EventContainer
@@ -344,53 +339,47 @@ namespace Chr.Avro.Serialization.Tests
 
         public class OrderDeserializerBuilderCase : JsonUnionDeserializerBuilderCase
         {
-            public OrderDeserializerBuilderCase(ITypeResolver resolver, IJsonDeserializerBuilder builder)
+            public OrderDeserializerBuilderCase(IJsonDeserializerBuilder builder)
                 : base(builder)
             {
-                Resolver = resolver;
             }
 
-            public ITypeResolver Resolver { get; }
-
-            protected override TypeResolution SelectType(TypeResolution resolution, Schema schema)
+            protected override Type SelectType(Type type, Schema schema)
             {
-                if ((resolution as RecordResolution)?.Type != typeof(IEvent))
+                if (type.IsAssignableFrom(typeof(OrderEvent)))
                 {
-                    throw new UnsupportedTypeException(resolution.Type);
+                    return (schema as RecordSchema)?.Name switch
+                    {
+                        nameof(OrderCreatedEvent) => typeof(OrderCreatedEvent),
+                        nameof(OrderCancelledEvent) => typeof(OrderCancelledEvent),
+                        _ => throw new UnsupportedSchemaException(schema)
+                    };
                 }
 
-                return (schema as RecordSchema)?.Name switch
-                {
-                    nameof(OrderCreatedEvent) => Resolver.ResolveType<OrderCreatedEvent>(),
-                    nameof(OrderCancelledEvent) => Resolver.ResolveType<OrderCancelledEvent>(),
-                    _ => throw new UnsupportedSchemaException(schema)
-                };
+                return base.SelectType(type, schema);
             }
         }
 
         public class OrderSerializerBuilderCase : JsonUnionSerializerBuilderCase
         {
-            public OrderSerializerBuilderCase(ITypeResolver resolver, IJsonSerializerBuilder builder)
+            public OrderSerializerBuilderCase(IJsonSerializerBuilder builder)
                 : base(builder)
             {
-                Resolver = resolver;
             }
 
-            public ITypeResolver Resolver { get; }
-
-            protected override TypeResolution SelectType(TypeResolution resolution, Schema schema)
+            protected override Type SelectType(Type type, Schema schema)
             {
-                if ((resolution as RecordResolution)?.Type.IsAssignableFrom(typeof(OrderEvent)) != true)
+                if (type.IsAssignableFrom(typeof(OrderEvent)))
                 {
-                    throw new UnsupportedTypeException(resolution.Type);
+                    return (schema as RecordSchema)?.Name switch
+                    {
+                        nameof(OrderCreatedEvent) => typeof(OrderCreatedEvent),
+                        nameof(OrderCancelledEvent) => typeof(OrderCancelledEvent),
+                        _ => throw new UnsupportedSchemaException(schema)
+                    };
                 }
 
-                return (schema as RecordSchema)?.Name switch
-                {
-                    nameof(OrderCreatedEvent) => Resolver.ResolveType<OrderCreatedEvent>(),
-                    nameof(OrderCancelledEvent) => Resolver.ResolveType<OrderCancelledEvent>(),
-                    _ => throw new UnsupportedSchemaException(schema)
-                };
+                return base.SelectType(type, schema);
             }
         }
     }

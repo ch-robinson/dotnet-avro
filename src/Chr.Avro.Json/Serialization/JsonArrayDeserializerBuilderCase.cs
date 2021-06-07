@@ -2,9 +2,9 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Linq.Expressions;
+    using System.Reflection;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonDeserializerBuilder" /> case that matches <see cref="ArraySchema" />
@@ -32,26 +32,26 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="JsonDeserializer{T}" /> for an <see cref="ArraySchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="JsonDeserializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is an <see ref="ArrayResolution" /> and <paramref name="schema" /> is an <see cref="ArraySchema" />;
+        /// A successful <see cref="JsonDeserializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is an enumerable type and <paramref name="schema" /> is an <see cref="ArraySchema" />;
         /// an unsuccessful <see cref="JsonDeserializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> is not assignable from any supported array
-        /// or collection <see cref="Type" /> and does not have a constructor that can be used to
+        /// Thrown when <paramref name="type" /> is not assignable from any supported array or
+        /// collection <see cref="Type" /> and does not have a constructor that can be used to
         /// instantiate it.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, JsonDeserializerBuilderContext context)
+        public virtual JsonDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, JsonDeserializerBuilderContext context)
         {
             if (schema is ArraySchema arraySchema)
             {
-                if (resolution is ArrayResolution arrayResolution)
+                if (GetEnumerableType(type) is Type itemType)
                 {
-                    var instantiateCollection = BuildIntermediateCollection(arrayResolution);
+                    var instantiateCollection = BuildIntermediateCollection(type);
 
                     var readItem = DeserializerBuilder
-                        .BuildExpression(arrayResolution.ItemType, arraySchema.Item, context);
+                        .BuildExpression(itemType, arraySchema.Item, context);
 
                     var collection = Expression.Parameter(instantiateCollection.Type);
                     var loop = Expression.Label();
@@ -92,24 +92,24 @@ namespace Chr.Avro.Serialization
                             loop),
                         collection);
 
-                    if (!arrayResolution.Type.IsAssignableFrom(expression.Type) && FindEnumerableConstructor(arrayResolution) is ConstructorResolution constructorResolution)
+                    if (!type.IsAssignableFrom(expression.Type) && GetCollectionConstructor(type) is ConstructorInfo constructor)
                     {
-                        expression = Expression.New(constructorResolution.Constructor, expression);
+                        expression = Expression.New(constructor, expression);
                     }
 
                     try
                     {
                         return JsonDeserializerBuilderCaseResult.FromExpression(
-                            BuildConversion(expression, arrayResolution.Type));
+                            BuildConversion(expression, type));
                     }
                     catch (InvalidOperationException exception)
                     {
-                        throw new UnsupportedTypeException(resolution.Type, $"Failed to map {arraySchema} to {resolution.Type}.", exception);
+                        throw new UnsupportedTypeException(type, $"Failed to map {arraySchema} to {type}.", exception);
                     }
                 }
                 else
                 {
-                    return JsonDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(JsonArrayDeserializerBuilderCase)} can only be applied to {nameof(ArrayResolution)}s."));
+                    return JsonDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(JsonArrayDeserializerBuilderCase)} can only be applied to enumerable types."));
                 }
             }
             else

@@ -22,7 +22,7 @@ namespace Chr.Avro.Representation
         }
 
         /// <summary>
-        /// Gets the schema reader instance that will be used to resolve value types.
+        /// Gets the schema reader instance that will be used to read value types.
         /// </summary>
         public IJsonSchemaReader Reader { get; }
 

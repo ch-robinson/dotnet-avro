@@ -4,7 +4,6 @@ namespace Chr.Avro.Serialization
     using System.Linq.Expressions;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonDeserializerBuilder" /> case that matches <see cref="DoubleSchema" />
@@ -21,10 +20,10 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <see cref="double" /> cannot be converted to the resolved <see cref="Type" />.
+        /// Thrown when <see cref="double" /> cannot be converted to <paramref name="type" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, JsonDeserializerBuilderContext context)
+        public virtual JsonDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, JsonDeserializerBuilderContext context)
         {
             if (schema is DoubleSchema doubleSchema)
             {
@@ -34,11 +33,11 @@ namespace Chr.Avro.Serialization
                 try
                 {
                     return JsonDeserializerBuilderCaseResult.FromExpression(
-                        BuildConversion(Expression.Call(context.Reader, getDouble), resolution.Type));
+                        BuildConversion(Expression.Call(context.Reader, getDouble), type));
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {doubleSchema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {doubleSchema} to {type}.", exception);
                 }
             }
             else

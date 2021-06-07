@@ -6,7 +6,6 @@ namespace Chr.Avro.Serialization
     using System.Text.Encodings.Web;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonSerializerBuilder" /> case that matches <see cref="DecimalLogicalType" />
@@ -27,10 +26,10 @@ namespace Chr.Avro.Serialization
         /// <see cref="FixedSchema "/>.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> cannot be converted to <see cref="decimal" />.
+        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="decimal" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, JsonSerializerBuilderContext context)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
         {
             if (schema.LogicalType is DecimalLogicalType decimalLogicalType)
             {
@@ -45,7 +44,7 @@ namespace Chr.Avro.Serialization
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {schema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {schema} to {type}.", exception);
                 }
 
                 // declare variables for in-place transformation:

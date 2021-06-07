@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinarySerializerBuilder" /> case that matches <see cref="FixedSchema" />
@@ -20,10 +19,10 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> cannot be converted to <see cref="T:System.Byte[]" />.
+        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="T:System.Byte[]" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (schema is FixedSchema fixedSchema)
             {
@@ -35,7 +34,7 @@ namespace Chr.Avro.Serialization
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {fixedSchema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {fixedSchema} to {type}.", exception);
                 }
 
                 var bytes = Expression.Parameter(typeof(byte[]));

@@ -1,8 +1,8 @@
 namespace Chr.Avro.Serialization
 {
+    using System;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="NullSchema" />.
@@ -18,12 +18,12 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema is NullSchema)
             {
                 return BinaryDeserializerBuilderCaseResult.FromExpression(
-                    Expression.Default(resolution.Type));
+                    Expression.Default(type));
             }
             else
             {

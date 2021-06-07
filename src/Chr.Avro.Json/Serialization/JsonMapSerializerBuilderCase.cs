@@ -3,12 +3,10 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Collections;
     using System.Collections.Generic;
-    using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonSerializerBuilder" /> case that matches <see cref="MapSchema" />
@@ -36,21 +34,21 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="JsonSerializer{T}" /> for an <see cref="MapSchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="JsonSerializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is an <see ref="ArrayResolution" /> and <paramref name="schema" /> is a <see cref="ArraySchema" />;
-        /// an unsuccessful <see cref="JsonSerializerBuilderCaseResult" /> otherwise.
+        /// A successful <see cref="JsonSerializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is a dictionary type and <paramref name="schema" /> is a <see cref="MapSchema" />; an
+        /// unsuccessful <see cref="JsonSerializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> does not implement <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />.
+        /// Thrown when <paramref name="type" /> does not implement <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, JsonSerializerBuilderContext context)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
         {
             if (schema is MapSchema mapSchema)
             {
-                if (resolution is MapResolution mapResolution)
+                if (GetDictionaryTypes(type) is (Type keyType, Type valueType))
                 {
-                    var pairType = typeof(KeyValuePair<,>).MakeGenericType(mapResolution.KeyType, mapResolution.ValueType);
+                    var pairType = typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType);
                     var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(pairType));
                     var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(pairType));
                     var loop = Expression.Label();
@@ -106,7 +104,7 @@ namespace Chr.Avro.Serialization
                 }
                 else
                 {
-                    return JsonSerializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(JsonMapSerializerBuilderCase)} can only be applied to {nameof(MapResolution)}s."));
+                    return JsonSerializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(JsonMapSerializerBuilderCase)} can only be applied to dictionary types."));
                 }
             }
             else

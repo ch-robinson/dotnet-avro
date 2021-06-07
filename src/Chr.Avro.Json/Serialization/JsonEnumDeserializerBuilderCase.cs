@@ -3,9 +3,9 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Reflection;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonDeserializerBuilder" /> case that matches <see cref="EnumSchema" />
@@ -17,39 +17,44 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="JsonDeserializer{T}" /> for an <see cref="EnumSchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="JsonDeserializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is an <see ref="EnumResolution" /> and <paramref name="schema" /> is an <see cref="EnumSchema" />;
-        /// an unsuccessful <see cref="JsonDeserializerBuilderCaseResult" /> otherwise.
+        /// A successful <see cref="JsonDeserializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is an enum and <paramref name="schema" /> is an <see cref="EnumSchema" />; an
+        /// unsuccessful <see cref="JsonDeserializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <paramref name="resolution" /> does not contain a matching symbol for each
-        /// symbol in <paramref name="schema" />.
+        /// Thrown when <paramref name="type" /> does not have a matching member for each symbol in
+        /// <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, JsonDeserializerBuilderContext context)
+        public virtual JsonDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, JsonDeserializerBuilderContext context)
         {
             if (schema is EnumSchema enumSchema)
             {
-                if (resolution is EnumResolution enumResolution)
+                var underlying = Nullable.GetUnderlyingType(type) ?? type;
+
+                if (underlying.IsEnum)
                 {
                     var getString = typeof(Utf8JsonReader)
                         .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
 
                     Expression expression = Expression.Call(context.Reader, getString);
 
+                    // enum fields will always be public static, so no need to expose binding flags:
+                    var fields = underlying.GetFields(BindingFlags.Public | BindingFlags.Static);
+
                     // find a match for each enum in the schema:
-                    var cases = enumSchema.Symbols.Select(name =>
+                    var cases = enumSchema.Symbols.Select(symbol =>
                     {
-                        var match = enumResolution.Symbols.SingleOrDefault(s => s.Name.IsMatch(name));
+                        var match = fields.SingleOrDefault(field => IsMatch(symbol, field.Name));
 
                         if (match == null)
                         {
-                            throw new UnsupportedTypeException(resolution.Type, $"{resolution.Type.Name} has no value that matches {name}.");
+                            throw new UnsupportedTypeException(type, $"{type} has no value that matches {symbol}.");
                         }
 
                         return Expression.SwitchCase(
-                            BuildConversion(Expression.Constant(match.Value), resolution.Type),
-                            Expression.Constant(name));
+                            BuildConversion(Expression.Constant(Enum.Parse(underlying, match.Name)), type),
+                            Expression.Constant(symbol));
                     });
 
                     var position = typeof(Utf8JsonReader)
@@ -69,12 +74,12 @@ namespace Chr.Avro.Serialization
                                     Expression.Property(context.Reader, position),
                                     Expression.Constant($"Invalid enum symbol."),
                                     Expression.Constant(null, typeof(Exception))),
-                                resolution.Type),
+                                type),
                             cases.ToArray()));
                 }
                 else
                 {
-                    return JsonDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(JsonEnumDeserializerBuilderCase)} can only be applied to {nameof(EnumResolution)}s."));
+                    return JsonDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(JsonEnumDeserializerBuilderCase)} can only be applied to enum types."));
                 }
             }
             else

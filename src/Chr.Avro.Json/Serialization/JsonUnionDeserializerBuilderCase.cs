@@ -5,7 +5,6 @@ namespace Chr.Avro.Serialization
     using System.Linq.Expressions;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonDeserializerBuilder" /> case that matches <see cref="UnionSchema" />
@@ -41,11 +40,11 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="schema" /> has no <see cref="UnionSchema.Schemas" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <paramref name="resolution" /> cannot be mapped to each <see cref="Schema" />
-        /// in <paramref name="schema" />.
+        /// Thrown when <paramref name="type" /> cannot be mapped to each <see cref="Schema" /> in
+        /// <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, JsonDeserializerBuilderContext context)
+        public virtual JsonDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, JsonDeserializerBuilderContext context)
         {
             if (schema is UnionSchema unionSchema)
             {
@@ -75,18 +74,18 @@ namespace Chr.Avro.Serialization
 
                 var cases = candidates.Select(child =>
                 {
-                    var selected = SelectType(resolution, child);
+                    var selected = SelectType(type, child);
 
                     return Expression.SwitchCase(
                         BuildConversion(
                             Expression.Block(
                                 Expression.Call(context.Reader, read),
-                                DeserializerBuilder.BuildExpression(selected.Type, child, context)),
-                            resolution.Type),
+                                DeserializerBuilder.BuildExpression(selected, child, context)),
+                            type),
                         Expression.Constant(GetSchemaName(child)));
                 }).ToArray();
 
-                var value = Expression.Parameter(resolution.Type);
+                var value = Expression.Parameter(type);
 
                 Expression expression = Expression.Block(
                     new[] { value },
@@ -110,7 +109,7 @@ namespace Chr.Avro.Serialization
                                     null,
                                     getUnknownUnionMemberException,
                                     context.Reader),
-                                resolution.Type),
+                                type),
                             cases)),
                     Expression.Call(context.Reader, read),
                     Expression.IfThen(
@@ -127,12 +126,12 @@ namespace Chr.Avro.Serialization
 
                 if (@null != null)
                 {
-                    var selected = SelectType(resolution, @null);
-                    var underlying = Nullable.GetUnderlyingType(selected.Type);
+                    var selected = SelectType(type, @null);
+                    var underlying = Nullable.GetUnderlyingType(selected);
 
-                    if (selected.Type.IsValueType && underlying == null)
+                    if (selected.IsValueType && underlying == null)
                     {
-                        throw new UnsupportedTypeException(resolution.Type, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {selected.Type}.");
+                        throw new UnsupportedTypeException(type, $"A deserializer for a union containing {typeof(NullSchema)} cannot be built for {selected}.");
                     }
 
                     expression = Expression.Condition(
@@ -140,8 +139,8 @@ namespace Chr.Avro.Serialization
                             Expression.Property(context.Reader, tokenType),
                             Expression.Constant(JsonTokenType.Null)),
                         BuildConversion(
-                            DeserializerBuilder.BuildExpression(selected.Type, @null, context),
-                            resolution.Type),
+                            DeserializerBuilder.BuildExpression(selected, @null, context),
+                            type),
                         expression);
                 }
 

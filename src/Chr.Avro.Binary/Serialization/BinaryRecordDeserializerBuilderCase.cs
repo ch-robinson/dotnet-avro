@@ -3,8 +3,8 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Reflection;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="RecordSchema" />
@@ -18,9 +18,15 @@ namespace Chr.Avro.Serialization
         /// <param name="deserializerBuilder">
         /// A deserializer builder instance that will be used to build field deserializers.
         /// </param>
-        public BinaryRecordDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+        /// <param name="memberVisibility">
+        /// The binding flags to use to select fields and properties.
+        /// </param>
+        public BinaryRecordDeserializerBuilderCase(
+            IBinaryDeserializerBuilder deserializerBuilder,
+            BindingFlags memberVisibility)
         {
             DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Binary deserializer builder cannot be null.");
+            MemberVisibility = memberVisibility;
         }
 
         /// <summary>
@@ -29,32 +35,35 @@ namespace Chr.Avro.Serialization
         public IBinaryDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
+        /// Gets the binding flags used to select fields and properties.
+        /// </summary>
+        public BindingFlags MemberVisibility { get; }
+
+        /// <summary>
         /// Builds a <see cref="BinaryDeserializer{T}" /> for a <see cref="RecordSchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is a <see ref="RecordResolution" /> and <paramref name="schema" /> is a <see cref="RecordSchema" />;
+        /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is not an array or primitive type and <paramref name="schema" /> is a <see cref="RecordSchema" />;
         /// an unsuccessful <see cref="BinaryDeserializerBuilderCaseResult" /> otherwise.
         /// </returns>
-        /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved type is not assignable from any supported array or collection
-        /// type and does not have a constructor that can be used to instantiate it.
-        /// </exception>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema is RecordSchema recordSchema)
             {
-                if (resolution is RecordResolution recordResolution)
+                var underlying = Nullable.GetUnderlyingType(type) ?? type;
+
+                if (!underlying.IsArray && !underlying.IsPrimitive)
                 {
                     // since record deserialization is potentially recursive, create a top-level
                     // reference:
                     var parameter = Expression.Parameter(
-                        Expression.GetDelegateType(context.Reader.Type.MakeByRefType(), resolution.Type));
+                        Expression.GetDelegateType(context.Reader.Type.MakeByRefType(), underlying));
 
-                    if (!context.References.TryGetValue((recordSchema, resolution.Type), out var reference))
+                    if (!context.References.TryGetValue((recordSchema, type), out var reference))
                     {
-                        context.References.Add((recordSchema, resolution.Type), reference = parameter);
+                        context.References.Add((recordSchema, type), reference = parameter);
                     }
 
                     // then build/set the delegate if it hasn’t been built yet:
@@ -62,22 +71,24 @@ namespace Chr.Avro.Serialization
                     {
                         Expression expression;
 
-                        if (FindRecordConstructor(recordResolution, recordSchema) is ConstructorResolution constructorResolution)
+                        if (GetRecordConstructor(underlying, recordSchema) is ConstructorInfo constructor)
                         {
+                            var parameters = constructor.GetParameters();
+
                             // map constructor parameters to fields:
                             var mapping = recordSchema.Fields
                                 .Select(field =>
                                 {
                                     // there will be a match or we wouldn’t have made it this far:
-                                    var match = constructorResolution.Parameters.Single(f => f.Name.IsMatch(field.Name));
-                                    var parameter = Expression.Parameter(match.Parameter.ParameterType);
+                                    var match = parameters.Single(parameter => IsMatch(field, parameter.Name));
+                                    var parameter = Expression.Parameter(match.ParameterType);
 
                                     return (
                                         Match: match,
                                         Parameter: parameter,
                                         Assignment: (Expression)Expression.Assign(
                                             parameter,
-                                            DeserializerBuilder.BuildExpression(match.Parameter.ParameterType, field.Type, context)));
+                                            DeserializerBuilder.BuildExpression(match.ParameterType, field.Type, context)));
                                 })
                                 .ToDictionary(r => r.Match, r => (r.Parameter, r.Assignment));
 
@@ -89,25 +100,31 @@ namespace Chr.Avro.Serialization
                                     .Concat(new[]
                                     {
                                         Expression.New(
-                                            constructorResolution.Constructor,
-                                            constructorResolution.Parameters
+                                            constructor,
+                                            parameters
                                                 .Select(parameter => mapping.ContainsKey(parameter)
                                                     ? (Expression)mapping[parameter].Parameter
-                                                    : Expression.Constant(parameter.Parameter.DefaultValue))),
+                                                    : Expression.Constant(parameter.DefaultValue))),
                                     }));
                         }
                         else
                         {
-                            var value = Expression.Parameter(resolution.Type);
+                            var members = underlying.GetMembers(MemberVisibility);
+                            var value = Expression.Parameter(underlying);
 
                             expression = Expression.Block(
                                 new[] { value },
                                 new[] { (Expression)Expression.Assign(value, Expression.New(value.Type)) }
                                     .Concat(recordSchema.Fields.Select(field =>
                                     {
-                                        var match = recordResolution.Fields.SingleOrDefault(f => f.Name.IsMatch(field.Name));
+                                        var match = members.SingleOrDefault(member => IsMatch(field, member.Name));
                                         var schema = match == null ? CreateSurrogateSchema(field.Type) : field.Type;
-                                        var type = match == null ? GetSurrogateType(schema) : match.Type;
+                                        var type = match == null ? GetSurrogateType(schema) : match switch
+                                        {
+                                            FieldInfo fieldMatch => fieldMatch.FieldType,
+                                            PropertyInfo propertyMatch => propertyMatch.PropertyType,
+                                            MemberInfo unknown => throw new InvalidOperationException($"Record fields can only be mapped to fields and properties.")
+                                        };
 
                                         // always read to advance the stream:
                                         var expression = DeserializerBuilder.BuildExpression(type, schema, context);
@@ -115,12 +132,12 @@ namespace Chr.Avro.Serialization
                                         if (match != null)
                                         {
                                             // and assign if a field matches:
-                                            expression = Expression.Assign(Expression.PropertyOrField(value, match.Member.Name), expression);
+                                            expression = Expression.Assign(Expression.PropertyOrField(value, match.Name), expression);
                                         }
 
                                         return expression;
                                     }))
-                                    .Concat(new[] { value }));
+                                    .Concat(new[] { Expression.ConvertChecked(value, type) }));
                         }
 
                         expression = Expression.Lambda(
@@ -137,7 +154,7 @@ namespace Chr.Avro.Serialization
                 }
                 else
                 {
-                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BinaryRecordDeserializerBuilderCase)} can only be applied to {nameof(RecordResolution)}s."));
+                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(BinaryRecordDeserializerBuilderCase)} cannot be applied to array or primitive types."));
                 }
             }
             else

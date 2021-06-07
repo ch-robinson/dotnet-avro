@@ -6,8 +6,9 @@ namespace Chr.Avro.Serialization
     using System.Collections.ObjectModel;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Reflection;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
+    using Chr.Avro.Infrastructure;
 
     /// <summary>
     /// Provides a base implementation for deserializer builder cases that match <see cref="ArraySchema" />.
@@ -65,86 +66,104 @@ namespace Chr.Avro.Serialization
         /// This method includes conditions to support deserializing to concrete collection types
         /// that ship with .NET.
         /// </remarks>
-        /// <param name="resolution">
-        /// An <see cref="ArrayResolution" /> containing information about the target <see cref="Type" />.
+        /// <param name="type">
+        /// An enumerable <see cref="Type" />.
         /// </param>
         /// <returns>
         /// An <see cref="Expression" /> representing the creation of a collection that can be
-        /// converted to the <see cref="Type" /> described by <paramref name="resolution" />.
+        /// converted to <paramref name="type" />.
         /// </returns>
-        protected virtual Expression BuildIntermediateCollection(ArrayResolution resolution)
+        protected virtual Expression BuildIntermediateCollection(Type type)
         {
-            if (resolution.Type.IsArray || resolution.Type.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(resolution.ItemType)) || resolution.Type.IsAssignableFrom(typeof(ImmutableArray<>).MakeGenericType(resolution.ItemType)))
+            var itemType = type.GetEnumerableType() ?? throw new ArgumentException($"{type} is not an enumerable type.");
+
+            if (type.IsArray || type.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(itemType)) || type.IsAssignableFrom(typeof(ImmutableArray<>).MakeGenericType(itemType)))
             {
                 var createBuilder = typeof(ImmutableArray)
                     .GetMethod(nameof(ImmutableArray.CreateBuilder), Type.EmptyTypes)
-                    .MakeGenericMethod(resolution.ItemType);
+                    .MakeGenericMethod(itemType);
 
                 return Expression.Call(null, createBuilder);
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(ImmutableHashSet<>).MakeGenericType(resolution.ItemType)))
+            if (type.IsAssignableFrom(typeof(ImmutableHashSet<>).MakeGenericType(itemType)))
             {
                 var createBuilder = typeof(ImmutableHashSet)
                     .GetMethod(nameof(ImmutableHashSet.CreateBuilder), Type.EmptyTypes)
-                    .MakeGenericMethod(resolution.ItemType);
+                    .MakeGenericMethod(itemType);
 
                 return Expression.Call(null, createBuilder);
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(ImmutableList<>).MakeGenericType(resolution.ItemType)))
+            if (type.IsAssignableFrom(typeof(ImmutableList<>).MakeGenericType(itemType)))
             {
                 var createBuilder = typeof(ImmutableList)
                     .GetMethod(nameof(ImmutableList.CreateBuilder), Type.EmptyTypes)
-                    .MakeGenericMethod(resolution.ItemType);
+                    .MakeGenericMethod(itemType);
 
                 return Expression.Call(null, createBuilder);
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(ImmutableSortedSet<>).MakeGenericType(resolution.ItemType)))
+            if (type.IsAssignableFrom(typeof(ImmutableSortedSet<>).MakeGenericType(itemType)))
             {
                 var createBuilder = typeof(ImmutableSortedSet)
                     .GetMethod(nameof(ImmutableSortedSet.CreateBuilder), Type.EmptyTypes)
-                    .MakeGenericMethod(resolution.ItemType);
+                    .MakeGenericMethod(itemType);
 
                 return Expression.Call(null, createBuilder);
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(HashSet<>).MakeGenericType(resolution.ItemType)))
+            if (type.IsAssignableFrom(typeof(HashSet<>).MakeGenericType(itemType)))
             {
-                return Expression.New(typeof(HashSet<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
+                return Expression.New(typeof(HashSet<>).MakeGenericType(itemType).GetConstructor(Type.EmptyTypes));
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(SortedSet<>).MakeGenericType(resolution.ItemType)))
+            if (type.IsAssignableFrom(typeof(SortedSet<>).MakeGenericType(itemType)))
             {
-                return Expression.New(typeof(SortedSet<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
+                return Expression.New(typeof(SortedSet<>).MakeGenericType(itemType).GetConstructor(Type.EmptyTypes));
             }
 
-            if (resolution.Type.IsAssignableFrom(typeof(Collection<>).MakeGenericType(resolution.ItemType)))
+            if (type.IsAssignableFrom(typeof(Collection<>).MakeGenericType(itemType)))
             {
-                return Expression.New(typeof(Collection<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
+                return Expression.New(typeof(Collection<>).MakeGenericType(itemType).GetConstructor(Type.EmptyTypes));
             }
 
-            return Expression.New(typeof(List<>).MakeGenericType(resolution.ItemType).GetConstructor(Type.EmptyTypes));
+            return Expression.New(typeof(List<>).MakeGenericType(itemType).GetConstructor(Type.EmptyTypes));
         }
 
         /// <summary>
         /// Gets a constructor that can be used to instantiate a collection type.
         /// </summary>
-        /// <param name="resolution">
-        /// An <see cref="ArrayResolution" /> containing information about the collection
-        /// <see cref="Type" />.
+        /// <param name="type">
+        /// A collection <see cref="Type" />.
         /// </param>
         /// <returns>
-        /// A <see cref="ConstructorResolution" /> from <paramref name="resolution" /> if one
-        /// matches; <c>null</c> otherwise.
+        /// A <see cref="ConstructorInfo" /> from <paramref name="type" /> if one matches;
+        /// <c>null</c> otherwise.
         /// </returns>
-        protected virtual ConstructorResolution? FindEnumerableConstructor(ArrayResolution resolution)
+        protected virtual ConstructorInfo? GetCollectionConstructor(Type type)
         {
-            return resolution.Constructors
-                .Where(constructor => constructor.Parameters.Count == 1)
-                .FirstOrDefault(constructor => constructor.Parameters.First().Parameter.ParameterType
-                    .IsAssignableFrom(typeof(IEnumerable<>).MakeGenericType(resolution.ItemType)));
+            var itemType = type.GetEnumerableType() ?? throw new ArgumentException($"{type} is not an enumerable type.");
+
+            return type.GetConstructors()
+                .Where(constructor => constructor.GetParameters().Count() == 1)
+                .FirstOrDefault(constructor => constructor.GetParameters().First().ParameterType
+                    .IsAssignableFrom(typeof(IEnumerable<>).MakeGenericType(itemType)));
+        }
+
+        /// <summary>
+        /// Gets the item <see cref="Type" /> of an enumerable <see cref="Type" />.
+        /// </summary>
+        /// <param name="type">
+        /// A <see cref="Type" /> object that describes a generic enumerable.
+        /// </param>
+        /// <returns>
+        /// If <paramref name="type" /> implements (or is) <see cref="IEnumerable{T}" />, its type
+        /// argument; <c>null</c> otherwise.
+        /// </returns>
+        protected virtual Type? GetEnumerableType(Type type)
+        {
+            return type.GetEnumerableType();
         }
     }
 }

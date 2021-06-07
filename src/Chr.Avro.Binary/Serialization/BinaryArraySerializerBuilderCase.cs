@@ -6,7 +6,6 @@ namespace Chr.Avro.Serialization
     using System.Linq;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinarySerializerBuilder" /> case that matches <see cref="ArraySchema" />
@@ -34,21 +33,20 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="BinarySerializer{T}" /> for an <see cref="ArraySchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="BinarySerializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is an <see ref="ArrayResolution" /> and <paramref name="schema" /> is a <see cref="ArraySchema" />;
+        /// A successful <see cref="BinarySerializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is an enumerable type and <paramref name="schema" /> is an <see cref="ArraySchema" />;
         /// an unsuccessful <see cref="BinarySerializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> does not implement <see cref="IEnumerable{T}" />.
+        /// Thrown when <paramref name="type" /> does not implement <see cref="IEnumerable{T}" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (schema is ArraySchema arraySchema)
             {
-                if (resolution is ArrayResolution arrayResolution)
+                if (GetEnumerableType(type) is Type itemType)
                 {
-                    var itemType = arrayResolution.ItemType;
                     var collection = Expression.Variable(typeof(ICollection<>).MakeGenericType(itemType));
                     var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(itemType));
                     var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(itemType));
@@ -99,7 +97,7 @@ namespace Chr.Avro.Serialization
                     }
                     catch (Exception exception)
                     {
-                        throw new UnsupportedTypeException(resolution.Type, $"Failed to map {arraySchema} to {arrayResolution.Type}.", exception);
+                        throw new UnsupportedTypeException(type, $"Failed to map {arraySchema} to {type}.", exception);
                     }
 
                     // var collection = value is ICollection<T>
@@ -168,7 +166,7 @@ namespace Chr.Avro.Serialization
                 }
                 else
                 {
-                    return BinarySerializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BinaryArraySerializerBuilderCase)} can only be applied to {nameof(ArrayResolution)}s."));
+                    return BinarySerializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(BinaryArraySerializerBuilderCase)} can only be applied to enumerable types."));
                 }
             }
             else

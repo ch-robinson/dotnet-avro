@@ -2,8 +2,7 @@ namespace Chr.Avro.Abstract
 {
     using System;
     using System.Collections.Generic;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
+    using System.Reflection;
 
     /// <summary>
     /// Builds Avro schemas for .NET <see cref="Type" />s.
@@ -14,19 +13,25 @@ namespace Chr.Avro.Abstract
         /// Initializes a new instance of the <see cref="SchemaBuilder" /> class configured with
         /// the default list of cases.
         /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags the builder should use to select fields and properties.
+        /// </param>
+        /// <param name="enumBehavior">
+        /// Whether the builder should build enum schemas or integral schemas for enum types.
+        /// </param>
+        /// <param name="nullableReferenceTypeBehavior">
+        /// The behavior the builder should apply when determining nullability of reference types.
+        /// </param>
         /// <param name="temporalBehavior">
         /// Whether the builder should build string schemas (ISO 8601) or long schemas (timestamp
-        /// logical types) for timestamp resolutions.
-        /// </param>
-        /// <param name="typeResolver">
-        /// The <see cref="ITypeResolver" /> that should be used to retrieve type information. If
-        /// no <see cref="ITypeResolver" /> is provided, the <see cref="SchemaBuilder" /> will use
-        /// a <see cref="TypeResolver" /> with the default set of cases.
+        /// logical types) for timestamp types.
         /// </param>
         public SchemaBuilder(
-            TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601,
-            ITypeResolver? typeResolver = null)
-            : this(CreateDefaultCaseBuilders(temporalBehavior), typeResolver)
+            BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance,
+            EnumBehavior enumBehavior = EnumBehavior.Symbolic,
+            NullableReferenceTypeBehavior nullableReferenceTypeBehavior = NullableReferenceTypeBehavior.None,
+            TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601)
+            : this(CreateDefaultCaseBuilders(memberVisibility, enumBehavior, nullableReferenceTypeBehavior, temporalBehavior))
         {
         }
 
@@ -37,19 +42,12 @@ namespace Chr.Avro.Abstract
         /// <param name="caseBuilders">
         /// A list of case builders.
         /// </param>
-        /// <param name="typeResolver">
-        /// The <see cref="ITypeResolver" /> that should be used to retrieve type information. If
-        /// no <see cref="ITypeResolver" /> is provided, the <see cref="SchemaBuilder" /> will use
-        /// a <see cref="TypeResolver" /> with the default set of cases.
-        /// </param>
         public SchemaBuilder(
-            IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> caseBuilders,
-            ITypeResolver? typeResolver = null)
+            IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> caseBuilders)
         {
             var cases = new List<ISchemaBuilderCase>();
 
             Cases = cases;
-            Resolver = typeResolver ?? new TypeResolver();
 
             // initialize cases last so that the schema builder is fully ready:
             foreach (var builder in caseBuilders)
@@ -66,39 +64,61 @@ namespace Chr.Avro.Abstract
         public virtual IEnumerable<ISchemaBuilderCase> Cases { get; }
 
         /// <summary>
-        /// Gets the resolver that will be used to retrieve type information.
-        /// </summary>
-        public virtual ITypeResolver Resolver { get; }
-
-        /// <summary>
         /// Creates the default list of case builders.
         /// </summary>
+        /// <param name="memberVisibility">
+        /// The binding flags to use to select fields and properties.
+        /// </param>
+        /// <param name="enumBehavior">
+        /// The behavior to apply when building schemas for enum types.
+        /// </param>
+        /// <param name="nullableReferenceTypeBehavior">
+        /// The behavior to apply when determining nullability of reference types.
+        /// </param>
         /// <param name="temporalBehavior">
         /// The behavior to apply when building schemas for temporal types.
         /// </param>
         /// <returns>
         /// A list of case builders that matches most .NET <see cref="Type" />s.
         /// </returns>
-        public static IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> CreateDefaultCaseBuilders(TemporalBehavior temporalBehavior)
+        public static IEnumerable<Func<ISchemaBuilder, ISchemaBuilderCase>> CreateDefaultCaseBuilders(
+            BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance,
+            EnumBehavior enumBehavior = EnumBehavior.Symbolic,
+            NullableReferenceTypeBehavior nullableReferenceTypeBehavior = NullableReferenceTypeBehavior.None,
+            TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601)
         {
             return new Func<ISchemaBuilder, ISchemaBuilderCase>[]
             {
-                builder => new ArraySchemaBuilderCase(builder),
+                // nullables:
+                builder => new UnionSchemaBuilderCase(builder),
+
+                // primitives:
                 builder => new BooleanSchemaBuilderCase(),
-                builder => new BytesSchemaBuilderCase(),
+                builder => new BytesSchemaBuilderCase(nullableReferenceTypeBehavior),
                 builder => new DecimalSchemaBuilderCase(),
                 builder => new DoubleSchemaBuilderCase(),
-                builder => new DurationSchemaBuilderCase(),
-                builder => new EnumSchemaBuilderCase(builder),
                 builder => new FloatSchemaBuilderCase(),
                 builder => new IntSchemaBuilderCase(),
                 builder => new LongSchemaBuilderCase(),
-                builder => new MapSchemaBuilderCase(builder),
-                builder => new RecordSchemaBuilderCase(builder),
-                builder => new StringSchemaBuilderCase(),
+                builder => new StringSchemaBuilderCase(nullableReferenceTypeBehavior),
+
+                // enums:
+                builder => new EnumSchemaBuilderCase(enumBehavior, builder),
+
+                // dictionaries:
+                builder => new MapSchemaBuilderCase(nullableReferenceTypeBehavior, builder),
+
+                // enumerables:
+                builder => new ArraySchemaBuilderCase(nullableReferenceTypeBehavior, builder),
+
+                // built-ins:
+                builder => new DurationSchemaBuilderCase(),
                 builder => new TimestampSchemaBuilderCase(temporalBehavior),
                 builder => new UriSchemaBuilderCase(),
                 builder => new UuidSchemaBuilderCase(),
+
+                // classes and structs:
+                builder => new RecordSchemaBuilderCase(memberVisibility, nullableReferenceTypeBehavior, builder),
             };
         }
 
@@ -119,38 +139,26 @@ namespace Chr.Avro.Abstract
         {
             context ??= new SchemaBuilderContext();
 
-            var resolution = Resolver.ResolveType(type);
-
-            if (!context.Schemas.TryGetValue(resolution.Type, out var schema))
+            if (!context.Schemas.TryGetValue(type, out var schema))
             {
-                // first try to build a schema for the underlying type, if any:
-                if (!context.Schemas.TryGetValue(resolution.Type.GetUnderlyingType(), out schema))
+                var exceptions = new List<Exception>();
+
+                foreach (var @case in Cases)
                 {
-                    var exceptions = new List<Exception>();
+                    var result = @case.BuildSchema(type, context);
 
-                    foreach (var @case in Cases)
+                    if (result.Schema != null)
                     {
-                        var result = @case.BuildSchema(resolution, context);
-
-                        if (result.Schema != null)
-                        {
-                            schema = result.Schema;
-                            break;
-                        }
-
-                        exceptions.AddRange(result.Exceptions);
+                        schema = result.Schema;
+                        break;
                     }
 
-                    if (schema == null)
-                    {
-                        throw new UnsupportedTypeException(resolution.Type, $"No schema builder case could be applied to {resolution.Type} (as {resolution.GetType().Name}).", new AggregateException(exceptions));
-                    }
+                    exceptions.AddRange(result.Exceptions);
                 }
 
-                // then, if nullable, ensure the union is cached:
-                if (resolution.IsNullable)
+                if (schema == null)
                 {
-                    context.Schemas[resolution.Type] = schema = new UnionSchema(new Schema[] { new NullSchema(), schema });
+                    throw new UnsupportedTypeException(type, $"No schema builder case could be applied to {type}.", new AggregateException(exceptions));
                 }
             }
 

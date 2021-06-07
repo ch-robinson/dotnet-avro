@@ -2,7 +2,6 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Defines methods to build Avro deserializers for specific
@@ -19,12 +18,11 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Builds a deserializer for a <see cref="Type" />-<see cref="Schema" /> pair.
         /// </summary>
-        /// <param name="resolution">
-        /// The <see cref="TypeResolution" /> to extract <see cref="Type" /> information from.
+        /// <param name="type">
+        /// The <see cref="Type" /> to be deserialized.
         /// </param>
         /// <param name="schema">
-        /// A <see cref="Schema" /> to map to the <see cref="Type" /> represented by
-        /// <paramref name="resolution" />.
+        /// A <see cref="Schema" /> to map to <paramref name="type" />.
         /// </param>
         /// <param name="context">
         /// A <typeparamref name="TContext" /> representing the state of the build operation.
@@ -33,6 +31,6 @@ namespace Chr.Avro.Serialization
         /// A successful <typeparamref name="TResult" /> if the case can be applied;
         /// an unsuccessful <typeparamref name="TResult" /> otherwise.
         /// </returns>
-        TResult BuildExpression(TypeResolution resolution, Schema schema, TContext context);
+        TResult BuildExpression(Type type, Schema schema, TContext context);
     }
 }

@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Defines methods to build Avro serializers for specific
@@ -23,12 +22,11 @@ namespace Chr.Avro.Serialization
         /// <param name="value">
         /// An <see cref="Expression" /> representing the value to be serialized.
         /// </param>
-        /// <param name="resolution">
-        /// The <see cref="TypeResolution" /> to extract <see cref="Type" /> information from.
+        /// <param name="type">
+        /// The <see cref="Type" /> to be serialized.
         /// </param>
         /// <param name="schema">
-        /// A <see cref="Schema" /> to map to the <see cref="Type" /> represented by
-        /// <paramref name="resolution" />.
+        /// A <see cref="Schema" /> to map to <paramref name="type" />.
         /// </param>
         /// <param name="context">
         /// A <typeparamref name="TContext" /> representing the state of the build operation.
@@ -37,6 +35,6 @@ namespace Chr.Avro.Serialization
         /// A successful <typeparamref name="TResult" /> if the case can be applied;
         /// an unsuccessful <typeparamref name="TResult" /> otherwise.
         /// </returns>
-        TResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, TContext context);
+        TResult BuildExpression(Expression value, Type type, Schema schema, TContext context);
     }
 }

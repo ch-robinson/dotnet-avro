@@ -2,8 +2,8 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Linq.Expressions;
+    using System.Reflection;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="MapSchema" />
@@ -31,32 +31,31 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="BinaryDeserializer{T}" /> for a <see cref="MapSchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is a <see ref="MapResolution" /> and <paramref name="schema" /> is a <see cref="MapSchema" />;
-        /// an unsuccessful <see cref="BinaryDeserializerBuilderCaseResult" /> otherwise.
+        /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is a dictionary type and <paramref name="schema" /> is a <see cref="MapSchema" />; an
+        /// unsuccessful <see cref="BinaryDeserializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> is not assignable from any supported
-        /// dictionary <see cref="Type" /> and does not have a constructor that can be used to
-        /// instantiate it.
+        /// Thrown when <paramref name="type" /> is not assignable from any supported dictionary
+        /// <see cref="Type" /> and does not have a constructor that can be used to instantiate it.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema is MapSchema mapSchema)
             {
-                if (resolution is MapResolution mapResolution)
+                if (GetDictionaryTypes(type) is (Type keyType, Type valueType))
                 {
-                    var instantiateDictionary = BuildIntermediateDictionary(mapResolution);
+                    var instantiateDictionary = BuildIntermediateDictionary(type);
 
                     var readInteger = typeof(BinaryReader)
                         .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
 
                     var readKey = DeserializerBuilder
-                        .BuildExpression(mapResolution.KeyType, new StringSchema(), context);
+                        .BuildExpression(keyType, new StringSchema(), context);
 
                     var readValue = DeserializerBuilder
-                        .BuildExpression(mapResolution.ValueType, mapSchema.Value, context);
+                        .BuildExpression(valueType, mapSchema.Value, context);
 
                     var dictionary = Expression.Parameter(instantiateDictionary.Type);
                     var index = Expression.Variable(typeof(long));
@@ -121,24 +120,24 @@ namespace Chr.Avro.Serialization
                             outer),
                         dictionary);
 
-                    if (!mapResolution.Type.IsAssignableFrom(expression.Type) && FindDictionaryConstructor(mapResolution) is ConstructorResolution constructorResolution)
+                    if (!type.IsAssignableFrom(expression.Type) && GetDictionaryConstructor(type) is ConstructorInfo constructor)
                     {
-                        expression = Expression.New(constructorResolution.Constructor, new[] { expression });
+                        expression = Expression.New(constructor, expression);
                     }
 
                     try
                     {
                         return BinaryDeserializerBuilderCaseResult.FromExpression(
-                            BuildConversion(expression, mapResolution.Type));
+                            BuildConversion(expression, type));
                     }
                     catch (InvalidOperationException exception)
                     {
-                        throw new UnsupportedTypeException(resolution.Type, $"Failed to map {mapSchema} to {resolution.Type}.", exception);
+                        throw new UnsupportedTypeException(type, $"Failed to map {mapSchema} to {type}.", exception);
                     }
                 }
                 else
                 {
-                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BinaryMapDeserializerBuilderCase)} can only be applied to {nameof(MapResolution)}s."));
+                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(BinaryMapDeserializerBuilderCase)} can only be applied to dictionary types."));
                 }
             }
             else

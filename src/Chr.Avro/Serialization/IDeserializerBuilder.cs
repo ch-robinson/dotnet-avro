@@ -13,11 +13,11 @@ namespace Chr.Avro.Serialization
     public interface IDeserializerBuilder<TContext>
     {
         /// <summary>
-        /// Builds an <see cref="Expression" /> that represents reading an object of
-        /// <paramref name="type" />.
+        /// Builds an <see cref="Expression" /> that represents reading an object of a specific
+        /// <see cref="Type" />.
         /// </summary>
         /// <param name="type">
-        /// The <see cref="Type" /> of object to be deserialized.
+        /// The <see cref="Type" /> to be deserialized.
         /// </param>
         /// <param name="schema">
         /// A <see cref="Schema" /> to map to <paramref name="type" />.
@@ -26,7 +26,7 @@ namespace Chr.Avro.Serialization
         /// A deserializer builder context.
         /// </param>
         /// <returns>
-        /// An expression representing the deserialization of <paramref name="type" /> based on
+        /// An expression representing the deserialization of an object based on
         /// <paramref name="schema" />.
         /// </returns>
         Expression BuildExpression(Type type, Schema schema, TContext context);

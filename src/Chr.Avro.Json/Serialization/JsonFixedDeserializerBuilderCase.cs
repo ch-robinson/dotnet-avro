@@ -5,7 +5,6 @@ namespace Chr.Avro.Serialization
     using System.Text;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonDeserializerBuilder" /> case that matches <see cref="FixedSchema" />
@@ -22,10 +21,10 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <see cref="bool" /> cannot be converted to the resolved <see cref="Type" />.
+        /// Thrown when <see cref="T:System.Byte[]" /> cannot be converted to <paramref name="type" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, JsonDeserializerBuilderContext context)
+        public virtual JsonDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, JsonDeserializerBuilderContext context)
         {
             if (schema is FixedSchema fixedSchema)
             {
@@ -80,11 +79,11 @@ namespace Chr.Avro.Serialization
                                             Expression.Constant(fixedSchema.Size),
                                             Expression.ArrayLength(bytes)))),
                                 bytes),
-                            resolution.Type));
+                            type));
                 }
                 catch (InvalidOperationException exception)
                 {
-                    throw new UnsupportedTypeException(resolution.Type, $"Failed to map {fixedSchema} to {resolution.Type}.", exception);
+                    throw new UnsupportedTypeException(type, $"Failed to map {fixedSchema} to {type}.", exception);
                 }
             }
             else

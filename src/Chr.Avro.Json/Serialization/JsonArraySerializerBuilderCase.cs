@@ -6,7 +6,6 @@ namespace Chr.Avro.Serialization
     using System.Linq.Expressions;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="JsonSerializerBuilder" /> case that matches <see cref="ArraySchema" />
@@ -34,21 +33,20 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="JsonSerializer{T}" /> for an <see cref="ArraySchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="JsonSerializerBuilderCaseResult" /> if <paramref name="resolution" />
-        /// is an <see ref="ArrayResolution" /> and <paramref name="schema" /> is a <see cref="ArraySchema" />;
+        /// A successful <see cref="JsonSerializerBuilderCaseResult" /> if <paramref name="type" />
+        /// is an enumerable type and <paramref name="schema" /> is an <see cref="ArraySchema" />;
         /// an unsuccessful <see cref="JsonSerializerBuilderCaseResult" /> otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when the resolved <see cref="Type" /> does not implement <see cref="IEnumerable{T}" />.
+        /// Thrown when <paramref name="type" /> does not implement <see cref="IEnumerable{T}" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, TypeResolution resolution, Schema schema, JsonSerializerBuilderContext context)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
         {
             if (schema is ArraySchema arraySchema)
             {
-                if (resolution is ArrayResolution arrayResolution)
+                if (GetEnumerableType(type) is Type itemType)
                 {
-                    var itemType = arrayResolution.ItemType;
                     var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(itemType));
                     var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(itemType));
                     var loop = Expression.Label();
@@ -92,7 +90,7 @@ namespace Chr.Avro.Serialization
                 }
                 else
                 {
-                    return JsonSerializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(JsonArraySerializerBuilderCase)} can only be applied to {nameof(ArrayResolution)}s."));
+                    return JsonSerializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(JsonArraySerializerBuilderCase)} can only be applied to enumerable types."));
                 }
             }
             else

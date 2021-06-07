@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
-    using Chr.Avro.Resolution;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="DurationLogicalType" />
@@ -16,8 +15,7 @@ namespace Chr.Avro.Serialization
         /// </summary>
         /// <returns>
         /// A successful <see cref="BinaryDeserializerBuilderCaseResult" /> if <paramref name="schema" />
-        /// has a <see cref="DurationLogicalType" /> and <paramref name="resolution" /> is a
-        /// <see cref="DurationResolution" />; an unsuccessful <see cref="BinaryDeserializerBuilderCaseResult" />
+        /// has a <see cref="DurationLogicalType" />; an unsuccessful <see cref="BinaryDeserializerBuilderCaseResult" />
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
@@ -25,77 +23,70 @@ namespace Chr.Avro.Serialization
         /// <c>12</c>.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <see cref="TimeSpan" /> cannot be converted to the resolved type.
+        /// Thrown when <see cref="TimeSpan" /> cannot be converted to <paramref name="type" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(TypeResolution resolution, Schema schema, BinaryDeserializerBuilderContext context)
+        public virtual BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
             if (schema.LogicalType is DurationLogicalType)
             {
-                if (resolution is DurationResolution)
+                if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == DurationLogicalType.DurationSize))
                 {
-                    if (!(schema is FixedSchema fixedSchema && fixedSchema.Size == DurationLogicalType.DurationSize))
-                    {
-                        throw new UnsupportedSchemaException(schema);
-                    }
-
-                    var readFixed = typeof(BinaryReader)
-                        .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(int) });
-
-                    Expression read = Expression.Call(context.Reader, readFixed, Expression.Constant(4));
-
-                    if (!BitConverter.IsLittleEndian)
-                    {
-                        var buffer = Expression.Variable(read.Type);
-                        var reverse = typeof(Array)
-                            .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
-
-                        read = Expression.Block(
-                            new[] { buffer },
-                            Expression.Assign(buffer, read),
-                            Expression.Call(null, reverse, Expression.Convert(buffer, typeof(Array))),
-                            buffer);
-                    }
-
-                    var toUInt32 = typeof(BitConverter)
-                        .GetMethod(nameof(BitConverter.ToUInt32), new[] { typeof(byte[]), typeof(int) });
-
-                    read = Expression.ConvertChecked(
-                        Expression.Call(null, toUInt32, read, Expression.Constant(0)),
-                        typeof(long));
-
-                    var exceptionConstructor = typeof(OverflowException)
-                        .GetConstructor(new[] { typeof(string) });
-
-                    var timeSpanConstructor = typeof(TimeSpan)
-                        .GetConstructor(new[] { typeof(long) });
-
-                    try
-                    {
-                        return BinaryDeserializerBuilderCaseResult.FromExpression(
-                            BuildConversion(
-                                Expression.Block(
-                                    Expression.IfThen(
-                                        Expression.NotEqual(read, Expression.Constant(0L)),
-                                        Expression.Throw(
-                                            Expression.New(
-                                                exceptionConstructor,
-                                                Expression.Constant("Durations containing months cannot be accurately deserialized to a TimeSpan.")))),
-                                    Expression.New(
-                                        timeSpanConstructor,
-                                        Expression.AddChecked(
-                                            Expression.MultiplyChecked(read, Expression.Constant(TimeSpan.TicksPerDay)),
-                                            Expression.MultiplyChecked(read, Expression.Constant(TimeSpan.TicksPerMillisecond))))),
-                                resolution.Type));
-                    }
-                    catch (InvalidOperationException exception)
-                    {
-                        throw new UnsupportedTypeException(resolution.Type, $"Failed to map {schema} to {resolution.Type}.", exception);
-                    }
+                    throw new UnsupportedSchemaException(schema);
                 }
-                else
+
+                var readFixed = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(int) });
+
+                Expression read = Expression.Call(context.Reader, readFixed, Expression.Constant(4));
+
+                if (!BitConverter.IsLittleEndian)
                 {
-                    return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(BinaryDurationDeserializerBuilderCase)} can only be applied to {nameof(DurationResolution)}s."));
+                    var buffer = Expression.Variable(read.Type);
+                    var reverse = typeof(Array)
+                        .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
+
+                    read = Expression.Block(
+                        new[] { buffer },
+                        Expression.Assign(buffer, read),
+                        Expression.Call(null, reverse, Expression.Convert(buffer, typeof(Array))),
+                        buffer);
+                }
+
+                var toUInt32 = typeof(BitConverter)
+                    .GetMethod(nameof(BitConverter.ToUInt32), new[] { typeof(byte[]), typeof(int) });
+
+                read = Expression.ConvertChecked(
+                    Expression.Call(null, toUInt32, read, Expression.Constant(0)),
+                    typeof(long));
+
+                var exceptionConstructor = typeof(OverflowException)
+                    .GetConstructor(new[] { typeof(string) });
+
+                var timeSpanConstructor = typeof(TimeSpan)
+                    .GetConstructor(new[] { typeof(long) });
+
+                try
+                {
+                    return BinaryDeserializerBuilderCaseResult.FromExpression(
+                        BuildConversion(
+                            Expression.Block(
+                                Expression.IfThen(
+                                    Expression.NotEqual(read, Expression.Constant(0L)),
+                                    Expression.Throw(
+                                        Expression.New(
+                                            exceptionConstructor,
+                                            Expression.Constant($"Durations containing months cannot be accurately deserialized to a {nameof(TimeSpan)}.")))),
+                                Expression.New(
+                                    timeSpanConstructor,
+                                    Expression.AddChecked(
+                                        Expression.MultiplyChecked(read, Expression.Constant(TimeSpan.TicksPerDay)),
+                                        Expression.MultiplyChecked(read, Expression.Constant(TimeSpan.TicksPerMillisecond))))),
+                            type));
+                }
+                catch (InvalidOperationException exception)
+                {
+                    throw new UnsupportedTypeException(type, $"Failed to map {schema} to {type}.", exception);
                 }
             }
             else

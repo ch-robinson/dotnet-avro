@@ -1,11 +1,9 @@
 namespace Chr.Avro.Abstract
 {
     using System;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
 
     /// <summary>
-    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="DecimalResolution" />.
+    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="decimal" />.
     /// </summary>
     public class DecimalSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
@@ -14,34 +12,35 @@ namespace Chr.Avro.Abstract
         /// </summary>
         /// <returns>
         /// A successful <see cref="SchemaBuilderCaseResult" /> with a <see cref="BytesSchema" />
-        /// and associated <see cref="DecimalLogicalType" /> if <paramref name="resolution" /> is a
-        /// <see cref="DecimalResolution" />; an unsuccessful <see cref="SchemaBuilderCaseResult" />
-        /// with an <see cref="UnsupportedTypeException" /> otherwise.
+        /// and associated <see cref="DecimalLogicalType" /> if <paramref name="type" /> is
+        /// <see cref="decimal" />; an unsuccessful <see cref="SchemaBuilderCaseResult" /> with an
+        /// <see cref="UnsupportedTypeException" /> otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual SchemaBuilderCaseResult BuildSchema(TypeResolution resolution, SchemaBuilderContext context)
+        public virtual SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            if (resolution is DecimalResolution decimalResolution)
+            if (type == typeof(decimal))
             {
-                var decimalSchema = new BytesSchema()
+                var decimalSchema = new BytesSchema
                 {
-                    LogicalType = new DecimalLogicalType(decimalResolution.Precision, decimalResolution.Scale),
+                    // default precision/scale to .NET limits:
+                    LogicalType = new DecimalLogicalType(29, 14),
                 };
 
                 try
                 {
-                    context.Schemas.Add(decimalResolution.Type.GetUnderlyingType(), decimalSchema);
+                    context.Schemas.Add(type, decimalSchema);
                 }
                 catch (ArgumentException exception)
                 {
-                    throw new InvalidOperationException($"A schema for {decimalResolution.Type} already exists on the schema builder context.", exception);
+                    throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
                 return SchemaBuilderCaseResult.FromSchema(decimalSchema);
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(DecimalSchemaBuilderCase)} can only be applied to {nameof(DecimalResolution)}s."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(DecimalSchemaBuilderCase)} can only be applied to the {typeof(decimal)} type."));
             }
         }
     }

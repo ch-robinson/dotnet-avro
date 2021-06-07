@@ -39,7 +39,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteBoolean(bool value)
         {
-            stream.WriteByte(value ? 0x01 : 0x00);
+            stream.WriteByte(value ? (byte)0x01 : (byte)0x00);
         }
 
         /// <summary>

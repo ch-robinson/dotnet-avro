@@ -1,12 +1,10 @@
 namespace Chr.Avro.Abstract
 {
     using System;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
 
     /// <summary>
-    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="IntegerResolution" />
-    /// (32-bit and smaller).
+    /// Implements a <see cref="SchemaBuilder" /> case that matches integral types less than or
+    /// equal to 32 bits.
     /// </summary>
     public class IntSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
@@ -15,38 +13,34 @@ namespace Chr.Avro.Abstract
         /// </summary>
         /// <returns>
         /// A successful <see cref="SchemaBuilderCaseResult" /> with an <see cref="IntSchema" />
-        /// if <paramref name="resolution" /> is an <see cref="IntegerResolution" /> with size
-        /// <c>32</c> or less; an unsuccessful <see cref="SchemaBuilderCaseResult" /> with an
-        /// <see cref="UnsupportedTypeException" /> otherwise.
+        /// if <paramref name="type" /> is less than or equal to 32 bits; an unsuccessful
+        /// <see cref="SchemaBuilderCaseResult" /> with an <see cref="UnsupportedTypeException" />
+        /// otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual SchemaBuilderCaseResult BuildSchema(TypeResolution resolution, SchemaBuilderContext context)
+        public virtual SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            if (resolution is IntegerResolution integerResolution)
+            if (
+                type == typeof(sbyte) || type == typeof(byte) ||
+                type == typeof(short) || type == typeof(ushort) || type == typeof(char) ||
+                type == typeof(int) || type == typeof(uint))
             {
                 var intSchema = new IntSchema();
 
-                if (integerResolution.Size <= 32)
+                try
                 {
-                    try
-                    {
-                        context.Schemas.Add(integerResolution.Type.GetUnderlyingType(), intSchema);
-                    }
-                    catch (ArgumentException exception)
-                    {
-                        throw new InvalidOperationException($"A schema for {integerResolution.Type} already exists on the schema builder context.", exception);
-                    }
+                    context.Schemas.Add(type, intSchema);
+                }
+                catch (ArgumentException exception)
+                {
+                    throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
+                }
 
-                    return SchemaBuilderCaseResult.FromSchema(intSchema);
-                }
-                else
-                {
-                    return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(IntSchemaBuilderCase)} can only be applied to {nameof(IntegerResolution)}s with size 32 or less."));
-                }
+                return SchemaBuilderCaseResult.FromSchema(intSchema);
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(IntSchemaBuilderCase)} can only be applied to {nameof(IntegerResolution)}s."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(IntSchemaBuilderCase)} can only be applied to integral types less than or equal than 32 bits."));
             }
         }
     }

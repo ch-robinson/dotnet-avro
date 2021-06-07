@@ -1,11 +1,9 @@
 namespace Chr.Avro.Abstract
 {
     using System;
-    using Chr.Avro.Infrastructure;
-    using Chr.Avro.Resolution;
 
     /// <summary>
-    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="UuidResolution" />.
+    /// Implements a <see cref="SchemaBuilder" /> case that matches <see cref="Guid" />.
     /// </summary>
     public class UuidSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
@@ -14,14 +12,14 @@ namespace Chr.Avro.Abstract
         /// </summary>
         /// <returns>
         /// A successful <see cref="SchemaBuilderCaseResult" /> with a <see cref="StringSchema" />
-        /// and associated <see cref="UuidLogicalType" /> if <paramref name="resolution" /> is a
-        /// <see cref="UuidResolution" />; an unsuccessful <see cref="SchemaBuilderCaseResult" />
+        /// and associated <see cref="UuidLogicalType" /> if <paramref name="type" /> is
+        /// <see cref="Guid" />; an unsuccessful <see cref="SchemaBuilderCaseResult" />
         /// with an <see cref="UnsupportedTypeException" /> otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual SchemaBuilderCaseResult BuildSchema(TypeResolution resolution, SchemaBuilderContext context)
+        public virtual SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            if (resolution is UuidResolution uuidResolution)
+            if (type == typeof(Guid))
             {
                 var uuidSchema = new StringSchema()
                 {
@@ -30,18 +28,18 @@ namespace Chr.Avro.Abstract
 
                 try
                 {
-                    context.Schemas.Add(uuidResolution.Type.GetUnderlyingType(), uuidSchema);
+                    context.Schemas.Add(type, uuidSchema);
                 }
                 catch (ArgumentException exception)
                 {
-                    throw new InvalidOperationException($"A schema for {uuidResolution.Type} already exists on the schema builder context.", exception);
+                    throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
                 return SchemaBuilderCaseResult.FromSchema(uuidSchema);
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(resolution.Type, $"{nameof(UuidSchemaBuilderCase)} can only be applied to {nameof(UuidResolution)}s."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(UuidSchemaBuilderCase)} can only be applied to the {nameof(Guid)} type."));
             }
         }
     }
