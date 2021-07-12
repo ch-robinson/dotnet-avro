@@ -130,11 +130,11 @@ namespace Chr.Avro.Codegen
                     .OfType<MemberDeclarationSyntax>()
                     .ToArray();
 
-                if (!string.IsNullOrEmpty(group.Key))
+                if (group.Key is string key)
                 {
                     members = new[]
                     {
-                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(group.Key)).AddMembers(members),
+                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(key)).AddMembers(members),
                     };
                 }
 
