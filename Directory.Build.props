@@ -13,7 +13,7 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <SignAssembly>true</SignAssembly>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Version>7.0.4</Version>
+    <Version>7.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
