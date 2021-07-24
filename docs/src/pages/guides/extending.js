@@ -139,7 +139,7 @@ public class OrderDeserializerBuilderCase : UnionDeserializerBuilderCase
     {
         if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
         {
-            throw new UnsupportedTypeException(resolution.Type);
+            return resolution;
         }
 
         switch ((schema as RecordSchema)?.Name)
@@ -172,7 +172,7 @@ public class OrderSerializerBuilderCase : UnionSerializerBuilderCase
     {
         if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
         {
-            throw new UnsupportedTypeException(resolution.Type);
+            return resolution;
         }
 
         switch ((schema as RecordSchema)?.Name)
