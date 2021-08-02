@@ -2,7 +2,7 @@ import React from 'react'
 import { LightAsync as SyntaxHighlighter } from 'react-syntax-highlighter'
 
 import bash from 'react-syntax-highlighter/dist/esm/languages/hljs/shell'
-import csharp from 'react-syntax-highlighter/dist/esm/languages/hljs/cs'
+import csharp from 'react-syntax-highlighter/dist/esm/languages/hljs/csharp'
 import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json'
 import powershell from 'react-syntax-highlighter/dist/esm/languages/hljs/powershell'
 

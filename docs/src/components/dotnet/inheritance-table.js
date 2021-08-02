@@ -3,9 +3,9 @@ import React from 'react'
 import Highlight from '../code/highlight'
 import DotnetReference from '../references/dotnet'
 
-import styles from './inheritance-table.module.scss'
+import * as styles from './inheritance-table.module.scss'
 
-export default ({ member, type }) => {
+export default function InheritanceTable ({ member, type }) {
   const object = type || member
 
   const { assembly, base, interfaces, namespace } = object

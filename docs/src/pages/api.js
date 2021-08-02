@@ -26,11 +26,14 @@ const cliVerbQuery = graphql`
   }
 `
 
-export default props =>
-  <StaticQuery
-    render={data => <ApiReferencePage
-      dotnetNamespaces={data.allDotnetNamespace.edges.map(e => e.node)}
-      {...props}
-    />}
-    query={cliVerbQuery}
-  />
+export default function ApiPage (props) {
+  return (
+    <StaticQuery
+      render={data => <ApiReferencePage
+        dotnetNamespaces={data.allDotnetNamespace.edges.map(e => e.node)}
+        {...props}
+      />}
+      query={cliVerbQuery}
+    />
+  )
+}

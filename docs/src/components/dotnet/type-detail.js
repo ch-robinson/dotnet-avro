@@ -6,7 +6,7 @@ import XmlDoc from './xml-doc'
 
 import { groupBy } from '../../../utilities/array'
 
-export default ({ type }) => {
+export default function TypeDetail ({ type }) {
   const { remarks, summary, typeParameters } = type
 
   const members = groupBy((type.members || []), 'kind')

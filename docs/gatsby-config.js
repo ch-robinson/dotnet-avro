@@ -11,13 +11,13 @@ module.exports = {
   pathPrefix: '/dotnet-avro',
   plugins: [
     {
+      resolve: 'gatsby-plugin-sass'
+    },
+    {
       resolve: 'gatsby-plugin-layout',
       options: {
         component: path.resolve('./src/layouts/default.js')
       }
-    },
-    {
-      resolve: 'gatsby-plugin-sass'
     },
     {
       resolve: 'local-api-reference',

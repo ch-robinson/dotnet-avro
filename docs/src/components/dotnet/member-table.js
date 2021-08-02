@@ -3,7 +3,7 @@ import React, { Fragment } from 'react'
 import XmlDoc from '../dotnet/xml-doc'
 import DotnetReference from '../references/dotnet'
 
-export default ({ members, typeParameters }) => {
+export default function MemberTable ({ members, typeParameters }) {
   typeParameters = (typeParameters || []).map(p => p.name)
 
   return members.length > 0 && members.map(member =>

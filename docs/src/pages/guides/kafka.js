@@ -9,7 +9,7 @@ import ExternalLink from '../../components/site/external-link'
 
 const title = 'Building Kafka producers and consumers'
 
-export default () => {
+export default function KafkaPage () {
   const {
     site: {
       siteMetadata: { latestRelease, projectName }

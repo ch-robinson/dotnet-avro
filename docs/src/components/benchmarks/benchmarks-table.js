@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react'
 
-import styles from './benchmarks-table.module.scss'
+import * as styles from './benchmarks-table.module.scss'
 
-export default ({ suites }) => {
+export default function BenchmarksTable ({ suites }) {
   const libraries = useMemo(() => {
     const map = new Map()
 

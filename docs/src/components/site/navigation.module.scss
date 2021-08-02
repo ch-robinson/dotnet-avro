@@ -26,7 +26,7 @@
   }
 }
 
-.type {
+.type-link {
   &:before {
     border-radius: 0.25em;
     display: block;
@@ -41,8 +41,8 @@
   }
 }
 
-.class {
-  composes: type;
+.class-link {
+  composes: type-link;
 
   &:before {
     background-color: $dark-blue;
@@ -50,8 +50,17 @@
   }
 }
 
-.interface {
-  composes: type;
+.enumeration-link {
+  composes: type-link;
+
+  &:before {
+    background-color: $gray;
+    content: 'E';
+  }
+}
+
+.interface-link {
+  composes: type-link;
 
   &:before {
     background-color: $dark-gray;

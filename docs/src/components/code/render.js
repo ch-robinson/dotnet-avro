@@ -2,7 +2,7 @@ import { Fragment, createElement } from 'react'
 
 import { parse } from '../../../utilities/xml'
 
-export default ({ map = {}, xml }) => {
+export default function Render ({ map = {}, xml }) {
   const hydrate = (nodes = []) => nodes
     .map((node, index) => {
       switch (node.type) {

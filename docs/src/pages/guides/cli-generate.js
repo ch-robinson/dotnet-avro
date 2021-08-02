@@ -7,7 +7,7 @@ import ExternalLink from '../../components/site/external-link'
 
 const title = 'Generating C# code from Avro schemas'
 
-export default () => {
+export default function CliGeneratePage () {
   const {
     site: {
       siteMetadata: { latestRelease, projectName }
