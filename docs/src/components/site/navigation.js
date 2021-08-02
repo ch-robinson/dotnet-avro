@@ -1,13 +1,42 @@
-import { Link, StaticQuery, graphql } from 'gatsby'
+import { Link, graphql, useStaticQuery } from 'gatsby'
 import React from 'react'
 
 import { createDocfxUrl } from '../../../utilities/dotnet'
 
 import * as styles from './navigation.module.scss'
 
-function Menu ({ cliVerbs, dotnetNamespaces, ...others }) {
+export default function Navigation (props) {
+  const {
+    allCliVerb: {
+      nodes: cliVerbs
+    },
+    allDotnetNamespace: {
+      nodes: dotnetNamespaces
+    }
+  } = useStaticQuery(graphql`
+    query ReferenceDataQuery {
+      allCliVerb {
+        nodes {
+          id
+          name
+        }
+      }
+      allDotnetNamespace {
+        nodes {
+          id
+          name
+          types {
+            id
+            kind
+            name
+          }
+        }
+      }
+    }
+  `)
+
   return (
-    <div {...others}>
+    <div {...props}>
       <h4 className={styles.heading}>Guides</h4>
       <ul className={styles.links}>
         <li>
@@ -102,44 +131,5 @@ function Menu ({ cliVerbs, dotnetNamespaces, ...others }) {
         )}
       </ul>
     </div>
-  )
-}
-
-const referenceDataQuery = graphql`
-  query ReferenceDataQuery {
-    allCliVerb {
-      edges {
-        node {
-          id
-          name
-        }
-      }
-    }
-    allDotnetNamespace {
-      edges {
-        node {
-          id
-          name
-          types {
-            id
-            kind
-            name
-          }
-        }
-      }
-    }
-  }
-`
-
-export default function Navigation (props) {
-  return (
-    <StaticQuery
-      render={data => <Menu
-        cliVerbs={data.allCliVerb.edges.map(e => e.node)}
-        dotnetNamespaces={data.allDotnetNamespace.edges.map(e => e.node)}
-        {...props}
-      />}
-      query={referenceDataQuery}
-    />
   )
 }
