@@ -31,5 +31,7 @@ jobs:
         run: npm run build
         working-directory: docs
       - name: Publish changes
-        run: npm run publish -- --user "GitHub Actions <support+actions@github.com>"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run publish -- --repo https://git:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git --user 'github-actions-bot <support+actions@github.com>'
         working-directory: docs
