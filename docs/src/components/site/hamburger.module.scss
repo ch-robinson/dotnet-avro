@@ -1,3 +1,4 @@
+@use 'sass:math';
 @import '../../styles/animations';
 @import '../../styles/colors';
 @import '../../styles/layout';
@@ -5,14 +6,14 @@
 .hamburger {
   &, &:after, &:before {
     display: block;
-    height: $base-size / 8;
+    height: math.div($base-size, 8);
     position: absolute;
     transition: all $animation-duration;
   }
 
   & {
     left: 20%;
-    margin-top: $base-size / -16;
+    margin-top: math.div($base-size, -16);
     text-indent: -9999px;
     top: 50%;
     width: 60%;

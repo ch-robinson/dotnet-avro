@@ -6,7 +6,7 @@ import Highlight from '../../components/code/highlight'
 
 const title = 'Extending and overriding built-in features'
 
-export default () => {
+export default function ExtendingPage () {
   const {
     site: {
       siteMetadata: { projectName }

@@ -8,7 +8,7 @@ import ExternalLink from '../../components/site/external-link'
 
 const title = 'Creating schemas from .NET types'
 
-export default () => {
+export default function CliCreatePage () {
   const {
     site: {
       siteMetadata: { latestRelease, projectName }

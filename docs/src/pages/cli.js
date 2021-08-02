@@ -7,7 +7,7 @@ import ExternalLink from '../components/site/external-link'
 
 const title = 'CLI reference'
 
-export default () => {
+export default function CliPage () {
   const {
     allCliVerb: {
       nodes: cliVerbs

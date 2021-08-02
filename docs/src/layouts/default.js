@@ -6,9 +6,9 @@ import Hamburger from '../components/site/hamburger'
 import Navigation from '../components/site/navigation'
 import VersionStripe from '../components/site/version-stripe'
 
-import styles from './default.module.scss'
+import * as styles from './default.module.scss'
 
-class DefaultLayout extends Component {
+class Layout extends Component {
   constructor (props) {
     super(props)
 
@@ -69,8 +69,11 @@ const siteDataQuery = graphql`
   }
 `
 
-export default props =>
-  <StaticQuery
-    render={data => <DefaultLayout metadata={data.site.siteMetadata} {...props} />}
-    query={siteDataQuery}
-  />
+export default function DefaultLayout (props) {
+  return (
+    <StaticQuery
+      render={data => <Layout metadata={data.site.siteMetadata} {...props} />}
+      query={siteDataQuery}
+    />
+  )
+}

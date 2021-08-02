@@ -3,7 +3,7 @@ import React from 'react'
 import TypeTable from './type-table'
 import XmlDoc from './xml-doc'
 
-export default ({ namespace }) => {
+export default function NamespaceDetail ({ namespace }) {
   const { summary } = namespace
   const classes = namespace.types.filter(t => t.kind === 'class')
   const interfaces = namespace.types.filter(t => t.kind === 'interface')

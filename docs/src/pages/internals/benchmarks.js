@@ -7,7 +7,7 @@ import ExternalLink from '../../components/site/external-link'
 
 const title = 'Performance and benchmarks'
 
-export default () => {
+export default function BenchmarksPage () {
   const {
     allBenchmarkSuite: { nodes: suites },
     site: {

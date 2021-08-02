@@ -7,9 +7,9 @@ import OverloadTable from '../components/dotnet/overload-table'
 import DotnetReference from '../components/references/dotnet'
 import Breadcrumb from '../components/site/breadcrumb'
 
-import styles from './dotnet.module.scss'
+import * as styles from './dotnet.module.scss'
 
-export default ({ data: { dotnetMember }}) => {
+export default function DotnetMember ({ data: { dotnetMember }}) {
   const { kind, name, overloads, type } = dotnetMember
 
   return (

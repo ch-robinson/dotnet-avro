@@ -1,8 +1,8 @@
 import React from 'react'
 
-import styles from './breadcrumb.module.scss'
+import * as styles from './breadcrumb.module.scss'
 
-export default ({ children, ...others }) => {
+export default function Breadcrumb ({ children, ...others }) {
   if (!children) {
     return
   }
