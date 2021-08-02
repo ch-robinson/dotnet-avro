@@ -27,3 +27,7 @@ $ npm run build
 # to publish the site to GitHub Pages (must have push access to the repo; make sure to run build first):
 $ npm run publish
 ```
+
+## Automated releases
+
+The [Docs workflow](../.github/workflows/docs.yml) automatically builds and deploys the site whenever changes are pushed to this directory.
