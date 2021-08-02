@@ -31,5 +31,5 @@ jobs:
         run: npm run build
         working-directory: docs
       - name: Publish changes
-        run: npm run publish
+        run: npm run publish -- --user "GitHub Actions <support+actions@github.com>"
         working-directory: docs

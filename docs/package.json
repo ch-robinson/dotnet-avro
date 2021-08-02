@@ -19,7 +19,7 @@
   "private": true,
   "scripts": {
     "build": "gatsby build --prefix-paths",
-    "publish": "gh-pages -t -d public",
+    "publish": "gh-pages --dotfiles --dist public",
     "start": "gatsby develop"
   }
 }
