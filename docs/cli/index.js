@@ -27,6 +27,10 @@ const clrTypeOptions = [{
 }]
 
 const schemaResolutionOptions = [{
+  abbreviation: 'c',
+  name: 'registry-config',
+  summary: 'Configuration options to provide to the registry client (multiple space-separated key=value pairs accepted).'
+}, {
   abbreviation: 'r',
   name: 'registry-url',
   required: true,
