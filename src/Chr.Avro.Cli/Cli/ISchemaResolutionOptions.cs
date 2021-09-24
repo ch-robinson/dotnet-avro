@@ -1,6 +1,8 @@
 namespace Chr.Avro.Cli
 {
     using System;
+    using System.Collections.Generic;
+    using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using SchemaRegistryClient = global::Confluent.SchemaRegistry.CachedSchemaRegistryClient;
     using SchemaRegistryConfiguration = global::Confluent.SchemaRegistry.SchemaRegistryConfig;
@@ -9,6 +11,8 @@ namespace Chr.Avro.Cli
 
     public interface ISchemaResolutionOptions
     {
+        IEnumerable<string> RegistryConfig { get; set; }
+
         string RegistryUrl { get; }
 
         int? SchemaId { get; }
@@ -28,15 +32,31 @@ namespace Chr.Avro.Cli
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(RegistryUrl))
+                var configuration = new SchemaRegistryConfiguration();
+
+                foreach (var entry in RegistryConfig)
                 {
-                    throw new ProgramException(message: "When not reading from stdin, you must provide --registry-url.");
+                    var match = Regex.Match(entry, @"^(?<key>.+?)=(?<value>.+)$");
+
+                    if (!match.Success)
+                    {
+                        throw new ProgramException(message: "Registry configuration options should be specified as key=value pairs.");
+                    }
+
+                    configuration.Set(match.Groups["key"].Value, match.Groups["value"].Value);
                 }
 
-                var configuration = new SchemaRegistryConfiguration
+                if (string.IsNullOrWhiteSpace(RegistryUrl))
                 {
-                    Url = RegistryUrl,
-                };
+                    if (string.IsNullOrWhiteSpace(configuration.Url))
+                    {
+                        throw new ProgramException(message: "When not reading from stdin, you must provide --registry-url.");
+                    }
+                }
+                else
+                {
+                    configuration.Url = RegistryUrl;
+                }
 
                 using var client = new SchemaRegistryClient(configuration);
 
