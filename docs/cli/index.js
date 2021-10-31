@@ -81,6 +81,16 @@ namespace Example.Models
     }
 }`
   }, {
+    title: 'Generate code for a schema by ID, connecting to the Schema Registry using basic auth',
+    body: `$ dotnet avro generate --id 120 --registry-url http://registry:8081 --registry-config schema.registry.basic.auth.user.info=exampleuser:password
+namespace Example.Models
+{
+    public class ExampleModel
+    {
+        public string Text { get; set; }
+    }
+}`
+  }, {
     title: 'Generate code from a local schema file (Bash)',
     body: `$ dotnet avro generate < example-model.avsc > ExampleModel.cs`
   }, {

@@ -23,6 +23,9 @@ namespace Chr.Avro.Cli
             }),
         };
 
+        [Option('c', "registry-config", HelpText = "Configuration options to provide to the registry client (multiple space-separated key=value pairs accepted).")]
+        public IEnumerable<string> RegistryConfig { get; set; }
+
         [Option('r', "registry-url", Required = true, HelpText = "The URL of the schema registry.")]
         public string RegistryUrl { get; set; }
 
