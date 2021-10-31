@@ -116,6 +116,15 @@ namespace Chr.Avro.Cli
                 RegistryUrl = "http://registry:8081",
                 SchemaId = 120,
             }),
+            new Example("Generate code for a schema by ID, connecting to the Schema Registry using basic auth", new GenerateCodeVerb
+            {
+                RegistryConfig = new[]
+                {
+                    "schema.registry.basic.auth.user.info=exampleuser:password"
+                },
+                RegistryUrl = "http://registry:8081",
+                SchemaId = 120,
+            }),
         };
 
         private const string ByIdSet = "ById";
