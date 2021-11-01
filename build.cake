@@ -95,6 +95,10 @@ Task("Pack")
             DotNetCorePack(info.FullPath, new DotNetCorePackSettings()
             {
                 Configuration = configuration,
+                MSBuildSettings = new DotNetCoreMSBuildSettings()
+                {
+                    ContinuousIntegrationBuild = true
+                },
                 OutputDirectory = RELEASES_PATH
             });
         }
