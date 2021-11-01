@@ -116,11 +116,23 @@ namespace Chr.Avro.Cli
                 RegistryUrl = "http://registry:8081",
                 SchemaId = 120,
             }),
+            new Example("Generate code for a schema by ID, connecting to the Schema Registry using basic auth", new GenerateCodeVerb
+            {
+                RegistryConfig = new[]
+                {
+                    "schema.registry.basic.auth.user.info=exampleuser:password"
+                },
+                RegistryUrl = "http://registry:8081",
+                SchemaId = 120,
+            }),
         };
 
         private const string ByIdSet = "ById";
 
         private const string BySubjectSet = "BySubject";
+
+        [Option('c', "registry-config", HelpText = "Configuration options to provide to the registry client (multiple space-separated key=value pairs accepted).")]
+        public IEnumerable<string> RegistryConfig { get; set; }
 
         [Option('r', "registry-url", HelpText = "The URL of the schema registry.")]
         public string RegistryUrl { get; set; }
@@ -168,6 +180,9 @@ namespace Chr.Avro.Cli
 
         private const string BySubjectSet = "BySubject";
 
+        [Option('c', "registry-config", HelpText = "Configuration options to provide to the registry client (multiple space-separated key=value pairs accepted).")]
+        public IEnumerable<string> RegistryConfig { get; set; }
+
         [Option('r', "registry-url", Required = true, HelpText = "The URL of the schema registry.")]
         public string RegistryUrl { get; set; }
 
@@ -210,6 +225,9 @@ namespace Chr.Avro.Cli
 
         [Option('t', "type", Required = true, HelpText = "The type to test.")]
         public string TypeName { get; set; }
+
+        [Option('c', "registry-config", HelpText = "Configuration options to provide to the registry client (multiple space-separated key=value pairs accepted).")]
+        public IEnumerable<string> RegistryConfig { get; set; }
 
         [Option('r', "registry-url", Required = true, HelpText = "The URL of the schema registry.")]
         public string RegistryUrl { get; set; }

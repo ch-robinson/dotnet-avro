@@ -1,4 +1,7 @@
 import React from 'react'
 
-export default () =>
-  <h1>Page not found</h1>
+export default function NotFoundPage () {
+  return (
+    <h1>Page not found</h1>
+  )
+}

@@ -27,6 +27,10 @@ const clrTypeOptions = [{
 }]
 
 const schemaResolutionOptions = [{
+  abbreviation: 'c',
+  name: 'registry-config',
+  summary: 'Configuration options to provide to the registry client (multiple space-separated key=value pairs accepted).'
+}, {
   abbreviation: 'r',
   name: 'registry-url',
   required: true,
@@ -69,6 +73,16 @@ module.exports = [{
   examples: [{
     title: 'Generate code for a schema by ID',
     body: `$ dotnet avro generate --id 120 --registry-url http://registry:8081
+namespace Example.Models
+{
+    public class ExampleModel
+    {
+        public string Text { get; set; }
+    }
+}`
+  }, {
+    title: 'Generate code for a schema by ID, connecting to the Schema Registry using basic auth',
+    body: `$ dotnet avro generate --id 120 --registry-url http://registry:8081 --registry-config schema.registry.basic.auth.user.info=exampleuser:password
 namespace Example.Models
 {
     public class ExampleModel

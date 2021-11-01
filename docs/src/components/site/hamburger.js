@@ -1,8 +1,11 @@
 import React from 'react'
 
-import styles from './hamburger.module.scss'
+import * as styles from './hamburger.module.scss'
 
-export default ({ active, children, ...others }) =>
-  <span className={active ? styles.hamburgerActive : styles.hamburgerInactive} {...others}>
-    {children}
-  </span>
+export default function Hamburger ({ active, children, ...others }) {
+  return (
+    <span className={active ? styles.hamburgerActive : styles.hamburgerInactive} {...others}>
+      {children}
+    </span>
+  )
+}

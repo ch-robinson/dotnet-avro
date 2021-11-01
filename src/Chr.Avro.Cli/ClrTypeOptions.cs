@@ -46,7 +46,8 @@ namespace Chr.Avro.Cli
                         throw new ProgramException(message: $"{name} is not valid. Check that the path you’re providing points to a valid assembly file.");
                     }
                 })
-                .ToDictionary(type => type.GetName());
+                .Append(typeof(object).Assembly) // ensure System.Runtime is included by default
+                .ToDictionary(assembly => assembly.GetName());
 
             try
             {

@@ -6,9 +6,9 @@ import TypeDetail from '../components/dotnet/type-detail'
 import DotnetReference from '../components/references/dotnet'
 import Breadcrumb from '../components/site/breadcrumb'
 
-import styles from './dotnet.module.scss'
+import * as styles from './dotnet.module.scss'
 
-export default ({ data: { dotnetType }}) => {
+export default function DotnetType ({ data: { dotnetType }}) {
   const { kind, name, namespace } = dotnetType
 
   return (

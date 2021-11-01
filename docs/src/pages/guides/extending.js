@@ -6,7 +6,7 @@ import Highlight from '../../components/code/highlight'
 
 const title = 'Extending and overriding built-in features'
 
-export default () => {
+export default function ExtendingPage () {
   const {
     site: {
       siteMetadata: { projectName }
@@ -121,7 +121,8 @@ public class OrderLineItem
 }`}</Highlight>
       <p>Out of the box, {projectName} won’t be able to figure out this mapping. When building a serializer, it will try to map <code>IEvent</code> to each schema in the union and fail because there are multiple matches. When building a deserializer, it will fail because <code>IEvent</code> is not a concrete type.</p>
       <p>To support this type of advanced mapping, applications can provide custom cases for the serializer and deserializer builders. The cases will match the union schema and the <code>IEvent</code> interface and choose the appropriate concrete class:</p>
-      <Highlight language='csharp'>{`using Chr.Avro.Abstract;
+      <Highlight language='csharp'>{`using Chr.Avro;
+using Chr.Avro.Abstract;
 using Chr.Avro.Resolution;
 using Chr.Avro.Serialization;
 
@@ -138,7 +139,7 @@ public class OrderDeserializerBuilderCase : UnionDeserializerBuilderCase
     {
         if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
         {
-            throw new UnsupportedTypeException(resolution.Type);
+            return resolution;
         }
 
         switch ((schema as RecordSchema)?.Name)
@@ -171,7 +172,7 @@ public class OrderSerializerBuilderCase : UnionSerializerBuilderCase
     {
         if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
         {
-            throw new UnsupportedTypeException(resolution.Type);
+            return resolution;
         }
 
         switch ((schema as RecordSchema)?.Name)

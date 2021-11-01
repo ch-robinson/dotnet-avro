@@ -5,19 +5,19 @@ const path = require('path')
 module.exports = {
   siteMetadata: {
     githubUrl: 'https://github.com/ch-robinson/dotnet-avro',
-    latestRelease: '7.0.4',
+    latestRelease: '7.2.0',
     projectName: 'Chr.Avro'
   },
   pathPrefix: '/dotnet-avro',
   plugins: [
     {
+      resolve: 'gatsby-plugin-sass'
+    },
+    {
       resolve: 'gatsby-plugin-layout',
       options: {
         component: path.resolve('./src/layouts/default.js')
       }
-    },
-    {
-      resolve: 'gatsby-plugin-sass'
     },
     {
       resolve: 'local-api-reference',

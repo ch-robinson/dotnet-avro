@@ -5,7 +5,7 @@ import DotnetReference from '../references/dotnet'
 import InheritanceTable from './inheritance-table'
 import XmlDoc from './xml-doc'
 
-export default ({ member }) => {
+export default function MemberDetail ({ member }) {
   const { exceptions, kind, parameters, remarks, returns, summary, type, typeParameters } = member
 
   const typeParameterNames = (type.typeParameters || []).map(p => p.name)
