@@ -162,7 +162,8 @@ deserializer.Deserialize(serializer.Serialize(epoch)); // 0L`}</Highlight>
         <p>When the deserializer builder can’t find a matching enumerator, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
       </li>
     </ul>
-    <p>By default, Chr.Avro also honors data contract attributes if a <DotnetReference id='T:System.Runtime.Serialization.DataContractAttribute' /> is present on the enumeration. In that case, if <DotnetReference id='P:System.Runtime.Serialization.EnumMemberAttribute.Value' /> is set on an enumerator, the custom value must match the symbol exactly. If it’s not set, the enumerator name will be compared inexactly as described above.</p>
+    <p>By default, Chr.Avro honors data contract attributes if a <DotnetReference id='T:System.Runtime.Serialization.DataContractAttribute' /> is present on the enumeration. In that case, if <DotnetReference id='P:System.Runtime.Serialization.EnumMemberAttribute.Value' /> is set on an enumerator, the custom value must match the symbol exactly. If it’s not set, the enumerator name will be compared inexactly as described above.</p>
+    <p><Highlight inline language='avro'>"enum"</Highlight> values may also be mapped to <DotnetReference id='T:System.String' />. When serializing, <DotnetReference id='T:System.String' /> values must match each symbol exactly.</p>
     <p>To change or extend this behavior, implement <DotnetReference id='T:Chr.Avro.Resolution.ITypeResolver' /> or extend one of the existing resolvers (<DotnetReference id='T:Chr.Avro.Resolution.ReflectionResolver' /> and <DotnetReference id='T:Chr.Avro.Resolution.DataContractResolver' />).</p>
     <p>Because enum types are able to be implicitly converted to and from integral types, Chr.Avro can map any integral type to <Highlight inline language='avro'>"enum"</Highlight> as well.</p>
 

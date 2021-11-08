@@ -9,7 +9,7 @@ namespace Chr.Avro.Serialization
 
     /// <summary>
     /// Implements a <see cref="JsonDeserializerBuilder" /> case that matches <see cref="EnumSchema" />
-    /// and attempts to map it to enum types.
+    /// and attempts to map it to any provided type.
     /// </summary>
     public class JsonEnumDeserializerBuilderCase : EnumDeserializerBuilderCase, IJsonDeserializerBuilderCase
     {
@@ -17,70 +17,73 @@ namespace Chr.Avro.Serialization
         /// Builds a <see cref="JsonDeserializer{T}" /> for an <see cref="EnumSchema" />.
         /// </summary>
         /// <returns>
-        /// A successful <see cref="JsonDeserializerBuilderCaseResult" /> if <paramref name="type" />
-        /// is an enum and <paramref name="schema" /> is an <see cref="EnumSchema" />; an
-        /// unsuccessful <see cref="JsonDeserializerBuilderCaseResult" /> otherwise.
+        /// A successful <see cref="JsonDeserializerBuilderCaseResult" /> if <paramref name="schema" />
+        /// is an <see cref="EnumSchema" />; an unsuccessful <see cref="JsonDeserializerBuilderCaseResult" />
+        /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <paramref name="type" /> does not have a matching member for each symbol in
-        /// <paramref name="schema" />.
+        /// Thrown when <paramref name="type" /> is an enum type without a matching member for each
+        /// symbol in <paramref name="schema" /> or when <see cref="string" /> cannot be converted
+        /// to <paramref name="type" />.
         /// </exception>
         /// <inheritdoc />
         public virtual JsonDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, JsonDeserializerBuilderContext context)
         {
             if (schema is EnumSchema enumSchema)
             {
+                var getString = typeof(Utf8JsonReader)
+                    .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+
+                Expression expression = Expression.Call(context.Reader, getString);
+
                 var underlying = Nullable.GetUnderlyingType(type) ?? type;
 
-                if (underlying.IsEnum)
-                {
-                    var getString = typeof(Utf8JsonReader)
-                        .GetMethod(nameof(Utf8JsonReader.GetString), Type.EmptyTypes);
+                // enum fields will always be public static, so no need to expose binding flags:
+                var fields = underlying.GetFields(BindingFlags.Public | BindingFlags.Static);
 
-                    Expression expression = Expression.Call(context.Reader, getString);
-
-                    // enum fields will always be public static, so no need to expose binding flags:
-                    var fields = underlying.GetFields(BindingFlags.Public | BindingFlags.Static);
-
-                    // find a match for each enum in the schema:
-                    var cases = enumSchema.Symbols.Select(symbol =>
-                    {
-                        var match = fields.SingleOrDefault(field => IsMatch(symbol, field.Name));
-
-                        if (match == null)
+                // find a match for each enum in the schema:
+                var cases = underlying.IsEnum
+                    ? enumSchema.Symbols
+                        .Select(symbol =>
                         {
-                            throw new UnsupportedTypeException(type, $"{type} has no value that matches {symbol}.");
-                        }
+                            var match = fields.SingleOrDefault(field => IsMatch(symbol, field.Name));
 
-                        return Expression.SwitchCase(
-                            BuildConversion(Expression.Constant(Enum.Parse(underlying, match.Name)), type),
-                            Expression.Constant(symbol));
-                    });
+                            if (match == null)
+                            {
+                                throw new UnsupportedTypeException(type, $"{type} has no value that matches {symbol}.");
+                            }
 
-                    var position = typeof(Utf8JsonReader)
-                        .GetProperty(nameof(Utf8JsonReader.TokenStartIndex))
-                        .GetGetMethod();
+                            return Expression.SwitchCase(
+                                BuildConversion(Expression.Constant(Enum.Parse(underlying, match.Name)), type),
+                                Expression.Constant(symbol));
+                        })
+                    : enumSchema.Symbols
+                        .Select(symbol =>
+                        {
+                            return Expression.SwitchCase(
+                                BuildConversion(Expression.Constant(symbol), type),
+                                Expression.Constant(symbol));
+                        });
 
-                    var exceptionConstructor = typeof(InvalidEncodingException)
-                        .GetConstructor(new[] { typeof(long), typeof(string), typeof(Exception) });
+                var position = typeof(Utf8JsonReader)
+                    .GetProperty(nameof(Utf8JsonReader.TokenStartIndex))
+                    .GetGetMethod();
 
-                    // generate a switch on the symbol:
-                    return JsonDeserializerBuilderCaseResult.FromExpression(
-                        Expression.Switch(
-                            expression,
-                            Expression.Throw(
-                                Expression.New(
-                                    exceptionConstructor,
-                                    Expression.Property(context.Reader, position),
-                                    Expression.Constant($"Invalid enum symbol."),
-                                    Expression.Constant(null, typeof(Exception))),
-                                type),
-                            cases.ToArray()));
-                }
-                else
-                {
-                    return JsonDeserializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(JsonEnumDeserializerBuilderCase)} can only be applied to enum types."));
-                }
+                var exceptionConstructor = typeof(InvalidEncodingException)
+                    .GetConstructor(new[] { typeof(long), typeof(string), typeof(Exception) });
+
+                // generate a switch on the symbol:
+                return JsonDeserializerBuilderCaseResult.FromExpression(
+                    Expression.Switch(
+                        expression,
+                        Expression.Throw(
+                            Expression.New(
+                                exceptionConstructor,
+                                Expression.Property(context.Reader, position),
+                                Expression.Constant($"Invalid enum symbol."),
+                                Expression.Constant(null, typeof(Exception))),
+                            type),
+                        cases.ToArray()));
             }
             else
             {

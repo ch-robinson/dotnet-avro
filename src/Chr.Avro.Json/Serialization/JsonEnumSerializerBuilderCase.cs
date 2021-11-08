@@ -30,47 +30,49 @@ namespace Chr.Avro.Serialization
         {
             if (schema is EnumSchema enumSchema)
             {
-                if ((Nullable.GetUnderlyingType(type) ?? type).IsEnum)
-                {
-                    var writeString = typeof(Utf8JsonWriter)
-                        .GetMethod(nameof(Utf8JsonWriter.WriteStringValue), new[] { typeof(string) });
+                var writeString = typeof(Utf8JsonWriter)
+                    .GetMethod(nameof(Utf8JsonWriter.WriteStringValue), new[] { typeof(string) });
 
-                    // enum fields will always be public static, so no need to expose binding flags:
-                    var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static);
-                    var symbols = enumSchema.Symbols.ToList();
+                // enum fields will always be public static, so no need to expose binding flags:
+                var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static);
+                var symbols = enumSchema.Symbols.ToList();
 
-                    // find a match for each enum in the type:
-                    var cases = fields.Select(field =>
-                    {
-                        var match = symbols.Find(symbol => IsMatch(symbol, field.Name));
-
-                        if (match == null)
+                // find a match for each enum in the type:
+                var cases = type.IsEnum
+                    ? fields
+                        .Select(field =>
                         {
-                            throw new UnsupportedTypeException(type, $"{type} has a field {field.Name} that cannot be serialized.");
-                        }
+                            var match = symbols.Find(symbol => IsMatch(symbol, field.Name));
 
-                        if (symbols.FindLast(symbol => IsMatch(symbol, field.Name)) != match)
+                            if (match == null)
+                            {
+                                throw new UnsupportedTypeException(type, $"{type} has a field {field.Name} that cannot be serialized.");
+                            }
+
+                            if (symbols.FindLast(symbol => IsMatch(symbol, field.Name)) != match)
+                            {
+                                throw new UnsupportedTypeException(type, $"{type.Name} has an ambiguous field {field.Name}.");
+                            }
+
+                            return Expression.SwitchCase(
+                                Expression.Call(context.Writer, writeString, Expression.Constant(match)),
+                                Expression.Constant(Enum.Parse(type, field.Name)));
+                        })
+                    : symbols
+                        .Select(symbol =>
                         {
-                            throw new UnsupportedTypeException(type, $"{type.Name} has an ambiguous field {field.Name}.");
-                        }
+                            return Expression.SwitchCase(
+                                Expression.Call(context.Writer, writeString, Expression.Constant(symbol)),
+                                Expression.Constant(symbol, type));
+                        });
 
-                        return Expression.SwitchCase(
-                            Expression.Call(context.Writer, writeString, Expression.Constant(match)),
-                            Expression.Constant(Enum.Parse(type, field.Name)));
-                    });
+                var exceptionConstructor = typeof(ArgumentOutOfRangeException)
+                    .GetConstructor(new[] { typeof(string) });
 
-                    var exceptionConstructor = typeof(ArgumentOutOfRangeException)
-                        .GetConstructor(new[] { typeof(string) });
+                var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum value out of range."));
 
-                    var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum value out of range."));
-
-                    return JsonSerializerBuilderCaseResult.FromExpression(
-                        Expression.Switch(value, Expression.Throw(exception), cases.ToArray()));
-                }
-                else
-                {
-                    return JsonSerializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(JsonEnumSerializerBuilderCase)} can only be applied to enum types."));
-                }
+                return JsonSerializerBuilderCaseResult.FromExpression(
+                    Expression.Switch(value, Expression.Throw(exception), cases.ToArray()));
             }
             else
             {

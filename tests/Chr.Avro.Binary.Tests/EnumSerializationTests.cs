@@ -48,7 +48,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Fact]
-        public void MissingValues()
+        public void MissingEnumValues()
         {
             var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH" });
             Assert.Throws<UnsupportedTypeException>(() => deserializerBuilder.BuildDelegate<ImplicitEnum>(schema));
@@ -65,6 +65,18 @@ namespace Chr.Avro.Serialization.Tests
             }
         }
 
+        [Fact]
+        public void MissingStringValues()
+        {
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST" });
+            var serialize = serializerBuilder.BuildDelegate<string>(schema);
+
+            using (stream)
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => serialize("SECOND", new BinaryWriter(stream)));
+            }
+        }
+
         [Theory]
         [InlineData(ImplicitEnum.None)]
         [InlineData(ImplicitEnum.First)]
@@ -77,6 +89,29 @@ namespace Chr.Avro.Serialization.Tests
 
             var deserialize = deserializerBuilder.BuildDelegate<ImplicitEnum?>(schema);
             var serialize = serializerBuilder.BuildDelegate<ImplicitEnum>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [InlineData("NONE")]
+        [InlineData("FIRST")]
+        [InlineData("SECOND")]
+        [InlineData("THIRD")]
+        [InlineData("FOURTH")]
+        public void StringValues(string value)
+        {
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH" });
+
+            var deserialize = deserializerBuilder.BuildDelegate<string>(schema);
+            var serialize = serializerBuilder.BuildDelegate<string>(schema);
 
             using (stream)
             {
