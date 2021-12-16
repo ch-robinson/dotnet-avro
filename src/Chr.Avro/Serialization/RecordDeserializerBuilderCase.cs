@@ -1,6 +1,7 @@
 namespace Chr.Avro.Serialization
 {
     using System;
+    using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
     using System.Text.RegularExpressions;
@@ -30,9 +31,29 @@ namespace Chr.Avro.Serialization
         protected virtual ConstructorInfo? GetRecordConstructor(Type type, RecordSchema schema)
         {
             return type.GetConstructors().FirstOrDefault(constructor =>
-                schema.Fields.All(field =>
-                    constructor.GetParameters().Any(parameter =>
-                        IsMatch(field, parameter.Name))));
+            {
+                var unmatched = new HashSet<ParameterInfo>(constructor.GetParameters());
+
+                foreach (var field in schema.Fields)
+                {
+                    var match = unmatched
+                        .FirstOrDefault(parameter => IsMatch(field, parameter.Name));
+
+                    if (match == null)
+                    {
+                        return false;
+                    }
+
+                    unmatched.Remove(match);
+                }
+
+                if (unmatched.Any(parameter => !parameter.HasDefaultValue))
+                {
+                    return false;
+                }
+
+                return true;
+            });
         }
 
         /// <summary>
