@@ -1695,9 +1695,29 @@ namespace Chr.Avro.Serialization
         protected ConstructorResolution? FindRecordConstructor(RecordResolution resolution, RecordSchema schema)
         {
             return resolution.Constructors.FirstOrDefault(constructor =>
-                schema.Fields.All(field =>
-                    constructor.Parameters.Any(parameter =>
-                        parameter.Name.IsMatch(field.Name))));
+            {
+                var unmatched = new HashSet<ParameterResolution>(constructor.Parameters);
+
+                foreach (var field in schema.Fields)
+                {
+                    var match = unmatched
+                        .FirstOrDefault(parameter => parameter.Name.IsMatch(field.Name));
+
+                    if (match == null)
+                    {
+                        return false;
+                    }
+
+                    unmatched.Remove(match);
+                }
+
+                if (unmatched.Any(parameter => !parameter.Parameter.HasDefaultValue))
+                {
+                    return false;
+                }
+
+                return true;
+            });
         }
     }
 
