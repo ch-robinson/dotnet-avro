@@ -228,6 +228,11 @@ namespace Chr.Avro.Codegen
                     value = true;
                     break;
 
+                case StringSchema s when s.LogicalType is UuidLogicalType:
+                    type = SyntaxFactory.ParseTypeName("global::System.Guid");
+                    value = true;
+                    break;
+
                 case ArraySchema a:
                     type = SyntaxFactory.ParseTypeName($"global::System.Collections.Generic.IEnumerable<{GetPropertyType(a.Item)}>");
                     break;
