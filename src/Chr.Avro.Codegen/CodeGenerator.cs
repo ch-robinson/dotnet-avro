@@ -297,6 +297,7 @@ namespace Chr.Avro.Codegen
 
                 case EnumSchema e:
                     type = SyntaxFactory.ParseTypeName($"global::{e.FullName}");
+                    value = true;
                     break;
 
                 case FloatSchema f:
