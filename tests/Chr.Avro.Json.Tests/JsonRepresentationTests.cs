@@ -75,7 +75,9 @@ namespace Chr.Avro.Representation.Tests
             new object[] { "{\"name\":\"Empty\",\"type\":\"record\",\"fields\":[]}" },
             new object[] { "{\"name\":\"Empty\",\"aliases\":[\"Empty\"],\"type\":\"record\",\"fields\":[]}" },
             new object[] { "{\"name\":\"cards.Card\",\"type\":\"record\",\"fields\":[{\"name\":\"suit\",\"type\":{\"name\":\"cards.Suit\",\"type\":\"enum\",\"symbols\":[\"CLUBS\",\"DIAMONDS\",\"HEARTS\",\"SPADES\"]}},{\"name\":\"number\",\"type\":\"int\"}]}" },
-            new object[] { "{\"name\":\"lists.Node\",\"type\":\"record\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"},{\"name\":\"next\",\"type\":\"lists.Node\"}]}" },
+            new object[] { "{\"name\":\"lists.Node\",\"type\":\"record\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"},{\"name\":\"next\",\"type\":[\"null\",\"lists.Node\"]}]}" },
+            new object[] { "{\"name\":\"lists.Node\",\"type\":\"record\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"},{\"name\":\"next\",\"default\":null,\"type\":[\"null\",\"lists.Node\"]}]}" },
+            new object[] { "{\"name\":\"measurements.Temperature\",\"type\":\"record\",\"fields\":[{\"name\":\"scale\",\"default\":\"CELSIUS\",\"type\":{\"name\":\"measurements.TemperatureScale\",\"type\":\"enum\",\"symbols\":[\"FAHRENHEIT\",\"CELSIUS\"]}}]}" },
         };
 
         public static IEnumerable<object[]> TimeLogicalTypeRepresentations => new List<object[]>

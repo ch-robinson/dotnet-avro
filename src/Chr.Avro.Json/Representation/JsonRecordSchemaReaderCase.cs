@@ -4,6 +4,7 @@ namespace Chr.Avro.Representation
     using System.Linq;
     using System.Text.Json;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Serialization;
 
     /// <summary>
     /// Implements a <see cref="JsonSchemaReader" /> case that matches record schemas.
@@ -13,13 +14,22 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Initializes a new instance of the <see cref="JsonRecordSchemaReaderCase" /> class.
         /// </summary>
+        /// <param name="deserializerBuilder">
+        /// A deserializer builder instance that will be used to read default values.
+        /// </param>
         /// <param name="reader">
         /// A schema reader instance that will be used to read field types.
         /// </param>
-        public JsonRecordSchemaReaderCase(IJsonSchemaReader reader)
+        public JsonRecordSchemaReaderCase(IJsonDeserializerBuilder deserializerBuilder, IJsonSchemaReader reader)
         {
+            DeserializerBuilder = deserializerBuilder ?? throw new ArgumentNullException(nameof(deserializerBuilder), "Deserializer builder cannot be null.");
             Reader = reader ?? throw new ArgumentNullException(nameof(reader), "Schema reader cannot be null.");
         }
+
+        /// <summary>
+        /// Gets the deserializer builder instance that will be used to read default values.
+        /// </summary>
+        public IJsonDeserializerBuilder DeserializerBuilder { get; }
 
         /// <summary>
         /// Gets the schema reader instance that will be used to read field types.
@@ -115,6 +125,11 @@ namespace Chr.Avro.Representation
                     }
 
                     var field = new RecordField(fieldName.GetString(), Reader.Read(fieldType, context));
+
+                    if (fieldElement.TryGetProperty(JsonAttributeToken.Default, out var fieldDefault))
+                    {
+                        field.Default = new JsonDefaultValue(fieldDefault, field.Type, DeserializerBuilder);
+                    }
 
                     if (fieldElement.TryGetProperty(JsonAttributeToken.Doc, out var fieldDoc))
                     {

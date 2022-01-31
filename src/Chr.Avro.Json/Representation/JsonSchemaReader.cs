@@ -5,6 +5,7 @@ namespace Chr.Avro.Representation
     using System.IO;
     using System.Text.Json;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Serialization;
 
     /// <summary>
     /// Reads JSON-serialized Avro schemas.
@@ -15,8 +16,13 @@ namespace Chr.Avro.Representation
         /// Initializes a new instance of the <see cref="JsonSchemaReader" /> class configured with
         /// the default list of cases.
         /// </summary>
-        public JsonSchemaReader()
-            : this(CreateDefaultCaseBuilders())
+        /// <param name="deserializerBuilder">
+        /// A deserializer builder instance to use when deserializing default values to .NET
+        /// objects. If none is provided, the default <see cref="JsonDeserializerBuilder" />
+        /// will be used.
+        /// </param>
+        public JsonSchemaReader(IJsonDeserializerBuilder? deserializerBuilder = default)
+            : this(CreateDefaultCaseBuilders(deserializerBuilder))
         {
         }
 
@@ -50,11 +56,18 @@ namespace Chr.Avro.Representation
         /// <summary>
         /// Creates the default list of case builders.
         /// </summary>
+        /// <param name="deserializerBuilder">
+        /// A deserializer builder instance to use when deserializing deserializing default values
+        /// to .NET objects. If none is provided, the default <see cref="JsonDeserializerBuilder" />
+        /// will be used.
+        /// </param>
         /// <returns>
         /// A list of case builders that matches all types defined in the Avro spec.
         /// </returns>
-        public static IEnumerable<Func<IJsonSchemaReader, IJsonSchemaReaderCase>> CreateDefaultCaseBuilders()
+        public static IEnumerable<Func<IJsonSchemaReader, IJsonSchemaReaderCase>> CreateDefaultCaseBuilders(IJsonDeserializerBuilder? deserializerBuilder = default)
         {
+            deserializerBuilder ??= new JsonDeserializerBuilder();
+
             return new Func<IJsonSchemaReader, IJsonSchemaReaderCase>[]
             {
                 // logical types:
@@ -77,7 +90,7 @@ namespace Chr.Avro.Representation
                 // named:
                 reader => new JsonEnumSchemaReaderCase(),
                 reader => new JsonFixedSchemaReaderCase(),
-                reader => new JsonRecordSchemaReaderCase(reader),
+                reader => new JsonRecordSchemaReaderCase(deserializerBuilder, reader),
 
                 // others:
                 reader => new JsonPrimitiveSchemaReaderCase(),

@@ -9,6 +9,20 @@ namespace Chr.Avro.Tests
     public class RecordFieldShould
     {
         [Fact]
+        public void SetDefault()
+        {
+            var field = new RecordField("test", new NullSchema());
+            Assert.Null(field.Default);
+
+            var defaultValue = new MockDefaultValue(field.Type);
+            field.Default = defaultValue;
+            Assert.Equal(defaultValue, field.Default);
+
+            field.Default = null;
+            Assert.Null(field.Default);
+        }
+
+        [Fact]
         public void SetDocumentation()
         {
             var field = new RecordField("test", new NullSchema());

@@ -11,6 +11,11 @@ namespace Chr.Avro
         public const string Aliases = "aliases";
 
         /// <summary>
+        /// The record field default value key.
+        /// </summary>
+        public const string Default = "default";
+
+        /// <summary>
         /// The enum/record schema documentation key.
         /// </summary>
         public const string Doc = "doc";

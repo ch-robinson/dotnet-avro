@@ -79,9 +79,25 @@ namespace Chr.Avro.Representation
                         json.WriteStartObject();
                         json.WriteString(JsonAttributeToken.Name, field.Name);
 
-                        if (!canonical && !string.IsNullOrEmpty(field.Documentation))
+                        if (!canonical)
                         {
-                            json.WriteString(JsonAttributeToken.Doc, field.Documentation);
+                            if (field.Default != null)
+                            {
+                                if (field.Default is JsonDefaultValue jsonDefault)
+                                {
+                                    json.WritePropertyName(JsonAttributeToken.Default);
+                                    jsonDefault.Element.WriteTo(json);
+                                }
+                                else
+                                {
+                                    throw new UnsupportedSchemaException(schema, $"The default value of the {field.Name} field on {recordSchema} must be a JSON value.");
+                                }
+                            }
+
+                            if (!string.IsNullOrEmpty(field.Documentation))
+                            {
+                                json.WriteString(JsonAttributeToken.Doc, field.Documentation);
+                            }
                         }
 
                         json.WritePropertyName(JsonAttributeToken.Type);
