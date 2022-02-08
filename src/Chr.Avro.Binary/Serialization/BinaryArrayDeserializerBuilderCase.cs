@@ -45,9 +45,14 @@ namespace Chr.Avro.Serialization
         {
             if (schema is ArraySchema arraySchema)
             {
-                if (GetEnumerableType(type) is Type itemType)
+                var enumerableType = GetEnumerableType(type);
+
+                if (enumerableType is not null || type == typeof(object))
                 {
-                    var instantiateCollection = BuildIntermediateCollection(type);
+                    // support dynamic mapping:
+                    var itemType = enumerableType ?? typeof(object);
+
+                    var instantiateCollection = BuildIntermediateCollection(type, itemType);
 
                     var readInteger = typeof(BinaryReader)
                         .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);

@@ -20,9 +20,14 @@ namespace Chr.Avro.Serialization
         /// collection types. If none match, the base implementation is used.
         /// </remarks>
         /// <inheritdoc />
-        protected override Expression BuildConversion(Expression value, Type target)
+        protected override Expression BuildStaticConversion(Expression value, Type target)
         {
-            if (!value.Type.IsArray && (target.IsArray || target.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(target.GenericTypeArguments))))
+            if (target.IsAssignableFrom(value.Type))
+            {
+                // since the next check (ArraySegment<T>) matches IEnumerable<> and ICollection<>,
+                // fall through to avoid generating an unnecessary .ToArray
+            }
+            else if (!value.Type.IsArray && (target.IsArray || target.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(target.GenericTypeArguments))))
             {
                 var toArray = value.Type
                     .GetMethod("ToArray", Type.EmptyTypes);
@@ -56,7 +61,7 @@ namespace Chr.Avro.Serialization
                 }
             }
 
-            return base.BuildConversion(value, target);
+            return base.BuildStaticConversion(value, target);
         }
 
         /// <summary>
@@ -69,15 +74,21 @@ namespace Chr.Avro.Serialization
         /// <param name="type">
         /// An enumerable <see cref="Type" />.
         /// </param>
+        /// <param name="itemType">
+        /// The item <see cref="Type" /> of <paramref name="type" />.
+        /// </param>
         /// <returns>
         /// An <see cref="Expression" /> representing the creation of a collection that can be
         /// converted to <paramref name="type" />.
         /// </returns>
-        protected virtual Expression BuildIntermediateCollection(Type type)
+        protected virtual Expression BuildIntermediateCollection(Type type, Type itemType)
         {
-            var itemType = type.GetEnumerableType() ?? throw new ArgumentException($"{type} is not an enumerable type.");
-
-            if (type.IsArray || type.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(itemType)) || type.IsAssignableFrom(typeof(ImmutableArray<>).MakeGenericType(itemType)))
+            if (type.IsAssignableFrom(typeof(List<>).MakeGenericType(itemType)))
+            {
+                // prefer List<> since it's the most obvious surrogate type for IEnumerable<>,
+                // ICollection<>, etc.
+            }
+            else if (type.IsArray || type.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(itemType)) || type.IsAssignableFrom(typeof(ImmutableArray<>).MakeGenericType(itemType)))
             {
                 var createBuilder = typeof(ImmutableArray)
                     .GetMethod(nameof(ImmutableArray.CreateBuilder), Type.EmptyTypes)
@@ -85,8 +96,7 @@ namespace Chr.Avro.Serialization
 
                 return Expression.Call(null, createBuilder);
             }
-
-            if (type.IsAssignableFrom(typeof(ImmutableHashSet<>).MakeGenericType(itemType)))
+            else if (type.IsAssignableFrom(typeof(ImmutableHashSet<>).MakeGenericType(itemType)))
             {
                 var createBuilder = typeof(ImmutableHashSet)
                     .GetMethod(nameof(ImmutableHashSet.CreateBuilder), Type.EmptyTypes)
@@ -94,8 +104,7 @@ namespace Chr.Avro.Serialization
 
                 return Expression.Call(null, createBuilder);
             }
-
-            if (type.IsAssignableFrom(typeof(ImmutableList<>).MakeGenericType(itemType)))
+            else if (type.IsAssignableFrom(typeof(ImmutableList<>).MakeGenericType(itemType)))
             {
                 var createBuilder = typeof(ImmutableList)
                     .GetMethod(nameof(ImmutableList.CreateBuilder), Type.EmptyTypes)
@@ -103,8 +112,7 @@ namespace Chr.Avro.Serialization
 
                 return Expression.Call(null, createBuilder);
             }
-
-            if (type.IsAssignableFrom(typeof(ImmutableSortedSet<>).MakeGenericType(itemType)))
+            else if (type.IsAssignableFrom(typeof(ImmutableSortedSet<>).MakeGenericType(itemType)))
             {
                 var createBuilder = typeof(ImmutableSortedSet)
                     .GetMethod(nameof(ImmutableSortedSet.CreateBuilder), Type.EmptyTypes)
@@ -112,18 +120,15 @@ namespace Chr.Avro.Serialization
 
                 return Expression.Call(null, createBuilder);
             }
-
-            if (type.IsAssignableFrom(typeof(HashSet<>).MakeGenericType(itemType)))
+            else if (type.IsAssignableFrom(typeof(HashSet<>).MakeGenericType(itemType)))
             {
                 return Expression.New(typeof(HashSet<>).MakeGenericType(itemType).GetConstructor(Type.EmptyTypes));
             }
-
-            if (type.IsAssignableFrom(typeof(SortedSet<>).MakeGenericType(itemType)))
+            else if (type.IsAssignableFrom(typeof(SortedSet<>).MakeGenericType(itemType)))
             {
                 return Expression.New(typeof(SortedSet<>).MakeGenericType(itemType).GetConstructor(Type.EmptyTypes));
             }
-
-            if (type.IsAssignableFrom(typeof(Collection<>).MakeGenericType(itemType)))
+            else if (type.IsAssignableFrom(typeof(Collection<>).MakeGenericType(itemType)))
             {
                 return Expression.New(typeof(Collection<>).MakeGenericType(itemType).GetConstructor(Type.EmptyTypes));
             }

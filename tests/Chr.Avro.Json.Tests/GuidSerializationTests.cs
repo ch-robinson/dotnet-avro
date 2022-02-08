@@ -30,6 +30,28 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(Guids))]
+        public void DynamicGuidValues(Guid value)
+        {
+            var schema = new StringSchema()
+            {
+                LogicalType = new UuidLogicalType(),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal(value.ToString(), deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(Guids))]
         public void GuidValues(Guid value)
         {
             var schema = new StringSchema()

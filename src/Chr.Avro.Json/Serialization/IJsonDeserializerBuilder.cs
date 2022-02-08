@@ -30,7 +30,8 @@ namespace Chr.Avro.Serialization
         JsonDeserializer<T> BuildDelegate<T>(Schema schema, JsonDeserializerBuilderContext? context = default);
 
         /// <summary>
-        /// Builds an <see cref="Expression" /> that represents a <see cref="JsonDeserializer{T}" />.
+        /// Builds an <see cref="Expression" /> that represents a <see cref="JsonDeserializer{T}" />
+        /// for a specific <see cref="Type" />.
         /// </summary>
         /// <typeparam name="T">
         /// The <see cref="Type" /> of object to be deserialized.
@@ -48,6 +49,6 @@ namespace Chr.Avro.Serialization
         /// An expression representing a <see cref="JsonDeserializer{T}" /> based on
         /// <paramref name="schema" />.
         /// </returns>
-        Expression<JsonDeserializer<T>> BuildExpression<T>(Schema schema, JsonDeserializerBuilderContext? context = default);
+        Expression<JsonDeserializer<T>> BuildDelegateExpression<T>(Schema schema, JsonDeserializerBuilderContext? context = default);
     }
 }

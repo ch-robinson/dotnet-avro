@@ -11,7 +11,7 @@ namespace Chr.Avro.Serialization
     /// <summary>
     /// Builds JSON Avro deserializers for .NET <see cref="Type" />s.
     /// </summary>
-    public class JsonDeserializerBuilder : IJsonDeserializerBuilder
+    public class JsonDeserializerBuilder : ExpressionBuilder, IJsonDeserializerBuilder
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="JsonDeserializerBuilder" /> class
@@ -104,14 +104,14 @@ namespace Chr.Avro.Serialization
         /// <inheritdoc />
         public virtual JsonDeserializer<T> BuildDelegate<T>(Schema schema, JsonDeserializerBuilderContext? context = default)
         {
-            return BuildExpression<T>(schema, context).Compile();
+            return BuildDelegateExpression<T>(schema, context).Compile();
         }
 
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map <typeparamref name="T" /> to <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public Expression<JsonDeserializer<T>> BuildExpression<T>(Schema schema, JsonDeserializerBuilderContext? context = default)
+        public virtual Expression<JsonDeserializer<T>> BuildDelegateExpression<T>(Schema schema, JsonDeserializerBuilderContext? context = default)
         {
             context ??= new JsonDeserializerBuilderContext();
 
@@ -126,11 +126,7 @@ namespace Chr.Avro.Serialization
                     context.Assignments.Keys,
                     context.Assignments
                         .Select(assignment => (Expression)Expression.Assign(assignment.Key, assignment.Value))
-                        .Concat(new[]
-                        {
-                            Expression.Call(context.Reader, read),
-                            root,
-                        })),
+                        .Concat(new[] { Expression.Call(context.Reader, read), root })),
                 new[] { context.Reader });
         }
 

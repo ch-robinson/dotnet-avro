@@ -1,10 +1,14 @@
 namespace Chr.Avro.Serialization
 {
     using System;
+    using System.Dynamic;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
     using Chr.Avro.Abstract;
+    using Microsoft.CSharp.RuntimeBinder;
+
+    using Binder = Microsoft.CSharp.RuntimeBinder.Binder;
 
     /// <summary>
     /// Implements a <see cref="BinaryDeserializerBuilder" /> case that matches <see cref="RecordSchema" />
@@ -110,7 +114,12 @@ namespace Chr.Avro.Serialization
                         else
                         {
                             var members = underlying.GetMembers(MemberVisibility);
-                            var value = Expression.Parameter(underlying);
+
+                            // support dynamic deserialization:
+                            var value = Expression.Parameter(
+                                underlying.IsAssignableFrom(typeof(ExpandoObject))
+                                    ? typeof(ExpandoObject)
+                                    : underlying);
 
                             expression = Expression.Block(
                                 new[] { value },
@@ -118,21 +127,36 @@ namespace Chr.Avro.Serialization
                                     .Concat(recordSchema.Fields.Select(field =>
                                     {
                                         var match = members.SingleOrDefault(member => IsMatch(field, member.Name));
-                                        var schema = match == null ? CreateSurrogateSchema(field.Type) : field.Type;
-                                        var type = match == null ? GetSurrogateType(schema) : match switch
-                                        {
-                                            FieldInfo fieldMatch => fieldMatch.FieldType,
-                                            PropertyInfo propertyMatch => propertyMatch.PropertyType,
-                                            MemberInfo unknown => throw new InvalidOperationException($"Record fields can only be mapped to fields and properties.")
-                                        };
 
-                                        // always read to advance the stream:
-                                        var expression = DeserializerBuilder.BuildExpression(type, schema, context);
+                                        Expression expression;
 
-                                        if (match != null)
+                                        if (match == null)
                                         {
-                                            // and assign if a field matches:
-                                            expression = Expression.Assign(Expression.PropertyOrField(value, match.Name), expression);
+                                            // always deserialize fields to advance the reader:
+                                            expression = DeserializerBuilder.BuildExpression(typeof(object), field.Type, context);
+
+                                            // fall back to a dynamic setter if the value supports it:
+                                            if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(value.Type))
+                                            {
+                                                var flags = CSharpBinderFlags.None;
+                                                var infos = new[] { CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, null) };
+                                                var binder = Binder.SetMember(flags, field.Name, value.Type, infos);
+                                                expression = Expression.Dynamic(binder, typeof(void), value, expression);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            expression = Expression.Assign(
+                                                Expression.PropertyOrField(value, match.Name),
+                                                DeserializerBuilder.BuildExpression(
+                                                    match switch
+                                                    {
+                                                        FieldInfo fieldMatch => fieldMatch.FieldType,
+                                                        PropertyInfo propertyMatch => propertyMatch.PropertyType,
+                                                        MemberInfo unknown => throw new InvalidOperationException($"Record fields can only be mapped to fields and properties.")
+                                                    },
+                                                    field.Type,
+                                                    context));
                                         }
 
                                         return expression;
@@ -161,27 +185,6 @@ namespace Chr.Avro.Serialization
             {
                 return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedSchemaException(schema, $"{nameof(BinaryRecordDeserializerBuilderCase)} can only be applied to {nameof(RecordSchema)}s."));
             }
-        }
-
-        /// <summary>
-        /// Creates a schema that can be used to deserialize missing record fields.
-        /// </summary>
-        /// <param name="schema">
-        /// The schema to alter.
-        /// </param>
-        /// <returns>
-        /// A schema that can be mapped to a surrogate type.
-        /// </returns>
-        protected virtual Schema CreateSurrogateSchema(Schema schema)
-        {
-            return schema switch
-            {
-                ArraySchema array => new ArraySchema(CreateSurrogateSchema(array.Item)),
-                EnumSchema _ => new LongSchema(),
-                MapSchema map => new MapSchema(CreateSurrogateSchema(map.Value)),
-                UnionSchema union => new UnionSchema(union.Schemas.Select(CreateSurrogateSchema).ToList()),
-                _ => schema
-            };
         }
     }
 }

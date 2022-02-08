@@ -243,7 +243,7 @@ namespace Chr.Avro.Confluent
         {
             // the reader, as a ref struct, can't be declared within an async or lambda function, so
             // build it into the delegate:
-            var inner = DeserializerBuilder.BuildExpression<T>(schema);
+            var inner = DeserializerBuilder.BuildDelegateExpression<T>(schema);
             var memory = Expression.Parameter(typeof(ReadOnlyMemory<byte>));
 
             var getSpan = memory.Type

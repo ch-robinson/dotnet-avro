@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Collections;
     using System.Collections.Generic;
-    using System.Linq;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
 
@@ -45,17 +44,19 @@ namespace Chr.Avro.Serialization
         {
             if (schema is MapSchema mapSchema)
             {
-                if (GetDictionaryTypes(type) is (Type keyType, Type valueType))
+                var dictionaryTypes = GetDictionaryTypes(type);
+
+                if (dictionaryTypes is not null || type == typeof(object))
                 {
+                    // support dynamic mapping:
+                    var keyType = dictionaryTypes?.Key ?? typeof(object);
+                    var valueType = dictionaryTypes?.Value ?? typeof(object);
+
                     var pairType = typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType);
                     var collection = Expression.Variable(typeof(ICollection<>).MakeGenericType(pairType));
                     var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(pairType));
                     var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(pairType));
                     var loop = Expression.Label();
-
-                    var toList = typeof(Enumerable)
-                        .GetMethod(nameof(Enumerable.ToList))
-                        .MakeGenericMethod(pairType);
 
                     var getCount = collection.Type
                         .GetProperty("Count");
@@ -93,27 +94,13 @@ namespace Chr.Avro.Serialization
 
                     try
                     {
-                        expression = Expression.Assign(
-                            collection,
-                            Expression.Condition(
-                                Expression.TypeIs(value, collection.Type),
-                                Expression.Convert(value, collection.Type),
-                                Expression.Convert(
-                                    Expression.Call(
-                                        null,
-                                        toList,
-                                        Expression.Convert(value, enumerable.Type)),
-                                    collection.Type)));
+                        expression = BuildConversion(value, collection.Type);
                     }
                     catch (Exception exception)
                     {
                         throw new UnsupportedTypeException(type, $"Failed to map {mapSchema} to {type}.", exception);
                     }
 
-                    // var collection = value is ICollection<KeyValuePair<TKey, TValue>>
-                    //     ? (ICollection<KeyValuePair<TKey, TValue>>)value
-                    //     : (ICollection<KeyValuePair<TKey, TValue>>)value.ToList();
-                    //
                     // if (collection.Count > 0)
                     // {
                     //     writer.WriteInteger((long)collection.Count);
@@ -146,7 +133,7 @@ namespace Chr.Avro.Serialization
                     return BinarySerializerBuilderCaseResult.FromExpression(
                         Expression.Block(
                             new[] { collection, enumerator },
-                            expression,
+                            Expression.Assign(collection, expression),
                             Expression.IfThen(
                                 Expression.GreaterThan(
                                     Expression.Property(collection, getCount),

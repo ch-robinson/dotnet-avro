@@ -68,6 +68,28 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
+        [MemberData(nameof(BoundaryDecimals))]
+        public void DynamicDecimalValues(decimal value)
+        {
+            var schema = new BytesSchema()
+            {
+                LogicalType = new DecimalLogicalType(29, 14),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
         [MemberData(nameof(ResizedDecimals))]
         public void ResizedDecimalValues(int precision, int scale, decimal value, byte[] encoding, decimal resizing)
         {

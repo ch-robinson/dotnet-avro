@@ -46,6 +46,6 @@ namespace Chr.Avro.Serialization
         /// This is necessary for potentially recursive deserializers, such as ones built for
         /// <see cref="RecordSchema" />s.
         /// </summary>
-        public virtual IDictionary<(Schema, Type), ParameterExpression> References { get; }
+        public virtual IDictionary<(Schema Schema, Type Type), ParameterExpression> References { get; }
     }
 }

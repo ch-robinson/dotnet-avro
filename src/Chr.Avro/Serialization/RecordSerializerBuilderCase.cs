@@ -7,9 +7,9 @@ namespace Chr.Avro.Serialization
     /// <summary>
     /// Provides a base implementation for serializer builder cases that match <see cref="RecordSchema" />.
     /// </summary>
-    public abstract class RecordSerializerBuilderCase
+    public abstract class RecordSerializerBuilderCase : SerializerBuilderCase
     {
-        private static readonly Regex FuzzyCharacters = new (@"[^A-Za-z0-9]");
+        private static readonly Regex FuzzyCharacters = new(@"[^A-Za-z0-9]");
 
         /// <summary>
         /// Determines whether a <see cref="RecordField" /> name matches another name.

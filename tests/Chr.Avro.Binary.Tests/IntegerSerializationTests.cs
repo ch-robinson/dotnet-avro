@@ -1,10 +1,12 @@
 namespace Chr.Avro.Serialization.Tests
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using Chr.Avro.Abstract;
     using Xunit;
     using Xunit.Sdk;
+
     using BinaryReader = Chr.Avro.Serialization.BinaryReader;
     using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
 
@@ -23,9 +25,67 @@ namespace Chr.Avro.Serialization.Tests
             stream = new MemoryStream();
         }
 
+        public static IEnumerable<object[]> Bytes => new List<object[]>
+        {
+            new object[] { byte.MinValue },
+            new object[] { byte.MaxValue },
+        };
+
+        public static IEnumerable<object[]> Enums => new List<object[]>
+        {
+            new object[] { DateTimeKind.Unspecified },
+            new object[] { DateTimeKind.Utc },
+            new object[] { (DateTimeKind)(-1) },
+        };
+
+        public static IEnumerable<object[]> Int16s => new List<object[]>
+        {
+            new object[] { short.MinValue },
+            new object[] { (short)0 },
+            new object[] { short.MaxValue },
+        };
+
+        public static IEnumerable<object[]> Int32s => new List<object[]>
+        {
+            new object[] { int.MinValue },
+            new object[] { 0 },
+            new object[] { int.MaxValue },
+        };
+
+        public static IEnumerable<object[]> Int64s => new List<object[]>
+        {
+            new object[] { long.MinValue },
+            new object[] { 0L },
+            new object[] { long.MaxValue },
+        };
+
+        public static IEnumerable<object[]> SBytes => new List<object[]>
+        {
+            new object[] { sbyte.MinValue },
+            new object[] { (sbyte)0 },
+            new object[] { sbyte.MaxValue },
+        };
+
+        public static IEnumerable<object[]> UInt16s => new List<object[]>
+        {
+            new object[] { ushort.MinValue },
+            new object[] { ushort.MaxValue },
+        };
+
+        public static IEnumerable<object[]> UInt32s => new List<object[]>
+        {
+            new object[] { uint.MinValue },
+            new object[] { uint.MaxValue },
+        };
+
+        public static IEnumerable<object[]> UInt64s => new List<object[]>
+        {
+            new object[] { ulong.MinValue },
+            new object[] { ulong.MaxValue / 2 },
+        };
+
         [Theory]
-        [InlineData(byte.MinValue)]
-        [InlineData(byte.MaxValue)]
+        [MemberData(nameof(Bytes))]
         public void ByteValues(byte value)
         {
             var schema = new IntSchema();
@@ -44,9 +104,34 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(DateTimeKind.Unspecified)]
-        [InlineData(DateTimeKind.Utc)]
-        [InlineData((DateTimeKind)(-1))]
+        [MemberData(nameof(Bytes))]
+        [MemberData(nameof(Enums))]
+        [MemberData(nameof(Int16s))]
+        [MemberData(nameof(Int32s))]
+        [MemberData(nameof(Int64s))]
+        [MemberData(nameof(SBytes))]
+        [MemberData(nameof(UInt16s))]
+        [MemberData(nameof(UInt32s))]
+        [MemberData(nameof(UInt64s))]
+        public void DynamicLongValues(dynamic value)
+        {
+            var schema = new LongSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal((long)value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(Enums))]
         public void EnumValues(DateTimeKind value)
         {
             var schema = new IntSchema();
@@ -65,9 +150,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(short.MinValue)]
-        [InlineData(0)]
-        [InlineData(short.MaxValue)]
+        [MemberData(nameof(Int16s))]
         public void Int16Values(short value)
         {
             var schema = new IntSchema();
@@ -86,9 +169,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(int.MinValue)]
-        [InlineData(0)]
-        [InlineData(int.MaxValue)]
+        [MemberData(nameof(Int32s))]
         public void Int32Values(int value)
         {
             var schema = new IntSchema();
@@ -107,9 +188,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(long.MinValue)]
-        [InlineData(0)]
-        [InlineData(long.MaxValue)]
+        [MemberData(nameof(Int64s))]
         public void Int64Values(long value)
         {
             var schema = new LongSchema();
@@ -157,9 +236,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(sbyte.MinValue)]
-        [InlineData(0)]
-        [InlineData(sbyte.MaxValue)]
+        [MemberData(nameof(SBytes))]
         public void SByteValues(sbyte value)
         {
             var schema = new IntSchema();
@@ -178,8 +255,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(ushort.MinValue)]
-        [InlineData(ushort.MaxValue)]
+        [MemberData(nameof(UInt16s))]
         public void UInt16Values(ushort value)
         {
             var schema = new IntSchema();
@@ -198,8 +274,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(uint.MinValue)]
-        [InlineData(uint.MaxValue)]
+        [MemberData(nameof(UInt32s))]
         public void UInt32Values(uint value)
         {
             var schema = new IntSchema();
@@ -218,8 +293,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(ulong.MinValue)]
-        [InlineData(ulong.MaxValue / 2)]
+        [MemberData(nameof(UInt64s))]
         public void UInt64Values(ulong value)
         {
             var schema = new IntSchema();

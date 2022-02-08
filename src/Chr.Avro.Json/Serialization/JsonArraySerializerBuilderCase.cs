@@ -45,8 +45,13 @@ namespace Chr.Avro.Serialization
         {
             if (schema is ArraySchema arraySchema)
             {
-                if (GetEnumerableType(type) is Type itemType)
+                var enumerableType = GetEnumerableType(type);
+
+                if (enumerableType is not null || type == typeof(object))
                 {
+                    // support dynamic mapping:
+                    var itemType = enumerableType ?? typeof(object);
+
                     var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(itemType));
                     var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(itemType));
                     var loop = Expression.Label();
@@ -73,11 +78,24 @@ namespace Chr.Avro.Serialization
                     var dispose = typeof(IDisposable)
                         .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
 
+                    Expression expression;
+
+                    try
+                    {
+                        expression = BuildConversion(value, enumerable.Type);
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new UnsupportedTypeException(type, $"Failed to map {arraySchema} to {type}.", exception);
+                    }
+
                     return JsonSerializerBuilderCaseResult.FromExpression(
                         Expression.Block(
                             new[] { enumerator },
                             Expression.Call(context.Writer, writeStartArray),
-                            Expression.Assign(enumerator, Expression.Call(value, getEnumerator)),
+                            Expression.Assign(
+                                enumerator,
+                                Expression.Call(expression, getEnumerator)),
                             Expression.TryFinally(
                                 Expression.Loop(
                                     Expression.IfThenElse(

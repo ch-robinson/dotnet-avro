@@ -48,6 +48,6 @@ namespace Chr.Avro.Serialization
         /// An expression representing a <see cref="JsonSerializer{T}" /> based on
         /// <paramref name="schema" />.
         /// </returns>
-        Expression<JsonSerializer<T>> BuildExpression<T>(Schema schema, JsonSerializerBuilderContext? context = default);
+        Expression<JsonSerializer<T>> BuildDelegateExpression<T>(Schema schema, JsonSerializerBuilderContext? context = default);
     }
 }

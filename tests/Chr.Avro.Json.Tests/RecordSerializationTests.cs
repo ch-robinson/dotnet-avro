@@ -179,6 +179,59 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Fact]
+        public void RecordWithDynamicType()
+        {
+            var boolean = new BooleanSchema();
+            var array = new ArraySchema(boolean);
+            var map = new MapSchema(new IntSchema());
+            var @enum = new EnumSchema("Ordinal", new[] { "None", "First", "Second", "Third", "Fourth" });
+            var union = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                array,
+            });
+
+            var schema = new RecordSchema("AllFields")
+            {
+                Fields = new[]
+                {
+                    new RecordField("First", union),
+                    new RecordField("Second", union),
+                    new RecordField("Third", array),
+                    new RecordField("Fourth", array),
+                    new RecordField("Fifth", map),
+                    new RecordField("Sixth", map),
+                    new RecordField("Seventh", @enum),
+                    new RecordField("Eighth", @enum),
+                },
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            var value = new WithEvenFields()
+            {
+                First = new List<bool>() { false },
+                Second = new List<bool>() { false, false },
+                Third = new List<bool>() { false, false, false },
+                Fourth = new List<bool>() { false },
+                Fifth = new Dictionary<string, int>() { { "first", 1 } },
+                Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
+                Seventh = ImplicitEnum.First,
+                Eighth = ImplicitEnum.None,
+            };
+
+            using (stream)
+            {
+                serialize(value, new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal(value.Seventh.ToString(), deserialize(ref reader).Seventh);
+        }
+
+        [Fact]
         public void RecordWithMissingFields()
         {
             var boolean = new BooleanSchema();

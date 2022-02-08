@@ -22,16 +22,21 @@ namespace Chr.Avro.Serialization.Tests
             stream = new MemoryStream();
         }
 
-        public static IEnumerable<object[]> GuidData => new List<object[]>
+        public static IEnumerable<object[]> ByteArrays => new List<object[]>
+        {
+            new object[] { Array.Empty<byte>() },
+            new object[] { new byte[] { 0x00 } },
+            new object[] { new byte[] { 0xf0, 0x9f, 0x92, 0x81, 0xf0, 0x9f, 0x8e, 0x8d } },
+        };
+
+        public static IEnumerable<object[]> Guids => new List<object[]>
         {
             new object[] { Guid.Empty },
             new object[] { Guid.Parse("ed7ba470-8e54-465e-825c-99712043e01c") },
         };
 
         [Theory]
-        [InlineData(new byte[] { })]
-        [InlineData(new byte[] { 0x00 })]
-        [InlineData(new byte[] { 0xf0, 0x9f, 0x92, 0x81, 0xf0, 0x9f, 0x8e, 0x8d })]
+        [MemberData(nameof(ByteArrays))]
         public void ByteArrayValues(byte[] value)
         {
             var schema = new BytesSchema();
@@ -50,7 +55,26 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [MemberData(nameof(GuidData))]
+        [MemberData(nameof(ByteArrays))]
+        public void DynamicByteArrayValues(byte[] value)
+        {
+            var schema = new BytesSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(Guids))]
         public void GuidValues(Guid value)
         {
             var schema = new BytesSchema();
@@ -69,7 +93,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [MemberData(nameof(GuidData))]
+        [MemberData(nameof(Guids))]
         public void NullableGuidValues(Guid value)
         {
             var schema = new BytesSchema();

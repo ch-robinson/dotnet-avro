@@ -15,7 +15,7 @@ namespace Chr.Avro.Serialization
         /// used.
         /// </remarks>
         /// <inheritdoc />
-        protected override Expression BuildConversion(Expression value, Type intermediate)
+        protected override Expression BuildStaticConversion(Expression value, Type intermediate)
         {
             if (value.Type == typeof(Guid))
             {
@@ -25,7 +25,7 @@ namespace Chr.Avro.Serialization
                 value = Expression.Call(value, convertGuid);
             }
 
-            return base.BuildConversion(value, intermediate);
+            return base.BuildStaticConversion(value, intermediate);
         }
     }
 }

@@ -3,6 +3,7 @@ namespace Chr.Avro.Serialization.Tests
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Xml;
     using Chr.Avro.Abstract;
     using Xunit;
 
@@ -43,6 +44,14 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { Guid.Parse("9281c70a-a916-4bad-9713-936442d7c0e8") },
         };
 
+        public static IEnumerable<object[]> Strings => new List<object[]>
+        {
+            new object[] { string.Empty },
+            new object[] { "12" },
+            new object[] { "wizard" },
+            new object[] { "🧙" },
+        };
+
         public static IEnumerable<object[]> TimeSpans => new List<object[]>
         {
             new object[] { TimeSpan.MinValue },
@@ -59,6 +68,65 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { new Uri("https://host/path") },
             new object[] { new Uri("https://host/path?a=query") },
         };
+
+        [Theory]
+        [MemberData(nameof(DateTimes))]
+        [MemberData(nameof(DateTimeOffsets))]
+        public void DynamicDateTimeValues(dynamic value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value.ToString("O"), deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(Guids))]
+        [MemberData(nameof(Strings))]
+        public void DynamicStringValues(dynamic value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value.ToString(), deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(TimeSpans))]
+        public void DynamicTimeSpanValues(TimeSpan value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(XmlConvert.ToString(value), deserialize(ref reader));
+        }
 
         [Theory]
         [MemberData(nameof(DateTimes))]
@@ -181,10 +249,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData("")]
-        [InlineData("12")]
-        [InlineData("wizard")]
-        [InlineData("🧙")]
+        [MemberData(nameof(Strings))]
         public void StringValues(string value)
         {
             var schema = new StringSchema();

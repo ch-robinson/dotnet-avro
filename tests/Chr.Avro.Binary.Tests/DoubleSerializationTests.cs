@@ -1,5 +1,6 @@
 namespace Chr.Avro.Serialization.Tests
 {
+    using System.Collections.Generic;
     using System.IO;
     using Chr.Avro.Abstract;
     using Xunit;
@@ -22,13 +23,25 @@ namespace Chr.Avro.Serialization.Tests
             stream = new MemoryStream();
         }
 
+        public static IEnumerable<object[]> Doubles => new List<object[]>
+        {
+            new object[] { double.NaN },
+            new object[] { double.NegativeInfinity },
+            new object[] { double.MinValue },
+            new object[] { 0.0 },
+            new object[] { double.MaxValue },
+            new object[] { double.PositiveInfinity },
+        };
+
+        public static IEnumerable<object[]> Integers => new List<object[]>
+        {
+            new object[] { -5 },
+            new object[] { 0 },
+            new object[] { 5 },
+        };
+
         [Theory]
-        [InlineData(double.NaN)]
-        [InlineData(double.NegativeInfinity)]
-        [InlineData(double.MinValue)]
-        [InlineData(0.0)]
-        [InlineData(double.MaxValue)]
-        [InlineData(double.PositiveInfinity)]
+        [MemberData(nameof(Doubles))]
         public void DoubleValues(double value)
         {
             var schema = new DoubleSchema();
@@ -47,9 +60,27 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(-5)]
-        [InlineData(0)]
-        [InlineData(5)]
+        [MemberData(nameof(Doubles))]
+        [MemberData(nameof(Integers))]
+        public void DynamicDoubleValues(dynamic value)
+        {
+            var schema = new DoubleSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal((double)value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(Integers))]
         public void Int32Values(int value)
         {
             var schema = new DoubleSchema();

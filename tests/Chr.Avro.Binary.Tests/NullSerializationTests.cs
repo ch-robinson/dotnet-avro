@@ -24,6 +24,26 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [InlineData(0)]
+        [InlineData(null)]
+        public void DynamicObjectValues(dynamic value)
+        {
+            var schema = new NullSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(null, deserialize(ref reader));
+        }
+
+        [Theory]
+        [InlineData(0)]
         [InlineData(1)]
         public void Int32Values(int value)
         {

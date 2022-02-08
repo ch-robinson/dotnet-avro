@@ -13,7 +13,7 @@ namespace Chr.Avro.Serialization
         /// Builds a delegate that writes a binary-encoded Avro value.
         /// </summary>
         /// <typeparam name="T">
-        /// The <see cref="Type" /> of object to be serialized.
+        /// The <see cref="Type" /> to be serialized.
         /// </typeparam>
         /// <param name="schema">
         /// A <see cref="Schema" /> to map to <typeparamref name="T" />.
@@ -33,7 +33,7 @@ namespace Chr.Avro.Serialization
         /// Builds an <see cref="Expression" /> that represents a <see cref="BinarySerializer{T}" />.
         /// </summary>
         /// <typeparam name="T">
-        /// The <see cref="Type" /> of object to be serialized.
+        /// The <see cref="Type" /> to be serialized.
         /// </typeparam>
         /// <param name="schema">
         /// A <see cref="Schema" /> to map to <typeparamref name="T" />.
@@ -48,6 +48,6 @@ namespace Chr.Avro.Serialization
         /// An expression representing a <see cref="BinarySerializer{T}" /> based on
         /// <paramref name="schema" />.
         /// </returns>
-        Expression<BinarySerializer<T>> BuildExpression<T>(Schema schema, BinarySerializerBuilderContext? context = default);
+        Expression<BinarySerializer<T>> BuildDelegateExpression<T>(Schema schema, BinarySerializerBuilderContext? context = default);
     }
 }

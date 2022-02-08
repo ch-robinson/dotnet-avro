@@ -1,5 +1,6 @@
 namespace Chr.Avro.Serialization.Tests
 {
+    using System.Collections.Generic;
     using System.IO;
     using Chr.Avro.Abstract;
     using Xunit;
@@ -22,10 +23,45 @@ namespace Chr.Avro.Serialization.Tests
             stream = new MemoryStream();
         }
 
+        public static IEnumerable<object[]> Integers => new List<object[]>
+        {
+            new object[] { -5 },
+            new object[] { 0 },
+            new object[] { 5 },
+        };
+
+        public static IEnumerable<object[]> Singles => new List<object[]>
+        {
+            new object[] { float.NaN },
+            new object[] { float.NegativeInfinity },
+            new object[] { float.MinValue },
+            new object[] { 0.0f },
+            new object[] { float.MaxValue },
+            new object[] { float.PositiveInfinity },
+        };
+
         [Theory]
-        [InlineData(-5)]
-        [InlineData(0)]
-        [InlineData(5)]
+        [MemberData(nameof(Integers))]
+        [MemberData(nameof(Singles))]
+        public void DynamicFloatValues(dynamic value)
+        {
+            var schema = new FloatSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal((float)value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(Integers))]
         public void Int32Values(int value)
         {
             var schema = new FloatSchema();
@@ -44,12 +80,7 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(float.NaN)]
-        [InlineData(float.NegativeInfinity)]
-        [InlineData(float.MinValue)]
-        [InlineData(0.0)]
-        [InlineData(float.MaxValue)]
-        [InlineData(float.PositiveInfinity)]
+        [MemberData(nameof(Singles))]
         public void SingleValues(float value)
         {
             var schema = new FloatSchema();

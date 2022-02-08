@@ -11,7 +11,7 @@ namespace Chr.Avro.Serialization
     /// <summary>
     /// Builds JSON Avro serializers for .NET <see cref="Type" />s.
     /// </summary>
-    public class JsonSerializerBuilder : IJsonSerializerBuilder
+    public class JsonSerializerBuilder : ExpressionBuilder, IJsonSerializerBuilder
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="JsonSerializerBuilder" /> class
@@ -104,14 +104,14 @@ namespace Chr.Avro.Serialization
         /// <inheritdoc />
         public virtual JsonSerializer<T> BuildDelegate<T>(Schema schema, JsonSerializerBuilderContext? context = default)
         {
-            return BuildExpression<T>(schema).Compile();
+            return BuildDelegateExpression<T>(schema).Compile();
         }
 
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map <typeparamref name="T" /> to <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual Expression<JsonSerializer<T>> BuildExpression<T>(Schema schema, JsonSerializerBuilderContext? context = default)
+        public virtual Expression<JsonSerializer<T>> BuildDelegateExpression<T>(Schema schema, JsonSerializerBuilderContext? context = default)
         {
             context ??= new JsonSerializerBuilderContext();
             var value = Expression.Parameter(typeof(T));

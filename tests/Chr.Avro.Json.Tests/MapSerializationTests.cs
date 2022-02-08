@@ -4,6 +4,7 @@ namespace Chr.Avro.Serialization.Tests
     using System.Collections.Generic;
     using System.Collections.Immutable;
     using System.IO;
+    using System.Linq;
     using System.Text.Json;
     using Chr.Avro.Abstract;
     using Xunit;
@@ -67,6 +68,25 @@ namespace Chr.Avro.Serialization.Tests
             var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(StringKeyData))]
+        public void DynamicDictionaryValues(Dictionary<string, double> value)
+        {
+            var schema = new MapSchema(new DoubleSchema());
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal(value.ToDictionary(p => p.Key, p => (object)p.Value), deserialize(ref reader));
         }
 
         [Theory]

@@ -19,7 +19,7 @@ namespace Chr.Avro.Serialization
         /// If none match, the base implementation is used.
         /// </remarks>
         /// <inheritdoc />
-        protected override Expression BuildConversion(Expression value, Type target)
+        protected override Expression BuildStaticConversion(Expression value, Type target)
         {
             if (target.Assembly == typeof(ImmutableInterlocked).Assembly)
             {
@@ -29,7 +29,7 @@ namespace Chr.Avro.Serialization
                 value = Expression.Call(value, toImmutable);
             }
 
-            return base.BuildConversion(value, target);
+            return base.BuildStaticConversion(value, target);
         }
 
         /// <summary>
@@ -42,15 +42,23 @@ namespace Chr.Avro.Serialization
         /// <param name="type">
         /// A dictionary <see cref="Type" />.
         /// </param>
+        /// <param name="keyType">
+        /// The key <see cref="Type" /> of <paramref name="type" />.
+        /// </param>
+        /// <param name="valueType">
+        /// The value <see cref="Type" /> of <paramref name="type" />.
+        /// </param>
         /// <returns>
         /// An <see cref="Expression" /> representing the creation of a dictionary that can be
         /// converted to <paramref name="type" />.
         /// </returns>
-        protected virtual Expression BuildIntermediateDictionary(Type type)
+        protected virtual Expression BuildIntermediateDictionary(Type type, Type keyType, Type valueType)
         {
-            var (keyType, valueType) = type.GetDictionaryTypes() ?? throw new ArgumentException($"{type} is not a dictionary type.");
-
-            if (type.IsAssignableFrom(typeof(ImmutableDictionary<,>).MakeGenericType(keyType, valueType)))
+            if (type.IsAssignableFrom(typeof(Dictionary<,>).MakeGenericType(keyType, valueType)))
+            {
+                // prefer Dictionary<,> since it's the most obvious surrogate type for IDictionary<,>
+            }
+            else if (type.IsAssignableFrom(typeof(ImmutableDictionary<,>).MakeGenericType(keyType, valueType)))
             {
                 var createBuilder = typeof(ImmutableDictionary)
                     .GetMethod(nameof(ImmutableDictionary.CreateBuilder), Type.EmptyTypes)
@@ -58,8 +66,7 @@ namespace Chr.Avro.Serialization
 
                 return Expression.Call(null, createBuilder);
             }
-
-            if (type.IsAssignableFrom(typeof(ImmutableSortedDictionary<,>).MakeGenericType(keyType, valueType)))
+            else if (type.IsAssignableFrom(typeof(ImmutableSortedDictionary<,>).MakeGenericType(keyType, valueType)))
             {
                 var createBuilder = typeof(ImmutableSortedDictionary)
                     .GetMethod(nameof(ImmutableSortedDictionary.CreateBuilder), Type.EmptyTypes)
@@ -67,13 +74,11 @@ namespace Chr.Avro.Serialization
 
                 return Expression.Call(null, createBuilder);
             }
-
-            if (type.IsAssignableFrom(typeof(SortedDictionary<,>).MakeGenericType(keyType, valueType)))
+            else if (type.IsAssignableFrom(typeof(SortedDictionary<,>).MakeGenericType(keyType, valueType)))
             {
                 return Expression.New(typeof(SortedDictionary<,>).MakeGenericType(keyType, valueType).GetConstructor(Type.EmptyTypes));
             }
-
-            if (type.IsAssignableFrom(typeof(SortedList<,>).MakeGenericType(keyType, valueType)))
+            else if (type.IsAssignableFrom(typeof(SortedList<,>).MakeGenericType(keyType, valueType)))
             {
                 return Expression.New(typeof(SortedList<,>).MakeGenericType(keyType, valueType).GetConstructor(Type.EmptyTypes));
             }

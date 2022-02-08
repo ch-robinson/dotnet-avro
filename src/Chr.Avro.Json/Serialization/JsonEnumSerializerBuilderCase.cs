@@ -63,16 +63,20 @@ namespace Chr.Avro.Serialization
                         {
                             return Expression.SwitchCase(
                                 Expression.Call(context.Writer, writeString, Expression.Constant(symbol)),
-                                Expression.Constant(symbol, type));
+                                Expression.Constant(symbol));
                         });
 
                 var exceptionConstructor = typeof(ArgumentOutOfRangeException)
                     .GetConstructor(new[] { typeof(string) });
 
                 var exception = Expression.New(exceptionConstructor, Expression.Constant("Enum value out of range."));
+                var intermediate = Expression.Variable(type.IsEnum ? type : typeof(string));
 
                 return JsonSerializerBuilderCaseResult.FromExpression(
-                    Expression.Switch(value, Expression.Throw(exception), cases.ToArray()));
+                    Expression.Block(
+                        new[] { intermediate },
+                        Expression.Assign(intermediate, BuildConversion(value, intermediate.Type)),
+                        Expression.Switch(intermediate, Expression.Throw(exception), cases.ToArray())));
             }
             else
             {

@@ -46,8 +46,14 @@ namespace Chr.Avro.Serialization
         {
             if (schema is MapSchema mapSchema)
             {
-                if (GetDictionaryTypes(type) is (Type keyType, Type valueType))
+                var dictionaryTypes = GetDictionaryTypes(type);
+
+                if (dictionaryTypes is not null || type == typeof(object))
                 {
+                    // support dynamic mapping:
+                    var keyType = dictionaryTypes?.Key ?? typeof(object);
+                    var valueType = dictionaryTypes?.Value ?? typeof(object);
+
                     var pairType = typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType);
                     var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(pairType));
                     var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(pairType));
@@ -87,11 +93,24 @@ namespace Chr.Avro.Serialization
                     var dispose = typeof(IDisposable)
                         .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
 
+                    Expression expression;
+
+                    try
+                    {
+                        expression = BuildConversion(value, enumerable.Type);
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new UnsupportedTypeException(type, $"Failed to map {mapSchema} to {type}.", exception);
+                    }
+
                     return JsonSerializerBuilderCaseResult.FromExpression(
                         Expression.Block(
                             new[] { enumerator },
                             Expression.Call(context.Writer, writeStartObject),
-                            Expression.Assign(enumerator, Expression.Call(value, getEnumerator)),
+                            Expression.Assign(
+                                enumerator,
+                                Expression.Call(expression, getEnumerator)),
                             Expression.TryFinally(
                                 Expression.Loop(
                                     Expression.IfThenElse(

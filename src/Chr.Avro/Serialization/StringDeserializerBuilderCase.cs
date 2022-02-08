@@ -16,7 +16,7 @@ namespace Chr.Avro.Serialization
         /// idiomatically represented as strings. If none match, the base implementation is used.
         /// </remarks>
         /// <inheritdoc />
-        protected override Expression BuildConversion(Expression value, Type target)
+        protected override Expression BuildStaticConversion(Expression value, Type target)
         {
             if (target == typeof(DateTime) || target == typeof(DateTime?))
             {
@@ -68,7 +68,7 @@ namespace Chr.Avro.Serialization
                 value = Expression.New(uriConstructor, value);
             }
 
-            return base.BuildConversion(value, target);
+            return base.BuildStaticConversion(value, target);
         }
     }
 }

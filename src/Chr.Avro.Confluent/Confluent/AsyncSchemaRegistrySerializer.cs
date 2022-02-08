@@ -316,7 +316,7 @@ namespace Chr.Avro.Confluent
                 Array.Reverse(header, 1, 4);
             }
 
-            var inner = SerializerBuilder.BuildExpression<T>(schema);
+            var inner = SerializerBuilder.BuildDelegateExpression<T>(schema);
 
             var streamConstructor = typeof(MemoryStream)
                 .GetConstructor(Type.EmptyTypes);

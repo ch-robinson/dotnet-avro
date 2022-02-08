@@ -10,10 +10,11 @@ namespace Chr.Avro.Serialization
     public interface IBinaryDeserializerBuilder : IDeserializerBuilder<BinaryDeserializerBuilderContext>
     {
         /// <summary>
-        /// Builds a delegate that reads a binary-encoded Avro value.
+        /// Builds a delegate that reads a binary-encoded Avro value of a specific
+        /// <see cref="Type" />.
         /// </summary>
         /// <typeparam name="T">
-        /// The <see cref="Type" /> of object to be deserialized.
+        /// The <see cref="Type" /> to be deserialized.
         /// </typeparam>
         /// <param name="schema">
         /// A <see cref="Schema" /> to map to <typeparamref name="T" />.
@@ -30,7 +31,8 @@ namespace Chr.Avro.Serialization
         BinaryDeserializer<T> BuildDelegate<T>(Schema schema, BinaryDeserializerBuilderContext? context = default);
 
         /// <summary>
-        /// Builds an <see cref="Expression" /> that represents a <see cref="BinaryDeserializer{T}" />.
+        /// Builds an <see cref="Expression" /> that represents a <see cref="BinaryDeserializer{T}" />
+        /// for a specific <see cref="Type" />.
         /// </summary>
         /// <typeparam name="T">
         /// The <see cref="Type" /> of object to be deserialized.
@@ -48,6 +50,6 @@ namespace Chr.Avro.Serialization
         /// An expression representing a <see cref="BinaryDeserializer{T}" /> based on
         /// <paramref name="schema" />.
         /// </returns>
-        Expression<BinaryDeserializer<T>> BuildExpression<T>(Schema schema, BinaryDeserializerBuilderContext? context = default);
+        Expression<BinaryDeserializer<T>> BuildDelegateExpression<T>(Schema schema, BinaryDeserializerBuilderContext? context = default);
     }
 }

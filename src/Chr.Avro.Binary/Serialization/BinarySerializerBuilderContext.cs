@@ -40,7 +40,7 @@ namespace Chr.Avro.Serialization
         /// is necessary for potentially recursive serializers, such as ones built for
         /// <see cref="RecordSchema" />s.
         /// </summary>
-        public virtual IDictionary<(Schema, Type), ParameterExpression> References { get; }
+        public virtual IDictionary<(Schema Schema, Type Type), ParameterExpression> References { get; }
 
         /// <summary>
         /// Gets the expression that represents the <see cref="BinaryWriter" /> argument of

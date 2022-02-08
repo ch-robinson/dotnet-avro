@@ -45,9 +45,15 @@ namespace Chr.Avro.Serialization
         {
             if (schema is MapSchema mapSchema)
             {
-                if (GetDictionaryTypes(type) is (Type keyType, Type valueType))
+                var dictionaryTypes = GetDictionaryTypes(type);
+
+                if (dictionaryTypes is not null || type == typeof(object))
                 {
-                    var instantiateDictionary = BuildIntermediateDictionary(type);
+                    // support dynamic mapping:
+                    var keyType = dictionaryTypes?.Key ?? typeof(string);
+                    var valueType = dictionaryTypes?.Value ?? typeof(object);
+
+                    var instantiateDictionary = BuildIntermediateDictionary(type, keyType, valueType);
 
                     var readKey = DeserializerBuilder
                         .BuildExpression(keyType, new StringSchema(), context);

@@ -1,5 +1,6 @@
 namespace Chr.Avro.Serialization.Tests
 {
+    using System.Collections.Generic;
     using System.IO;
     using System.Text.Json;
     using Chr.Avro.Abstract;
@@ -20,10 +21,22 @@ namespace Chr.Avro.Serialization.Tests
             stream = new MemoryStream();
         }
 
+        public static IEnumerable<object[]> Doubles => new List<object[]>
+        {
+            new object[] { double.MinValue },
+            new object[] { 0.0 },
+            new object[] { double.MaxValue },
+        };
+
+        public static IEnumerable<object[]> Integers => new List<object[]>
+        {
+            new object[] { -5 },
+            new object[] { 0 },
+            new object[] { 5 },
+        };
+
         [Theory]
-        [InlineData(double.MinValue)]
-        [InlineData(0.0)]
-        [InlineData(double.MaxValue)]
+        [MemberData(nameof(Doubles))]
         public void DoubleValues(double value)
         {
             var schema = new DoubleSchema();
@@ -42,9 +55,26 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [InlineData(-5)]
-        [InlineData(0)]
-        [InlineData(5)]
+        [MemberData(nameof(Doubles))]
+        public void DynamicDoubleValues(double value)
+        {
+            var schema = new DoubleSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal((double)value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(Integers))]
         public void Int32Values(int value)
         {
             var schema = new DoubleSchema();

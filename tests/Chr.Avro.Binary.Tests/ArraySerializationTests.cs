@@ -29,9 +29,9 @@ namespace Chr.Avro.Serialization.Tests
 
         public static IEnumerable<object[]> ArrayData => new List<object[]>
         {
-            new object[] { Array.Empty<int>() },
-            new object[] { new int[] { -10 } },
-            new object[] { new int[] { -10, 10, -5, 5, 0 } },
+            new object[] { Array.Empty<long>() },
+            new object[] { new long[] { -10 } },
+            new object[] { new long[] { -10, 10, -5, 5, 0 } },
         };
 
         public static IEnumerable<object[]> SetData => new List<object[]>
@@ -55,12 +55,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void ArrayValues(int[] value)
+        public void ArrayValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<int[]>(schema);
-            var serialize = serializerBuilder.BuildDelegate<int[]>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<long[]>(schema);
+            var serialize = serializerBuilder.BuildDelegate<long[]>(schema);
 
             using (stream)
             {
@@ -74,12 +74,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void ArraySegmentValues(int[] value)
+        public void ArraySegmentValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<ArraySegment<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<ArraySegment<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<ArraySegment<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ArraySegment<long>>(schema);
 
             using (stream)
             {
@@ -93,21 +93,40 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void CollectionValues(int[] value)
+        public void CollectionValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<Collection<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<Collection<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<Collection<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<Collection<long>>(schema);
 
             using (stream)
             {
-                serialize(new Collection<int>(value), new BinaryWriter(stream));
+                serialize(new Collection<long>(value), new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArrayData))]
+        public void DynamicArrayValues(long[] value)
+        {
+            var schema = new ArraySchema(new LongSchema());
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value.Cast<object>(), deserialize(ref reader));
         }
 
         [Theory]
@@ -131,12 +150,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void ICollectionValues(int[] value)
+        public void ICollectionValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<ICollection<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<ICollection<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<ICollection<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ICollection<long>>(schema);
 
             using (stream)
             {
@@ -150,12 +169,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void IEnumerableValues(int[] value)
+        public void IEnumerableValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<IEnumerable<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<IEnumerable<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<IEnumerable<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<IEnumerable<long>>(schema);
 
             using (stream)
             {
@@ -169,12 +188,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void IImmutableListValues(int[] value)
+        public void IImmutableListValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<IImmutableList<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<IImmutableList<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<IImmutableList<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<IImmutableList<long>>(schema);
 
             using (stream)
             {
@@ -188,12 +207,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void IImmutableQueueValues(int[] value)
+        public void IImmutableQueueValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<IImmutableQueue<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<IImmutableQueue<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<IImmutableQueue<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<IImmutableQueue<long>>(schema);
 
             using (stream)
             {
@@ -226,12 +245,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void IImmutableStackValues(int[] value)
+        public void IImmutableStackValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<IImmutableStack<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<IImmutableStack<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<IImmutableStack<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<IImmutableStack<long>>(schema);
 
             using (stream)
             {
@@ -245,12 +264,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void IListValues(int[] value)
+        public void IListValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<IList<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<IList<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<IList<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<IList<long>>(schema);
 
             using (stream)
             {
@@ -264,12 +283,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void IReadOnlyCollectionValues(int[] value)
+        public void IReadOnlyCollectionValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<IReadOnlyCollection<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<IReadOnlyCollection<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<IReadOnlyCollection<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<IReadOnlyCollection<long>>(schema);
 
             using (stream)
             {
@@ -283,12 +302,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void IReadOnlyListValues(int[] value)
+        public void IReadOnlyListValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<IReadOnlyList<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<IReadOnlyList<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<IReadOnlyList<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<IReadOnlyList<long>>(schema);
 
             using (stream)
             {
@@ -321,12 +340,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void ImmutableArrayValues(int[] value)
+        public void ImmutableArrayValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<ImmutableArray<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<ImmutableArray<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<ImmutableArray<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ImmutableArray<long>>(schema);
 
             using (stream)
             {
@@ -359,12 +378,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void ImmutableListValues(int[] value)
+        public void ImmutableListValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<ImmutableList<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<ImmutableList<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<ImmutableList<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ImmutableList<long>>(schema);
 
             using (stream)
             {
@@ -378,12 +397,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void ImmutableQueueValues(int[] value)
+        public void ImmutableQueueValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<ImmutableQueue<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<ImmutableQueue<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<ImmutableQueue<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ImmutableQueue<long>>(schema);
 
             using (stream)
             {
@@ -416,12 +435,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void ImmutableStackValues(int[] value)
+        public void ImmutableStackValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<ImmutableStack<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<ImmutableStack<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<ImmutableStack<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ImmutableStack<long>>(schema);
 
             using (stream)
             {
@@ -454,16 +473,16 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void LinkedListValues(int[] value)
+        public void LinkedListValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<LinkedList<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<LinkedList<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<LinkedList<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<LinkedList<long>>(schema);
 
             using (stream)
             {
-                serialize(new LinkedList<int>(value), new BinaryWriter(stream));
+                serialize(new LinkedList<long>(value), new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());
@@ -473,12 +492,12 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void ListValues(int[] value)
+        public void ListValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<List<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<List<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<List<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<List<long>>(schema);
 
             using (stream)
             {
@@ -492,16 +511,16 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void QueueValues(int[] value)
+        public void QueueValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<Queue<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<Queue<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<Queue<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<Queue<long>>(schema);
 
             using (stream)
             {
-                serialize(new Queue<int>(value), new BinaryWriter(stream));
+                serialize(new Queue<long>(value), new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());
@@ -530,16 +549,16 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
-        public void StackValues(int[] value)
+        public void StackValues(long[] value)
         {
-            var schema = new ArraySchema(new IntSchema());
+            var schema = new ArraySchema(new LongSchema());
 
-            var deserialize = deserializerBuilder.BuildDelegate<Stack<int>>(schema);
-            var serialize = serializerBuilder.BuildDelegate<Stack<int>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<Stack<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<Stack<long>>(schema);
 
             using (stream)
             {
-                serialize(new Stack<int>(value), new BinaryWriter(stream));
+                serialize(new Stack<long>(value), new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());

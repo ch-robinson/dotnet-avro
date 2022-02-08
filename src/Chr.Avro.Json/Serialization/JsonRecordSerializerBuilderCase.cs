@@ -2,11 +2,15 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Collections.Generic;
+    using System.Dynamic;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
     using System.Text.Json;
     using Chr.Avro.Abstract;
+    using Microsoft.CSharp.RuntimeBinder;
+
+    using Binder = Microsoft.CSharp.RuntimeBinder.Binder;
 
     /// <summary>
     /// Implements a <see cref="JsonSerializerBuilder" /> case that matches <see cref="RecordSchema" />
@@ -94,13 +98,30 @@ namespace Chr.Avro.Serialization
                         {
                             var match = members.SingleOrDefault(member => IsMatch(field, member.Name));
 
+                            Expression inner;
+
                             if (match == null)
                             {
-                                throw new UnsupportedTypeException(type, $"{type} does not have a field or property that matches the {field.Name} field on {recordSchema.Name}.");
+                                // if the type could be dynamic, attempt to use a dynamic getter:
+                                if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type) || type == typeof(object))
+                                {
+                                    var flags = CSharpBinderFlags.None;
+                                    var infos = new[] { CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, null) };
+                                    var binder = Binder.GetMember(flags, field.Name, type, infos);
+                                    inner = Expression.Dynamic(binder, typeof(object), value);
+                                }
+                                else
+                                {
+                                    throw new UnsupportedTypeException(type, $"{type} does not have a field or property that matches the {field.Name} field on {recordSchema.Name}.");
+                                }
+                            }
+                            else
+                            {
+                                inner = Expression.PropertyOrField(argument, match.Name);
                             }
 
                             writes.Add(Expression.Call(context.Writer, writePropertyName, Expression.Constant(field.Name)));
-                            writes.Add(SerializerBuilder.BuildExpression(Expression.PropertyOrField(argument, match.Name), field.Type, context));
+                            writes.Add(SerializerBuilder.BuildExpression(inner, field.Type, context));
                         }
 
                         writes.Add(Expression.Call(context.Writer, writeEndObject));

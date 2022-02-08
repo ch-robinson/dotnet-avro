@@ -10,7 +10,7 @@ namespace Chr.Avro.Serialization
     /// <summary>
     /// Builds binary Avro serializers for .NET <see cref="Type" />s.
     /// </summary>
-    public class BinarySerializerBuilder : IBinarySerializerBuilder
+    public class BinarySerializerBuilder : ExpressionBuilder, IBinarySerializerBuilder
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="BinarySerializerBuilder" /> class
@@ -103,14 +103,14 @@ namespace Chr.Avro.Serialization
         /// <inheritdoc />
         public virtual BinarySerializer<T> BuildDelegate<T>(Schema schema, BinarySerializerBuilderContext? context = default)
         {
-            return BuildExpression<T>(schema, context).Compile();
+            return BuildDelegateExpression<T>(schema, context).Compile();
         }
 
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when no case can map <typeparamref name="T" /> to <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual Expression<BinarySerializer<T>> BuildExpression<T>(Schema schema, BinarySerializerBuilderContext? context = default)
+        public virtual Expression<BinarySerializer<T>> BuildDelegateExpression<T>(Schema schema, BinarySerializerBuilderContext? context = default)
         {
             context ??= new BinarySerializerBuilderContext();
             var value = Expression.Parameter(typeof(T));
