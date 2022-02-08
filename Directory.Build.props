@@ -6,6 +6,7 @@
     <Authors>C.H. Robinson</Authors>
     <Company>C.H. Robinson</Company>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>
     <LangVersion>10.0</LangVersion>
     <PackageIcon>icon.png</PackageIcon>
