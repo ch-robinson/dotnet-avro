@@ -39,6 +39,11 @@ namespace Chr.Avro.Abstract
         }
 
         /// <summary>
+        /// Gets or sets the default value of the enum.
+        /// </summary>
+        public string? Default { get; set; }
+
+        /// <summary>
         /// Gets or sets the human-readable description of the enum.
         /// </summary>
         public string? Documentation { get; set; }

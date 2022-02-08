@@ -47,6 +47,16 @@ namespace Chr.Avro.Representation
                             json.WriteEndArray();
                         }
 
+                        if (enumSchema.Default is not null)
+                        {
+                            if (!enumSchema.Symbols.Contains(enumSchema.Default))
+                            {
+                                throw new InvalidSchemaException($"The default value \"{enumSchema.Default}\" is not a symbol in {enumSchema.FullName}.");
+                            }
+
+                            json.WriteString(JsonAttributeToken.Default, enumSchema.Default);
+                        }
+
                         if (!string.IsNullOrEmpty(enumSchema.Documentation))
                         {
                             json.WriteString(JsonAttributeToken.Doc, enumSchema.Documentation);

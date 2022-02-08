@@ -42,6 +42,7 @@ namespace Chr.Avro.Representation.Tests
         {
             new object[] { "{\"name\":\"Empty\",\"type\":\"enum\",\"symbols\":[]}" },
             new object[] { "{\"name\":\"cards.Suit\",\"type\":\"enum\",\"symbols\":[\"CLUBS\",\"DIAMONDS\",\"HEARTS\",\"SPADES\"]}" },
+            new object[] { "{\"name\":\"measurements.TemperatureScale\",\"default\":\"CELSIUS\",\"type\":\"enum\",\"symbols\":[\"FAHRENHEIT\",\"CELSIUS\"]}" },
         };
 
         public static IEnumerable<object[]> FixedSchemaRepresentations => new List<object[]>

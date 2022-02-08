@@ -55,6 +55,16 @@ namespace Chr.Avro.Representation
                         .ToArray();
                 }
 
+                if (element.TryGetProperty(JsonAttributeToken.Default, out var @default))
+                {
+                    schema.Default = @default.GetString();
+
+                    if (!schema.Symbols.Contains(schema.Default))
+                    {
+                        throw new InvalidSchemaException($"The default value \"{schema.Default}\" is not a symbol in {schema.FullName}.");
+                    }
+                }
+
                 if (element.TryGetProperty(JsonAttributeToken.Doc, out var doc))
                 {
                     schema.Documentation = doc.GetString();
