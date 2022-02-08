@@ -1,4 +1,4 @@
-#tool nuget:?package=mdoc&version=5.7.4.10
+#tool nuget:?package=mdoc&version=5.8.6.1
 
 var ROOT = ".";
 
@@ -44,10 +44,10 @@ Task("Benchmark")
     {
         Information("Running .NET benchmarks.");
 
-        DotNetCoreRun(
+        DotNetRun(
             $"{BENCHMARK_APPLICATIONS_PATH}/dotnet/Chr.Avro.Benchmarks.csproj",
             $"{BENCHMARK_RESULTS_PATH}/dotnet.csv",
-            new DotNetCoreRunSettings()
+            new DotNetRunSettings()
             {
                 Configuration = configuration
             }
@@ -60,7 +60,7 @@ Task("Build")
     {
         foreach (var info in GetFiles($"{SRC_PATH}/**/*.csproj"))
         {
-            DotNetCoreBuild(info.FullPath, new DotNetCoreBuildSettings()
+            DotNetBuild(info.FullPath, new DotNetBuildSettings()
             {
                 Configuration = configuration
             });
@@ -92,10 +92,10 @@ Task("Pack")
     {
         foreach (var info in GetFiles($"{SRC_PATH}/**/*.csproj"))
         {
-            DotNetCorePack(info.FullPath, new DotNetCorePackSettings()
+            DotNetPack(info.FullPath, new DotNetPackSettings()
             {
                 Configuration = configuration,
-                MSBuildSettings = new DotNetCoreMSBuildSettings()
+                MSBuildSettings = new DotNetMSBuildSettings()
                 {
                     ContinuousIntegrationBuild = true
                 },
@@ -133,7 +133,7 @@ Task("Test")
     {
         foreach (var info in GetFiles($"{TESTS_PATH}/**/*.csproj"))
         {
-            DotNetCoreTest(info.FullPath);
+            DotNetTest(info.FullPath);
         }
     });
 
