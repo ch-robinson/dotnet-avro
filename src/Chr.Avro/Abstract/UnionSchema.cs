@@ -63,7 +63,7 @@ namespace Chr.Avro.Abstract
                         throw new InvalidSchemaException("A union may not immediately contain another union.");
                     }
 
-                    if (!(schema is NamedSchema) && set.Any(existing => existing.GetType() == schema.GetType()))
+                    if (schema is not NamedSchema && set.Any(existing => existing.GetType() == schema.GetType()))
                     {
                         throw new InvalidSchemaException("A union may not contain more than one schema of the same type.");
                     }

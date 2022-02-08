@@ -227,7 +227,7 @@ namespace Chr.Avro.Serialization
                                                                 {
                                                                     FieldInfo fieldMatch => fieldMatch.FieldType,
                                                                     PropertyInfo propertyMatch => propertyMatch.PropertyType,
-                                                                    MemberInfo unknown => throw new InvalidOperationException($"Record fields can only be mapped to fields and properties.")
+                                                                    MemberInfo unknown => throw new InvalidOperationException($"Record fields can only be mapped to fields and properties."),
                                                                 },
                                                                 field.Type,
                                                                 context));

@@ -37,7 +37,7 @@ namespace Chr.Avro.Abstract
                 {
                     null => throw new ArgumentNullException(nameof(value), "Schema cannot be null."),
                     UnionSchema unionSchema => unionSchema.Schemas.First(),
-                    Schema schema => schema
+                    Schema schema => schema,
                 };
             }
         }

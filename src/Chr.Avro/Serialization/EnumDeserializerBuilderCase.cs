@@ -9,7 +9,7 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public abstract class EnumDeserializerBuilderCase : DeserializerBuilderCase
     {
-        private static readonly Regex FuzzyCharacters = new (@"[^A-Za-z0-9]");
+        private static readonly Regex FuzzyCharacters = new(@"[^A-Za-z0-9]");
 
         /// <summary>
         /// Determines whether an enum symbol matches another name.

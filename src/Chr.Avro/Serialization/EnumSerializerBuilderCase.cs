@@ -10,7 +10,7 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public abstract class EnumSerializerBuilderCase : SerializerBuilderCase
     {
-        private static readonly Regex FuzzyCharacters = new (@"[^A-Za-z0-9]");
+        private static readonly Regex FuzzyCharacters = new(@"[^A-Za-z0-9]");
 
         /// <remarks>
         /// This override includes additional conditions to handle conversions to types that can be

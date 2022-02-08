@@ -125,7 +125,7 @@ namespace Chr.Avro.Codegen
                     {
                         EnumSchema enumSchema => GenerateEnum(enumSchema) as MemberDeclarationSyntax,
                         RecordSchema recordSchema => GenerateClass(recordSchema) as MemberDeclarationSyntax,
-                        _ => null
+                        _ => default,
                     })
                     .OfType<MemberDeclarationSyntax>()
                     .ToArray();

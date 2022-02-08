@@ -55,7 +55,7 @@ namespace Chr.Avro.Serialization
                 }
 
                 var schemas = unionSchema.Schemas.ToList();
-                var candidates = schemas.Where(s => !(s is NullSchema)).ToList();
+                var candidates = schemas.Where(s => s is not NullSchema).ToList();
                 var @null = schemas.Find(s => s is NullSchema);
 
                 var writeNull = typeof(Utf8JsonWriter)
@@ -187,7 +187,7 @@ namespace Chr.Avro.Serialization
                 MapSchema => JsonSchemaToken.Map,
                 StringSchema => JsonSchemaToken.String,
 
-                _ => throw new UnsupportedSchemaException(schema)
+                _ => throw new UnsupportedSchemaException(schema),
             };
         }
     }

@@ -53,7 +53,7 @@ namespace Chr.Avro.Abstract
                         LogicalType = new MillisecondTimestampLogicalType(),
                     },
                     TemporalBehavior.Iso8601 => new StringSchema(),
-                    _ => throw new ArgumentOutOfRangeException(nameof(TemporalBehavior))
+                    _ => throw new ArgumentOutOfRangeException(nameof(TemporalBehavior)),
                 };
 
                 try

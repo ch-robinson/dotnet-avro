@@ -39,7 +39,7 @@
                 .Select(n => StripGlobalAlias(n.Left).ToString())
                 .Where(n => !internals.Contains(n)));
 
-            var result = ((CompilationUnitSyntax)base.VisitCompilationUnit(node) !)
+            var result = ((CompilationUnitSyntax)base.VisitCompilationUnit(node)!)
                 .WithUsings(new SyntaxList<UsingDirectiveSyntax>(externals
                     .Select(n => SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(n)))));
 
@@ -53,7 +53,7 @@
         public override SyntaxNode VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
         {
             breadcrumb.Push(node.Name.ToString());
-            var result = base.VisitNamespaceDeclaration(node) !;
+            var result = base.VisitNamespaceDeclaration(node)!;
             breadcrumb.Pop();
 
             return result;
@@ -62,7 +62,7 @@
         /// <inheritdoc />
         public override SyntaxNode VisitPropertyDeclaration(PropertyDeclarationSyntax node)
         {
-            var result = (PropertyDeclarationSyntax)base.VisitPropertyDeclaration(node) !;
+            var result = (PropertyDeclarationSyntax)base.VisitPropertyDeclaration(node)!;
 
             if (result.Type is NameSyntax name)
             {
@@ -75,7 +75,7 @@
         /// <inheritdoc />
         public override SyntaxNode VisitTypeArgumentList(TypeArgumentListSyntax node)
         {
-            var result = (TypeArgumentListSyntax)base.VisitTypeArgumentList(node) !;
+            var result = (TypeArgumentListSyntax)base.VisitTypeArgumentList(node)!;
 
             // VisitQualifiedName doesn’t hit these
             var children = node.ChildNodes().OfType<NameSyntax>();
@@ -99,7 +99,7 @@
         /// </returns>
         internal static CompilationUnitSyntax Rewrite(CompilationUnitSyntax unit)
         {
-            return ((CompilationUnitSyntax)new NamespaceRewriter().Visit(unit)) !;
+            return ((CompilationUnitSyntax)new NamespaceRewriter().Visit(unit))!;
         }
 
         private static NameSyntax StripGlobalAlias(NameSyntax name)

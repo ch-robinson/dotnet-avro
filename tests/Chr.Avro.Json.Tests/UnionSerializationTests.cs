@@ -352,7 +352,7 @@ namespace Chr.Avro.Serialization.Tests
                     {
                         nameof(OrderCreatedEvent) => typeof(OrderCreatedEvent),
                         nameof(OrderCancelledEvent) => typeof(OrderCancelledEvent),
-                        _ => throw new UnsupportedSchemaException(schema)
+                        _ => throw new UnsupportedSchemaException(schema),
                     };
                 }
 
@@ -375,7 +375,7 @@ namespace Chr.Avro.Serialization.Tests
                     {
                         nameof(OrderCreatedEvent) => typeof(OrderCreatedEvent),
                         nameof(OrderCancelledEvent) => typeof(OrderCancelledEvent),
-                        _ => throw new UnsupportedSchemaException(schema)
+                        _ => throw new UnsupportedSchemaException(schema),
                     };
                 }
 

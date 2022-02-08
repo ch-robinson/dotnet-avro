@@ -32,7 +32,7 @@ namespace Chr.Avro.Serialization
         {
             if (schema.LogicalType is TimestampLogicalType)
             {
-                if (!(schema is LongSchema))
+                if (schema is not LongSchema)
                 {
                     throw new UnsupportedSchemaException(schema);
                 }
@@ -52,7 +52,7 @@ namespace Chr.Avro.Serialization
                 {
                     MicrosecondTimestampLogicalType => TimeSpan.TicksPerMillisecond / 1000,
                     MillisecondTimestampLogicalType => TimeSpan.TicksPerMillisecond,
-                    _ => throw new UnsupportedSchemaException(schema, $"{schema.LogicalType} is not a supported {nameof(TimestampLogicalType)}.")
+                    _ => throw new UnsupportedSchemaException(schema, $"{schema.LogicalType} is not a supported {nameof(TimestampLogicalType)}."),
                 };
 
                 var utcTicks = typeof(DateTimeOffset)

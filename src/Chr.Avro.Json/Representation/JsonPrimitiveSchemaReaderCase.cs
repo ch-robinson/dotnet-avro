@@ -41,7 +41,7 @@ namespace Chr.Avro.Representation
                         JsonSchemaToken.Long => new LongSchema(),
                         JsonSchemaToken.Null => new NullSchema(),
                         JsonSchemaToken.String => new StringSchema(),
-                        _ => null
+                        _ => default,
                     };
 
                     if (schema != null)

@@ -14,6 +14,6 @@ namespace Chr.Avro.Abstract
         /// See the <a href="https://avro.apache.org/docs/current/spec.html#names">Avro spec</a>
         /// for the full naming rules.
         /// </remarks>
-        protected static readonly Regex AllowedName = new (@"^[A-Za-z_][A-Za-z0-9_]*$");
+        protected static readonly Regex AllowedName = new(@"^[A-Za-z_][A-Za-z0-9_]*$");
     }
 }

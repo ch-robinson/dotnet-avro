@@ -89,7 +89,7 @@ namespace Chr.Avro.Abstract
                     {
                         FieldInfo fieldMember => fieldMember.FieldType,
                         PropertyInfo propertyMember => propertyMember.PropertyType,
-                        _ => null
+                        _ => default,
                     };
 
                     if (memberType == null)

@@ -4,7 +4,7 @@ namespace Chr.Avro.Fixtures
 
     public static class IdentifierData
     {
-        public static readonly TheoryData<string> InvalidIdentifiers = new ()
+        public static readonly TheoryData<string> InvalidIdentifiers = new()
         {
             { string.Empty },
             { "1symbol" },
@@ -13,7 +13,7 @@ namespace Chr.Avro.Fixtures
             { "namespace.symbol" },
         };
 
-        public static readonly TheoryData<string, string, string> NamespacedIdentifiersWithInvalidNames = new ()
+        public static readonly TheoryData<string, string, string> NamespacedIdentifiersWithInvalidNames = new()
         {
             { string.Empty, null, string.Empty },
             { "space space", null, "space space" },
@@ -24,7 +24,7 @@ namespace Chr.Avro.Fixtures
             { "name.name.", "name.name", string.Empty },
         };
 
-        public static readonly TheoryData<string, string, string> NamespacedIdentifiersWithInvalidNamespaces = new ()
+        public static readonly TheoryData<string, string, string> NamespacedIdentifiersWithInvalidNamespaces = new()
         {
             { ".name", string.Empty, "name" },
             { "..name", ".", "name" },
@@ -32,7 +32,7 @@ namespace Chr.Avro.Fixtures
             { "2x.4y.6z.name", "2x.4y.6z", string.Empty },
         };
 
-        public static readonly TheoryData<string> ValidIdentifiers = new ()
+        public static readonly TheoryData<string> ValidIdentifiers = new()
         {
             { "lowercase" },
             { "UPPERCASE" },
@@ -41,7 +41,7 @@ namespace Chr.Avro.Fixtures
             { "symbol1" },
         };
 
-        public static readonly TheoryData<string, string, string> ValidNamespacedIdentifiers = new ()
+        public static readonly TheoryData<string, string, string> ValidNamespacedIdentifiers = new()
         {
             { "lowercase", null, "lowercase" },
             { "PascalCase", null, "PascalCase" },

@@ -6,7 +6,7 @@ namespace Chr.Avro.Cli
 
     public static class Program
     {
-        private static readonly Parser Parser = new (settings =>
+        private static readonly Parser Parser = new(settings =>
         {
             settings.CaseInsensitiveEnumValues = true;
             settings.HelpWriter = Console.Error;

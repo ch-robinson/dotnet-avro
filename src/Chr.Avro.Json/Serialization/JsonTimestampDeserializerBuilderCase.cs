@@ -32,12 +32,12 @@ namespace Chr.Avro.Serialization
         {
             if (schema.LogicalType is TimestampLogicalType)
             {
-                if (!(schema is LongSchema))
+                if (schema is not LongSchema)
                 {
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                Expression epoch = Expression.Constant(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                Expression epoch = Expression.Constant(Epoch);
                 Expression factor;
 
                 if (schema.LogicalType is MicrosecondTimestampLogicalType)

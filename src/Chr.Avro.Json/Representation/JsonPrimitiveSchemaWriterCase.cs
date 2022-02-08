@@ -26,7 +26,7 @@ namespace Chr.Avro.Representation
                     LongSchema _ => JsonSchemaToken.Long,
                     NullSchema _ => JsonSchemaToken.Null,
                     StringSchema _ => JsonSchemaToken.String,
-                    _ => throw new UnsupportedSchemaException(schema, $"Unknown primitive schema {schema}.")
+                    _ => throw new UnsupportedSchemaException(schema, $"Unknown primitive schema {schema}."),
                 });
 
                 return new JsonSchemaWriterCaseResult();
