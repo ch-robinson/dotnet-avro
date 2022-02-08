@@ -181,6 +181,68 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Fact]
+        public void RecordWithDefaultFields()
+        {
+            var boolean = new BooleanSchema();
+            var array = new ArraySchema(boolean);
+            var map = new MapSchema(new IntSchema());
+            var @enum = new EnumSchema("Ordinal", new[] { "None", "First", "Second", "Third", "Fourth" });
+            var union = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                array,
+            });
+
+            var schema = new RecordSchema("AllFields")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Second", union)
+                    {
+                        Default = new ObjectDefaultValue<List<bool>>(union, null),
+                    },
+                    new RecordField("Fourth", array)
+                    {
+                        Default = new ObjectDefaultValue<List<bool>>(array, new List<bool>() { false }),
+                    },
+                    new RecordField("Sixth", map)
+                    {
+                        Default = new ObjectDefaultValue<Dictionary<string, int>>(map, new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } }),
+                    },
+                    new RecordField("Eighth", @enum)
+                    {
+                        Default = new ObjectDefaultValue<ImplicitEnum>(@enum, ImplicitEnum.None),
+                    },
+                },
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<WithEvenFields>(schema);
+            var serialize = serializerBuilder.BuildDelegate<WithoutEvenFields>(schema);
+
+            var value = new WithoutEvenFields()
+            {
+                First = new List<bool>() { false },
+                Third = new List<bool>() { false, false, false },
+                Fifth = new Dictionary<string, int>() { { "first", 1 } },
+                Seventh = ImplicitEnum.First,
+            };
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            var with = deserialize(ref reader);
+
+            Assert.Null(with.Second);
+            Assert.Equal(new List<bool>() { false }, with.Fourth);
+            Assert.Equal(new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } }, with.Sixth);
+            Assert.Equal(ImplicitEnum.None, with.Eighth);
+        }
+
+        [Fact]
         public void RecordWithDynamicType()
         {
             var boolean = new BooleanSchema();

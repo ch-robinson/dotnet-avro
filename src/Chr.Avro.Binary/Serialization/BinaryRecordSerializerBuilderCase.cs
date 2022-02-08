@@ -97,7 +97,14 @@ namespace Chr.Avro.Serialization
                                     }
                                     else
                                     {
-                                        throw new UnsupportedTypeException(type, $"{type} does not have a field or property that matches the {field.Name} field on {recordSchema.Name}.");
+                                        if (field.Default is not null)
+                                        {
+                                            inner = Expression.Constant(field.Default.ToObject<dynamic>());
+                                        }
+                                        else
+                                        {
+                                            throw new UnsupportedTypeException(type, $"{type} does not have a field or property that matches the {field.Name} field on {recordSchema.FullName}.");
+                                        }
                                     }
                                 }
                                 else

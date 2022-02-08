@@ -14,7 +14,7 @@ namespace Chr.Avro.Tests
             var field = new RecordField("test", new NullSchema());
             Assert.Null(field.Default);
 
-            var defaultValue = new MockDefaultValue(field.Type);
+            var defaultValue = new ObjectDefaultValue<object>(field.Type, null);
             field.Default = defaultValue;
             Assert.Equal(defaultValue, field.Default);
 

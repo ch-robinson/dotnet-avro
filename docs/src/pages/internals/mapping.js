@@ -429,7 +429,10 @@ deserializer.Deserialize(bytes); // throws OverflowException`}</Highlight>
         <p>When the serializer builder and deserializer builder find multiple matching type members, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
       </li>
       <li>
-        <p>When the serializer builder can’t find a matching type member, <DotnetReference id='T:System.AggregateException' /> is thrown. When the deserializer can’t find a matching type member, the field is ignored.</p>
+        <p>When the serializer builder can’t find a matching type member but a default is specified by the schema, the default value will be serialized.</p>
+      </li>
+      <li>
+        <p>When the serializer builder can’t find a matching type member and no default is specified by the schema, <DotnetReference id='T:System.AggregateException' /> is thrown. When the deserializer can’t find a matching type member, the field is ignored.</p>
       </li>
       <li>
         <p>The deserializer builder throws <DotnetReference id='T:System.AggregateException' /> if a type doesn’t have a parameterless public constructor.</p>
