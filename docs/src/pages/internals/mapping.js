@@ -159,7 +159,10 @@ deserializer.Deserialize(serializer.Serialize(epoch)); // 0L`}</Highlight>
         <p>When the serializer builder and deserializer builder find multiple matching enumerators, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
       </li>
       <li>
-        <p>When the deserializer builder can’t find a matching enumerator, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
+        <p>When the deserializer builder can’t find a matching enumerator but a default is specified by the schema, the deserializer builder will attempt to map the default instead.</p>
+      </li>
+      <li>
+        <p>When the deserializer builder can’t find a matching enumerator and no default is specified by the schema, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
       </li>
     </ul>
     <p>By default, Chr.Avro honors data contract attributes if a <DotnetReference id='T:System.Runtime.Serialization.DataContractAttribute' /> is present on the enumeration. In that case, if <DotnetReference id='P:System.Runtime.Serialization.EnumMemberAttribute.Value' /> is set on an enumerator, the custom value must match the symbol exactly. If it’s not set, the enumerator name will be compared inexactly as described above.</p>

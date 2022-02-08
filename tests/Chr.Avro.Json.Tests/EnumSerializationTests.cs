@@ -22,6 +22,27 @@ namespace Chr.Avro.Serialization.Tests
             stream = new MemoryStream();
         }
 
+        [Fact]
+        public void DefaultEnumValues()
+        {
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH" })
+            {
+                Default = "NONE",
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<ImplicitEnum>(schema);
+            var serialize = serializerBuilder.BuildDelegate<string>(schema);
+
+            using (stream)
+            {
+                serialize("FIFTH", new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal(ImplicitEnum.None, deserialize(ref reader));
+        }
+
         [Theory]
         [InlineData(ImplicitEnum.None)]
         [InlineData(ImplicitEnum.First)]

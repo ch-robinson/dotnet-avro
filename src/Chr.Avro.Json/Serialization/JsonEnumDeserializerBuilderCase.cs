@@ -48,9 +48,14 @@ namespace Chr.Avro.Serialization
                         {
                             var match = fields.SingleOrDefault(field => IsMatch(symbol, field.Name));
 
+                            if (enumSchema.Default != null)
+                            {
+                                match ??= fields.SingleOrDefault(field => IsMatch(enumSchema.Default, field.Name));
+                            }
+
                             if (match == null)
                             {
-                                throw new UnsupportedTypeException(type, $"{type} has no value that matches {symbol}.");
+                                throw new UnsupportedTypeException(type, $"{type} has no value that matches {symbol} and no default value is defined.");
                             }
 
                             return Expression.SwitchCase(
