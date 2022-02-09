@@ -53,7 +53,8 @@ namespace Chr.Avro.Abstract
         }
 
         /// <inheritdoc />
-        public override T ToObject<T>()
+        public override T? ToObject<T>()
+            where T : default
         {
             var reader = ToJsonReader();
 

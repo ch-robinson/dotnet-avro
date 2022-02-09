@@ -197,19 +197,19 @@ namespace Chr.Avro.Serialization.Tests
                 {
                     new RecordField("Second", union)
                     {
-                        Default = new ObjectDefaultValue<List<bool>>(union, null),
+                        Default = new ObjectDefaultValue<List<bool>>(null, union),
                     },
                     new RecordField("Fourth", array)
                     {
-                        Default = new ObjectDefaultValue<List<bool>>(array, new List<bool>() { false }),
+                        Default = new ObjectDefaultValue<List<bool>>(new List<bool>() { false }, array),
                     },
                     new RecordField("Sixth", map)
                     {
-                        Default = new ObjectDefaultValue<Dictionary<string, int>>(map, new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } }),
+                        Default = new ObjectDefaultValue<Dictionary<string, int>>(new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } }, map),
                     },
                     new RecordField("Eighth", @enum)
                     {
-                        Default = new ObjectDefaultValue<ImplicitEnum>(@enum, ImplicitEnum.None),
+                        Default = new ObjectDefaultValue<ImplicitEnum>(ImplicitEnum.None, @enum),
                     },
                 },
             };

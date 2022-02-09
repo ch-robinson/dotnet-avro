@@ -54,6 +54,6 @@ namespace Chr.Avro.Abstract
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when the value cannot be mapped to <typeparamref name="T" />.
         /// </exception>
-        public abstract T ToObject<T>();
+        public abstract T? ToObject<T>();
     }
 }

@@ -1,8 +1,10 @@
 namespace Chr.Avro.Abstract
 {
     using System;
+    using System.ComponentModel;
     using System.Linq;
     using System.Reflection;
+    using Chr.Avro.Infrastructure;
 
     /// <summary>
     /// Implements a <see cref="SchemaBuilder" /> case that matches any non-array or non-primitive
@@ -97,7 +99,14 @@ namespace Chr.Avro.Abstract
                         continue;
                     }
 
-                    recordSchema.Fields.Add(new RecordField(member.Name, SchemaBuilder.BuildSchema(memberType, context)));
+                    var field = new RecordField(member.Name, SchemaBuilder.BuildSchema(memberType, context));
+
+                    if (member.GetAttribute<DefaultValueAttribute>() is DefaultValueAttribute defaultAttribute)
+                    {
+                        field.Default = new ObjectDefaultValue<object>(defaultAttribute.Value, field.Type);
+                    }
+
+                    recordSchema.Fields.Add(field);
                 }
 
                 return SchemaBuilderCaseResult.FromSchema(schema);

@@ -53,6 +53,36 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
+        public void BuildClassesWithDefaultValues()
+        {
+            var schema = builder.BuildSchema<DefaultValuesClass>() as RecordSchema;
+
+            Assert.NotNull(schema);
+            Assert.Collection(
+                schema.Fields,
+                f =>
+                {
+                    Assert.Equal(nameof(DefaultValuesClass.DefaultIntField), f.Name);
+                    Assert.Equal(1, f.Default.ToObject<int>());
+                },
+                f =>
+                {
+                    Assert.Equal(nameof(DefaultValuesClass.DefaultIntProperty), f.Name);
+                    Assert.Equal(1, f.Default.ToObject<int>());
+                },
+                f =>
+                {
+                    Assert.Equal(nameof(DefaultValuesClass.DefaultObjectField), f.Name);
+                    Assert.Null(f.Default.ToObject<object>());
+                },
+                f =>
+                {
+                    Assert.Equal(nameof(DefaultValuesClass.DefaultObjectProperty), f.Name);
+                    Assert.Null(f.Default.ToObject<object>());
+                });
+        }
+
+        [Fact]
         public void BuildClassesWithFields()
         {
             var schema = builder.BuildSchema<VisibilityClass>() as RecordSchema;
