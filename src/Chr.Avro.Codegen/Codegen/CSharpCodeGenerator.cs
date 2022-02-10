@@ -16,6 +16,20 @@ namespace Chr.Avro.Codegen
     /// </summary>
     public class CSharpCodeGenerator : ICodeGenerator
     {
+        private readonly bool enableNullableReferenceTypes;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CSharpCodeGenerator" /> class.
+        /// </summary>
+        /// <param name="enableNullableReferenceTypes">
+        /// Whether reference types selected for nullable record fields should be annotated as
+        /// nullable.
+        /// </param>
+        public CSharpCodeGenerator(bool enableNullableReferenceTypes = true)
+        {
+            this.enableNullableReferenceTypes = enableNullableReferenceTypes;
+        }
+
         /// <summary>
         /// Generates a class declaration for a record schema.
         /// </summary>
@@ -304,7 +318,7 @@ namespace Chr.Avro.Codegen
                     throw new UnsupportedSchemaException(schema, $"{schema.GetType()} is not recognized by the code generator.");
             }
 
-            if (nullable && value)
+            if (nullable && (enableNullableReferenceTypes || value))
             {
                 type = SyntaxFactory.NullableType(type);
             }

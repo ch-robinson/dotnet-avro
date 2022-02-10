@@ -8,18 +8,6 @@ const clrTypeOptions = [{
   required: false,
   summary: 'The name of or path to an assembly to load (multiple space-separated values accepted).'
 }, {
-  name: 'enums-as-ints',
-  required: false,
-  summary: 'Whether enums should be represented as integers.'
-}, {
-  name: 'nullable-references',
-  required: false,
-  summary: 'Whether reference types should be nullable.'
-}, {
-  name: 'temporal-behavior',
-  required: false,
-  summary: 'Whether timestamps should be represented with "string" schemas (ISO 8601) or "long" schemas (timestamp logical types). Options are iso8601, epochmilliseconds, and epochmicroseconds.'
-}, {
   abbreviation: 't',
   name: 'type',
   required: true,
@@ -66,7 +54,19 @@ module.exports = [{
     body: `$ dotnet avro create --assembly ./out/Example.Models.dll --type Example.Models.ExampleModel
 {"name":"Example.Models.ExampleModel",type":"record",fields:[{"name":"Text","type":"string"}]}`
   }],
-  options: [...clrTypeOptions]
+  options: [...clrTypeOptions, {
+    name: 'enums-as-ints',
+    required: false,
+    summary: 'Whether enums should be represented as integers.'
+  }, {
+    name: 'nullable-references',
+    required: false,
+    summary: 'Which reference types should be represented with nullable union schemas. Options are annotated (use nullable annotations if available), none, and all.'
+  }, {
+    name: 'temporal-behavior',
+    required: false,
+    summary: 'Whether timestamps should be represented with "string" schemas (ISO 8601) or "long" schemas (timestamp logical types). Options are iso8601, epochmilliseconds, and epochmicroseconds.'
+  }]
 }, {
   name: 'generate',
   summary: 'Generates C# code for a schema from the Schema Registry.',
@@ -98,7 +98,11 @@ namespace Example.Models
     body: `PS C:\\> Get-Content .\\example-model.avsc | dotnet avro generate | Out-File .\\ExampleModel.cs`,
     language: 'powershell'
   }],
-  options: [...schemaResolutionOptions]
+  options: [...schemaResolutionOptions, {
+    name: 'nullable-references',
+    required: false,
+    summary: 'Whether reference types selected for nullable record fields should be annotated as nullable.'
+  }]
 }, {
   name: 'registry-get',
   summary: 'Retrieve a schema from the Schema Registry.',
