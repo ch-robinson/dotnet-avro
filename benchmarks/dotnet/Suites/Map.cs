@@ -5,7 +5,7 @@ namespace Chr.Avro.Benchmarks
 
     public static class DoubleMapSuite
     {
-        public const int Iterations = 1_000_000;
+        public const int Iterations = 100_000;
 
         public const string Name = "map[double]";
 
