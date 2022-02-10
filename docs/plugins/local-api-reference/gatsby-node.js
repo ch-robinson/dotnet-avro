@@ -138,71 +138,73 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest }, {
     namespaceNode.types___NODE.push(typeNode.id)
     createNode(typeNode)
 
-    const overloads = members.reduce((result, member) => {
-      const { kind, name, ...others } = member
+    if (members) {
+      const overloads = members.reduce((result, member) => {
+        const { kind, name, ...others } = member
 
-      if (!result[name]) {
-        result[name] = {
-          kind,
-          name: name === '.ctor' ? '#ctor' : name,
-          overloads: []
+        if (!result[name]) {
+          result[name] = {
+            kind,
+            name: name === '.ctor' ? '#ctor' : name,
+            overloads: []
+          }
         }
-      }
 
-      result[name].overloads.push(others)
-      return result
-    }, new Map())
+        result[name].overloads.push(others)
+        return result
+      }, new Map())
 
-    for (const name in overloads) {
-      const memberNode = {
-        id: `${qualifyName(typeNode.name, namespace)}.${overloads[name].name}`,
-        kind: overloads[name].kind,
-        name: overloads[name].name,
-        overloads: overloads[name].overloads,
-        type___NODE: typeNode.id,
-        internal: {
-          content: JSON.stringify(overloads[name]),
-          contentDigest: createContentDigest(overloads[name]),
-          type: 'DotnetMember'
+      for (const name in overloads) {
+        const memberNode = {
+          id: `${qualifyName(typeNode.name, namespace)}.${overloads[name].name}`,
+          kind: overloads[name].kind,
+          name: overloads[name].name,
+          overloads: overloads[name].overloads,
+          type___NODE: typeNode.id,
+          internal: {
+            content: JSON.stringify(overloads[name]),
+            contentDigest: createContentDigest(overloads[name]),
+            type: 'DotnetMember'
+          }
         }
-      }
 
-      switch (memberNode.kind) {
-        case 'constructor':
-        case 'method':
-          memberNode.id = createUnboundMethodId(memberNode.id)
-          break
+        switch (memberNode.kind) {
+          case 'constructor':
+          case 'method':
+            memberNode.id = createUnboundMethodId(memberNode.id)
+            break
 
-        case 'field':
-          memberNode.id = createFieldId(memberNode.id)
-          break
+          case 'field':
+            memberNode.id = createFieldId(memberNode.id)
+            break
 
-        case 'property':
-          memberNode.id = createPropertyId(memberNode.id)
-          break
+          case 'property':
+            memberNode.id = createPropertyId(memberNode.id)
+            break
 
-        default:
-          throw new Error(`Unexpected kind ${memberNode.kind}.`)
-      }
+          default:
+            throw new Error(`Unexpected kind ${memberNode.kind}.`)
+        }
 
-      typeNode.members___NODE.push(memberNode.id)
-      createNode(memberNode)
+        typeNode.members___NODE.push(memberNode.id)
+        createNode(memberNode)
 
-      for (const overload of memberNode.overloads) {
-        overload.id = memberNode.id
+        for (const overload of memberNode.overloads) {
+          overload.id = memberNode.id
 
-        const methodTypeParameters = (overload.typeParameters || []).map(p => p.name)
+          const methodTypeParameters = (overload.typeParameters || []).map(p => p.name)
 
-        if (overload.parameters) {
-          for (const parameter of overload.parameters) {
-            parameter.type = createBoundTypeId(parameter.type, typeParameters, methodTypeParameters)
+          if (overload.parameters) {
+            for (const parameter of overload.parameters) {
+              parameter.type = createBoundTypeId(parameter.type, typeParameters, methodTypeParameters)
+            }
+
+            overload.id += `(${overload.parameters.map(p => p.type.substring(2)).join(',')})`
           }
 
-          overload.id += `(${overload.parameters.map(p => p.type.substring(2)).join(',')})`
-        }
-
-        if (overload.returns) {
-          overload.returns.type = createBoundTypeId(overload.returns.type, typeParameters, methodTypeParameters)
+          if (overload.returns) {
+            overload.returns.type = createBoundTypeId(overload.returns.type, typeParameters, methodTypeParameters)
+          }
         }
       }
     }
