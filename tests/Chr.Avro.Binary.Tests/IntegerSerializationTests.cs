@@ -75,7 +75,7 @@ namespace Chr.Avro.Serialization.Tests
         public static IEnumerable<object[]> UInt32s => new List<object[]>
         {
             new object[] { uint.MinValue },
-            new object[] { uint.MaxValue },
+            new object[] { uint.MaxValue / 2 },
         };
 
         public static IEnumerable<object[]> UInt64s => new List<object[]>
@@ -296,7 +296,7 @@ namespace Chr.Avro.Serialization.Tests
         [MemberData(nameof(UInt64s))]
         public void UInt64Values(ulong value)
         {
-            var schema = new IntSchema();
+            var schema = new LongSchema();
 
             var deserialize = deserializerBuilder.BuildDelegate<ulong>(schema);
             var serialize = serializerBuilder.BuildDelegate<ulong>(schema);

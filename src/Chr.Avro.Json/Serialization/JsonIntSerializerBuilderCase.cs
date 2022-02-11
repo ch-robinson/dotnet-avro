@@ -20,7 +20,7 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="long" />.
+        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="int" />.
         /// </exception>
         /// <inheritdoc />
         public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)

@@ -54,17 +54,23 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { double.PositiveInfinity, new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x7f } },
         };
 
-        public static IEnumerable<object[]> IntegerEncodings => new List<object[]>
+        public static IEnumerable<object[]> Int32Encodings => new List<object[]>
         {
-            new object[] { 0L, new byte[] { 0x00 } },
-            new object[] { -1L, new byte[] { 0x01 } },
-            new object[] { 1L, new byte[] { 0x02 } },
-            new object[] { -2L, new byte[] { 0x03 } },
-            new object[] { 2L, new byte[] { 0x04 } },
-            new object[] { -64L, new byte[] { 0x7f } },
-            new object[] { 64L, new byte[] { 0x80, 0x01 } },
-            new object[] { -8192L, new byte[] { 0xff, 0x7f } },
-            new object[] { 8192L, new byte[] { 0x80, 0x80, 0x01 } },
+            new object[] { 0, new byte[] { 0x00 } },
+            new object[] { -1, new byte[] { 0x01 } },
+            new object[] { 1, new byte[] { 0x02 } },
+            new object[] { -2, new byte[] { 0x03 } },
+            new object[] { 2, new byte[] { 0x04 } },
+            new object[] { -64, new byte[] { 0x7f } },
+            new object[] { 64, new byte[] { 0x80, 0x01 } },
+            new object[] { -8192, new byte[] { 0xff, 0x7f } },
+            new object[] { 8192, new byte[] { 0x80, 0x80, 0x01 } },
+            new object[] { int.MinValue, new byte[] { 0xff, 0xff, 0xff, 0xff, 0x0f } },
+            new object[] { int.MaxValue, new byte[] { 0xfe, 0xff, 0xff, 0xff, 0x0f } },
+        };
+
+        public static IEnumerable<object[]> Int64Encodings => new List<object[]>
+        {
             new object[] { -4611686018427387904L, new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f } },
             new object[] { 4611686018427387904L, new byte[] { 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01 } },
             new object[] { long.MinValue, new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01 } },
@@ -108,8 +114,21 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
-        [MemberData(nameof(IntegerEncodings))]
-        public void WritesIntegers(long value, byte[] encoding)
+        [MemberData(nameof(Int32Encodings))]
+        public void WritesInt32s(int value, byte[] encoding)
+        {
+            using (stream)
+            {
+                writer.WriteInteger(value);
+            }
+
+            Assert.Equal(encoding, stream.ToArray());
+        }
+
+        [Theory]
+        [MemberData(nameof(Int32Encodings))]
+        [MemberData(nameof(Int64Encodings))]
+        public void WritesInt64s(long value, byte[] encoding)
         {
             using (stream)
             {

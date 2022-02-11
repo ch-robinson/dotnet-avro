@@ -88,6 +88,31 @@ namespace Chr.Avro.Serialization
         /// Writes a variable-length integer to the current position and advances the writer.
         /// </summary>
         /// <param name="value">
+        /// An <see cref="int" /> value.
+        /// </param>
+        public void WriteInteger(int value)
+        {
+            var encoded = (uint)((value << 1) ^ (value >> 31));
+
+            do
+            {
+                var current = encoded & 0x7FU;
+                encoded >>= 7;
+
+                if (encoded != 0)
+                {
+                    current |= 0x80U;
+                }
+
+                stream.WriteByte((byte)current);
+            }
+            while (encoded != 0U);
+        }
+
+        /// <summary>
+        /// Writes a variable-length integer to the current position and advances the writer.
+        /// </summary>
+        /// <param name="value">
         /// A <see cref="long" /> value.
         /// </param>
         public void WriteInteger(long value)

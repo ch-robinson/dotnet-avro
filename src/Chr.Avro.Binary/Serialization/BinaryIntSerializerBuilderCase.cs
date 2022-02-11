@@ -19,7 +19,7 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <exception cref="UnsupportedTypeException">
-        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="long" />.
+        /// Thrown when <paramref name="type" /> cannot be converted to <see cref="int" />.
         /// </exception>
         /// <inheritdoc />
         public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
@@ -27,12 +27,12 @@ namespace Chr.Avro.Serialization
             if (schema is IntSchema intSchema)
             {
                 var writeInteger = typeof(BinaryWriter)
-                    .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
+                    .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(int) });
 
                 try
                 {
                     return BinarySerializerBuilderCaseResult.FromExpression(
-                        Expression.Call(context.Writer, writeInteger, BuildConversion(value, typeof(long))));
+                        Expression.Call(context.Writer, writeInteger, BuildConversion(value, typeof(int))));
                 }
                 catch (InvalidOperationException exception)
                 {
