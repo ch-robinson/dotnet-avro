@@ -12,7 +12,7 @@ namespace Chr.Avro.Confluent
     /// </typeparam>
     internal class DelegateDeserializer<T> : IDeserializer<T>
     {
-        private readonly BinaryDeserializer<T> @delegate;
+        private readonly Implementation @delegate;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DelegateDeserializer{T}" /> class.
@@ -26,13 +26,27 @@ namespace Chr.Avro.Confluent
         /// <param name="tombstoneBehavior">
         /// How the deserializer should handle tombstone records.
         /// </param>
-        public DelegateDeserializer(BinaryDeserializer<T> @delegate, int schemaId, TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None)
+        public DelegateDeserializer(
+            Implementation @delegate,
+            int schemaId,
+            TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None)
         {
             SchemaId = schemaId;
             TombstoneBehavior = tombstoneBehavior;
 
             this.@delegate = @delegate ?? throw new ArgumentNullException(nameof(@delegate));
         }
+
+        /// <summary>
+        /// A function that provides the core deserializer implementation.
+        /// </summary>
+        /// <param name="data">
+        /// The data to be deserialized (without the Confluent wire format header).
+        /// </param>
+        /// <returns>
+        /// A deserialized object.
+        /// </returns>
+        public delegate T Implementation(ReadOnlySpan<byte> data);
 
         /// <summary>
         /// Gets the ID of the schema that the deserializer was built against.
@@ -79,9 +93,7 @@ namespace Chr.Avro.Confluent
                 throw new InvalidEncodingException(1, $"The received schema ({received}) does not match the specified schema ({SchemaId}).");
             }
 
-            var reader = new BinaryReader(data.Slice(5));
-
-            return @delegate(ref reader);
+            return @delegate(data.Slice(5));
         }
     }
 }

@@ -3,6 +3,7 @@ namespace Chr.Avro.Confluent
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Linq.Expressions;
     using System.Threading.Tasks;
     using Chr.Avro.Abstract;
     using Chr.Avro.Representation;
@@ -210,7 +211,28 @@ namespace Chr.Avro.Confluent
                 }
             }
 
-            return new DelegateDeserializer<T>(DeserializerBuilder.BuildDelegate<T>(schema), id, tombstoneBehavior);
+            var inner = DeserializerBuilder.BuildDelegateExpression<T>(schema);
+            var span = Expression.Parameter(typeof(ReadOnlySpan<byte>));
+
+            var readerConstructor = inner.Parameters[0].Type
+                .GetConstructor(new[] { span.Type });
+
+            if (schema is BytesSchema)
+            {
+                inner = new WireFormatBytesDeserializerRewriter(span)
+                    .VisitAndConvert(inner, GetType().Name);
+            }
+
+            return new DelegateDeserializer<T>(
+                Expression
+                    .Lambda<DelegateDeserializer<T>.Implementation>(
+                        Expression.Invoke(
+                            inner,
+                            Expression.New(readerConstructor, span)),
+                        new[] { span })
+                    .Compile(),
+                id,
+                tombstoneBehavior);
         }
     }
 }

@@ -10,6 +10,8 @@ namespace Chr.Avro.Confluent
     using global::Confluent.Kafka;
     using global::Confluent.SchemaRegistry;
 
+    using BytesSchema = Chr.Avro.Abstract.BytesSchema;
+
     /// <summary>
     /// An <see cref="IAsyncSerializer{T}" /> that resolves Avro schemas on the fly. When serializing
     /// messages, this serializer will attempt to look up a subject that matches the topic name (if
@@ -317,6 +319,8 @@ namespace Chr.Avro.Confluent
             }
 
             var inner = SerializerBuilder.BuildDelegateExpression<T>(schema);
+            var stream = Expression.Parameter(typeof(MemoryStream));
+            var value = inner.Parameters[0];
 
             var streamConstructor = typeof(MemoryStream)
                 .GetConstructor(Type.EmptyTypes);
@@ -333,16 +337,27 @@ namespace Chr.Avro.Confluent
             var write = typeof(Stream)
                 .GetMethod(nameof(Stream.Write), new[] { typeof(byte[]), typeof(int), typeof(int) });
 
-            var stream = Expression.Parameter(typeof(MemoryStream));
-            var value = inner.Parameters[0];
+            if (schema is BytesSchema)
+            {
+                inner = new WireFormatBytesSerializerRewriter(stream)
+                    .VisitAndConvert(inner, GetType().Name);
+            }
 
             var writer = Expression.Block(
                 new[] { stream },
                 Expression.Assign(stream, Expression.New(streamConstructor)),
                 Expression.TryFinally(
                     Expression.Block(
-                        Expression.Call(stream, write, Expression.Constant(header), Expression.Constant(0), Expression.Constant(header.Length)),
-                        Expression.Invoke(inner, value, Expression.New(writerConstructor, stream))),
+                        Expression.Call(
+                            stream,
+                            write,
+                            Expression.Constant(header),
+                            Expression.Constant(0),
+                            Expression.Constant(header.Length)),
+                        Expression.Invoke(
+                            inner,
+                            value,
+                            Expression.New(writerConstructor, stream))),
                     Expression.Call(stream, dispose)),
                 Expression.Call(stream, toArray));
 

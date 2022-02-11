@@ -100,6 +100,27 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
+        public async Task HandlesConfluentWireFormatBytesCase()
+        {
+            var id = 0;
+            var json = @"""bytes""";
+
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
+                .Verifiable();
+
+            var data = new byte[] { 0x02 };
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
+            var context = new SerializationContext(MessageComponentType.Value, "test-topic");
+
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
+
+            var deserializer = await builder.Build<byte[]>(id);
+
+            Assert.Equal(data, deserializer.Deserialize(encoding, false, context));
+        }
+
+        [Fact]
         public async Task ThrowsOnInvalidTombstoneType()
         {
             var id = 4;

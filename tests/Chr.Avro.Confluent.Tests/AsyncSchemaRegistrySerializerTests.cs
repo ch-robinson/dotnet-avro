@@ -24,7 +24,6 @@ namespace Chr.Avro.Confluent.Tests
             var serializer = new AsyncSchemaRegistrySerializer<object>(
                 registryClientMock.Object);
 
-            var metadata = new MessageMetadata();
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
             var subject = $"{context.Topic}-value";
 
@@ -45,7 +44,6 @@ namespace Chr.Avro.Confluent.Tests
             var serializer = new AsyncSchemaRegistrySerializer<object>(
                 registryClientMock.Object);
 
-            var metadata = new MessageMetadata();
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
             var subject = $"{context.Topic}-value";
 
@@ -64,6 +62,26 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
+        public async Task HandlesConfluentWireFormatBytesCase()
+        {
+            var serializer = new AsyncSchemaRegistrySerializer<object>(
+                registryClientMock.Object);
+
+            var data = new byte[] { 0x02 };
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+            var subject = $"{context.Topic}-value";
+
+            registryClientMock
+                .Setup(c => c.GetLatestSchemaAsync(subject))
+                .ReturnsAsync(new RegisteredSchema(subject, 1, 0, "\"bytes\"", SchemaType.Avro, null));
+
+            Assert.Equal(
+                encoding,
+                await serializer.SerializeAsync(data, context));
+        }
+
+        [Fact]
         public async Task ProvidesDefaultSerializationComponents()
         {
             var serializer = new AsyncSchemaRegistrySerializer<int>(
@@ -71,7 +89,6 @@ namespace Chr.Avro.Confluent.Tests
 
             var data = 4;
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
-            var metadata = new MessageMetadata();
             var context = new SerializationContext(MessageComponentType.Key, "test_topic");
             var subject = $"{context.Topic}-key";
 
@@ -111,7 +128,6 @@ namespace Chr.Avro.Confluent.Tests
 
             var data = 6;
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x09, 0x0c };
-            var metadata = new MessageMetadata();
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
             var subject = $"{context.Topic}-value";
 
@@ -130,7 +146,6 @@ namespace Chr.Avro.Confluent.Tests
                 registerAutomatically: AutomaticRegistrationBehavior.Never);
 
             var data = 6;
-            var metadata = new MessageMetadata();
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
             var subject = $"{context.Topic}-value";
 
@@ -179,7 +194,6 @@ namespace Chr.Avro.Confluent.Tests
 
             var data = 2;
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x08, 0x04 };
-            var metadata = new MessageMetadata();
             var context = new SerializationContext(MessageComponentType.Key, "test_topic");
             var subject = $"{context.Topic}-{version}-key";
 

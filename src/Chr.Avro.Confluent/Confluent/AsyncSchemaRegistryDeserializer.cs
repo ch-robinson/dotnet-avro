@@ -245,26 +245,36 @@ namespace Chr.Avro.Confluent
             // build it into the delegate:
             var inner = DeserializerBuilder.BuildDelegateExpression<T>(schema);
             var memory = Expression.Parameter(typeof(ReadOnlyMemory<byte>));
+            var span = Expression.Parameter(typeof(ReadOnlySpan<byte>));
 
             var getSpan = memory.Type
                 .GetProperty(nameof(ReadOnlyMemory<byte>.Span))
                 .GetGetMethod();
 
             var readerConstructor = inner.Parameters[0].Type
-                .GetConstructor(new[] { getSpan.ReturnType });
+                .GetConstructor(new[] { span.Type });
 
             var slice = memory.Type
                 .GetMethod(nameof(ReadOnlyMemory<byte>.Slice), new[] { typeof(int) });
 
-            var reader = Expression.Invoke(
-                inner,
-                Expression.New(
-                    readerConstructor,
+            if (schema is BytesSchema)
+            {
+                inner = new WireFormatBytesDeserializerRewriter(span)
+                    .VisitAndConvert(inner, GetType().Name);
+            }
+
+            var reader = Expression.Block(
+                new[] { span },
+                Expression.Assign(
+                    span,
                     Expression.Property(
                         Expression.Call(memory, slice, Expression.Constant(5)),
-                        getSpan)));
+                        getSpan)),
+                Expression.Invoke(
+                    inner,
+                    Expression.New(readerConstructor, span)));
 
-            return Expression.Lambda<Func<ReadOnlyMemory<byte>, T>>(reader, true, memory).Compile();
+            return Expression.Lambda<Func<ReadOnlyMemory<byte>, T>>(reader, memory).Compile();
         }
     }
 }

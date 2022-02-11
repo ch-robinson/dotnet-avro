@@ -13,7 +13,7 @@ namespace Chr.Avro.Confluent
     /// </typeparam>
     internal class DelegateSerializer<T> : ISerializer<T>
     {
-        private readonly BinarySerializer<T> @delegate;
+        private readonly Implementation @delegate;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DelegateSerializer{T}" /> class.
@@ -27,13 +27,24 @@ namespace Chr.Avro.Confluent
         /// <param name="tombstoneBehavior">
         /// How the serializer should handle tombstone records.
         /// </param>
-        public DelegateSerializer(BinarySerializer<T> @delegate, int schemaId, TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None)
+        public DelegateSerializer(Implementation @delegate, int schemaId, TombstoneBehavior tombstoneBehavior = TombstoneBehavior.None)
         {
             SchemaId = schemaId;
             TombstoneBehavior = tombstoneBehavior;
 
             this.@delegate = @delegate ?? throw new ArgumentNullException(nameof(@delegate));
         }
+
+        /// <summary>
+        /// A function that provides the core deserializer implementation.
+        /// </summary>
+        /// <param name="value">
+        /// The object to be serialized.
+        /// </param>
+        /// <param name="stream">
+        /// A <see cref="Stream" /> to write the serialized data to.
+        /// </param>
+        public delegate void Implementation(T value, Stream stream);
 
         /// <summary>
         /// Gets the ID of the schema that the serializer was built against.
@@ -69,7 +80,7 @@ namespace Chr.Avro.Confluent
             using (stream)
             {
                 stream.Write(header, 0, header.Length);
-                @delegate(data, new Serialization.BinaryWriter(stream));
+                @delegate(data, stream);
             }
 
             return stream.ToArray();

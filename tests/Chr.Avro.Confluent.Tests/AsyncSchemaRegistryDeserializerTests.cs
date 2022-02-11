@@ -62,6 +62,23 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
+        public async Task HandlesConfluentWireFormatBytesCase()
+        {
+            var deserializer = new AsyncSchemaRegistryDeserializer<byte[]>(
+                registryClientMock.Object);
+
+            var data = new byte[] { 0x02 };
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+
+            registryClientMock
+                .Setup(c => c.GetSchemaAsync(0, null))
+                .ReturnsAsync(new Schema("\"bytes\"", SchemaType.Avro));
+
+            Assert.Equal(data, await deserializer.DeserializeAsync(encoding, false, context));
+        }
+
+        [Fact]
         public async Task ProvidesDefaultDeserializationComponents()
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<int>(
