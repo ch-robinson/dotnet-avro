@@ -36,8 +36,8 @@ namespace Chr.Avro.Cli
         [Option("enums-as-integers", HelpText = "Whether enums should be represented with \"int\" or \"long\" schemas.")]
         public bool EnumsAsIntegers { get; set; }
 
-        [Option("nullable-references", HelpText = "Whether reference types should be represented with nullable union schemas.")]
-        public bool NullableReferences { get; set; }
+        [Option("nullable-references", HelpText = "Which reference types should be represented with nullable union schemas. Options are annotated (use nullable annotations if available), none, and all.", Default = NullableReferenceTypeBehavior.Annotated)]
+        public NullableReferenceTypeBehavior NullableReferences { get; set; }
 
         [Option("temporal-behavior", HelpText = "Whether timestamps should be represented with \"string\" schemas (ISO 8601) or \"long\" schemas (timestamp logical types). Options are iso8601, epochmilliseconds, and epochmicroseconds.")]
         public TemporalBehavior TemporalBehavior { get; set; }
@@ -61,7 +61,7 @@ namespace Chr.Avro.Cli
 
             var builder = new SchemaBuilder(
                 enumBehavior: EnumsAsIntegers ? EnumBehavior.Integral : EnumBehavior.Symbolic,
-                nullableReferenceTypeBehavior: NullableReferences ? NullableReferenceTypeBehavior.All : NullableReferenceTypeBehavior.None,
+                nullableReferenceTypeBehavior: NullableReferences,
                 temporalBehavior: TemporalBehavior);
 
             try

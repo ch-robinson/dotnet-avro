@@ -25,9 +25,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(int[][]), typeof(ArraySchema))]
         public void BuildArrays(Type type, Type inner)
         {
-            var schema = builder.BuildSchema(type) as ArraySchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<ArraySchema>(builder.BuildSchema(type));
             Assert.IsType(inner, schema.Item);
             Assert.Null(schema.LogicalType);
         }
@@ -36,9 +34,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(bool))]
         public void BuildBooleans(Type type)
         {
-            var schema = builder.BuildSchema(type) as BooleanSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<BooleanSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
@@ -46,53 +42,47 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(byte[]))]
         public void BuildByteArrays(Type type)
         {
-            var schema = builder.BuildSchema(type) as BytesSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<BytesSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
         [Fact]
         public void BuildClassesWithDefaultValues()
         {
-            var schema = builder.BuildSchema<DefaultValuesClass>() as RecordSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<DefaultValuesClass>());
             Assert.Collection(
                 schema.Fields,
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(DefaultValuesClass.DefaultIntField), f.Name);
-                    Assert.Equal(1, f.Default.ToObject<int>());
+                    Assert.Equal(nameof(DefaultValuesClass.DefaultIntField), field.Name);
+                    Assert.Equal(1, field.Default.ToObject<int>());
                 },
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(DefaultValuesClass.DefaultIntProperty), f.Name);
-                    Assert.Equal(1, f.Default.ToObject<int>());
+                    Assert.Equal(nameof(DefaultValuesClass.DefaultIntProperty), field.Name);
+                    Assert.Equal(1, field.Default.ToObject<int>());
                 },
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(DefaultValuesClass.DefaultObjectField), f.Name);
-                    Assert.Null(f.Default.ToObject<object>());
+                    Assert.Equal(nameof(DefaultValuesClass.DefaultObjectField), field.Name);
+                    Assert.Null(field.Default.ToObject<object>());
                 },
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(DefaultValuesClass.DefaultObjectProperty), f.Name);
-                    Assert.Null(f.Default.ToObject<object>());
+                    Assert.Equal(nameof(DefaultValuesClass.DefaultObjectProperty), field.Name);
+                    Assert.Null(field.Default.ToObject<object>());
                 });
         }
 
         [Fact]
         public void BuildClassesWithFields()
         {
-            var schema = builder.BuildSchema<VisibilityClass>() as RecordSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<VisibilityClass>());
             Assert.All(schema.Fields, f => Assert.IsType<IntSchema>(f.Type));
             Assert.Collection(
                 schema.Fields,
-                f => Assert.Equal(nameof(VisibilityClass.PublicField), f.Name),
-                f => Assert.Equal(nameof(VisibilityClass.PublicProperty), f.Name));
+                field => Assert.Equal(nameof(VisibilityClass.PublicField), field.Name),
+                field => Assert.Equal(nameof(VisibilityClass.PublicProperty), field.Name));
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(VisibilityClass).Name, schema.Name);
             Assert.Equal(typeof(VisibilityClass).Namespace, schema.Namespace);
@@ -101,18 +91,14 @@ namespace Chr.Avro.Tests
         [Fact]
         public void BuildClassesWithMultipleRecursion()
         {
-            var schema = builder.BuildSchema<CircularClassA>() as RecordSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<CircularClassA>());
             Assert.Collection(
                 schema.Fields,
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(CircularClassA.B), f.Name);
+                    Assert.Equal(nameof(CircularClassA.B), field.Name);
 
-                    var b = f.Type as RecordSchema;
-
-                    Assert.NotNull(b);
+                    var b = Assert.IsType<RecordSchema>(field.Type);
                     Assert.Collection(
                         b.Fields,
                         a =>
@@ -132,9 +118,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void BuildClassesWithNoFields()
         {
-            var schema = builder.BuildSchema<EmptyClass>() as RecordSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<EmptyClass>());
             Assert.Empty(schema.Fields);
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(EmptyClass).Name, schema.Name);
@@ -145,49 +129,323 @@ namespace Chr.Avro.Tests
         public void BuildClassesWithNullableProperties()
         {
             var context = new SchemaBuilderContext();
-            var schema = builder.BuildSchema<NullablePropertyClass>(context) as RecordSchema;
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<NullableMemberClass>(context));
 
             Assert.Collection(
                 context.Schemas.Keys,
-                t => t.Equals(typeof(DateTime)),
-                t => t.Equals(typeof(DateTime?)),
-                t => t.Equals(typeof(Guid)),
-                t => t.Equals(typeof(NullablePropertyClass)));
+                type => Assert.Equal(typeof(NullableMemberClass), type),
+                type => Assert.Equal(typeof(string[]), type),
+                type => Assert.Equal(typeof(string), type),
+                type => Assert.Equal(typeof(Dictionary<string, object>), type),
+                type => Assert.Equal(typeof(object), type),
+                type => Assert.Equal(typeof(Guid), type),
+                type => Assert.Equal(typeof(List<string>), type),
+                type => Assert.Equal(typeof(Guid?), type));
 
-            Assert.NotNull(schema);
             Assert.Collection(
                 schema.Fields,
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(NullablePropertyClass.Created), f.Name);
-                    Assert.IsType<StringSchema>(f.Type);
+                    Assert.Equal(nameof(NullableMemberClass.ArrayOfNullableStringsProperty), field.Name);
+
+                    var array = Assert.IsType<ArraySchema>(field.Type);
+                    var union = Assert.IsType<UnionSchema>(array.Item);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            Assert.IsType<StringSchema>(child);
+                        });
                 },
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(NullablePropertyClass.Deleted), f.Name);
-                    Assert.IsType<UnionSchema>(f.Type);
+                    Assert.Equal(nameof(NullableMemberClass.ArrayOfStringsProperty), field.Name);
+
+                    var array = Assert.IsType<ArraySchema>(field.Type);
+                    Assert.IsType<StringSchema>(array.Item);
                 },
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(NullablePropertyClass.Id), f.Name);
-                    Assert.IsType<StringSchema>(f.Type);
+                    Assert.Equal(nameof(NullableMemberClass.DictionaryOfNullableObjectsProperty), field.Name);
+
+                    var map = Assert.IsType<MapSchema>(field.Type);
+                    var union = Assert.IsType<UnionSchema>(map.Value);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            Assert.IsType<RecordSchema>(child);
+                        });
                 },
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(NullablePropertyClass.Updated), f.Name);
-                    Assert.IsType<UnionSchema>(f.Type);
+                    Assert.Equal(nameof(NullableMemberClass.DictionaryOfObjectsProperty), field.Name);
+
+                    var map = Assert.IsType<MapSchema>(field.Type);
+                    Assert.IsType<RecordSchema>(map.Value);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.GuidProperty), field.Name);
+                    Assert.IsType<StringSchema>(field.Type);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.ListOfNullableStringsProperty), field.Name);
+
+                    var array = Assert.IsType<ArraySchema>(field.Type);
+                    var union = Assert.IsType<UnionSchema>(array.Item);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            Assert.IsType<StringSchema>(child);
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.ListOfStringsProperty), field.Name);
+
+                    var array = Assert.IsType<ArraySchema>(field.Type);
+                    Assert.IsType<StringSchema>(array.Item);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.NullableArrayOfNullableStringsProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            var array = Assert.IsType<ArraySchema>(child);
+                            var union = Assert.IsType<UnionSchema>(array.Item);
+                            Assert.Collection(
+                                union.Schemas,
+                                child =>
+                                {
+                                    Assert.IsType<NullSchema>(child);
+                                },
+                                child =>
+                                {
+                                    Assert.IsType<StringSchema>(child);
+                                });
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.NullableArrayOfStringsProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            var array = Assert.IsType<ArraySchema>(child);
+                            Assert.IsType<StringSchema>(array.Item);
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.NullableDictionaryOfNullableObjectsProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            var map = Assert.IsType<MapSchema>(child);
+                            var union = Assert.IsType<UnionSchema>(map.Value);
+                            Assert.Collection(
+                                union.Schemas,
+                                child =>
+                                {
+                                    Assert.IsType<NullSchema>(child);
+                                },
+                                child =>
+                                {
+                                    Assert.IsType<RecordSchema>(child);
+                                });
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.NullableDictionaryOfObjectsProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            var map = Assert.IsType<MapSchema>(child);
+                            Assert.IsType<RecordSchema>(map.Value);
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.NullableGuidProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            Assert.IsType<StringSchema>(child);
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.NullableListOfNullableStringsProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            var array = Assert.IsType<ArraySchema>(child);
+                            var union = Assert.IsType<UnionSchema>(array.Item);
+                            Assert.Collection(
+                                union.Schemas,
+                                child =>
+                                {
+                                    Assert.IsType<NullSchema>(child);
+                                },
+                                child =>
+                                {
+                                    Assert.IsType<StringSchema>(child);
+                                });
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.NullableListOfStringsProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            var array = Assert.IsType<ArraySchema>(child);
+                            Assert.IsType<StringSchema>(array.Item);
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.NullableStringProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            Assert.IsType<StringSchema>(child);
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.ObliviousArrayOfStringsProperty), field.Name);
+
+                    var array = Assert.IsType<ArraySchema>(field.Type);
+                    Assert.IsType<StringSchema>(array.Item);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.ObliviousDictionaryOfObjectsProperty), field.Name);
+
+                    var map = Assert.IsType<MapSchema>(field.Type);
+                    Assert.IsType<RecordSchema>(map.Value);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.ObliviousGuidProperty), field.Name);
+                    Assert.IsType<StringSchema>(field.Type);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.ObliviousListOfStringsProperty), field.Name);
+
+                    var array = Assert.IsType<ArraySchema>(field.Type);
+                    Assert.IsType<StringSchema>(array.Item);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.ObliviousNullableGuidProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            Assert.IsType<StringSchema>(child);
+                        });
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.ObliviousStringProperty), field.Name);
+                    Assert.IsType<StringSchema>(field.Type);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.StringProperty), field.Name);
+                    Assert.IsType<StringSchema>(field.Type);
                 });
             Assert.Null(schema.LogicalType);
-            Assert.Equal(typeof(NullablePropertyClass).Name, schema.Name);
-            Assert.Equal(typeof(NullablePropertyClass).Namespace, schema.Namespace);
+            Assert.Equal(typeof(NullableMemberClass).Name, schema.Name);
+            Assert.Equal(typeof(NullableMemberClass).Namespace, schema.Namespace);
         }
 
         [Fact]
         public void BuildClassesWithSingleRecursion()
         {
-            var schema = builder.BuildSchema<CircularClass>() as RecordSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<CircularClass>());
             Assert.Collection(
                 schema.Fields,
                 f =>
@@ -204,13 +462,8 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(decimal))]
         public void BuildDecimals(Type type)
         {
-            var schema = builder.BuildSchema(type) as BytesSchema;
-
-            Assert.NotNull(schema);
-
-            var logicalType = schema.LogicalType as DecimalLogicalType;
-
-            Assert.NotNull(logicalType);
+            var schema = Assert.IsType<BytesSchema>(builder.BuildSchema(type));
+            var logicalType = Assert.IsType<DecimalLogicalType>(schema.LogicalType);
             Assert.Equal(29, logicalType.Precision);
             Assert.Equal(14, logicalType.Scale);
         }
@@ -219,9 +472,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(double))]
         public void BuildDoubles(Type type)
         {
-            var schema = builder.BuildSchema(type) as DoubleSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<DoubleSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
@@ -229,70 +480,60 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(TimeSpan))]
         public void BuildDurations(Type type)
         {
-            var schema = builder.BuildSchema(type) as StringSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<StringSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
         [Fact]
         public void BuildEnumsWithDuplicateValues()
         {
-            var schema = builder.BuildSchema<DuplicateEnum>() as EnumSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<DuplicateEnum>());
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(DuplicateEnum).Name, schema.Name);
             Assert.Equal(typeof(DuplicateEnum).Namespace, schema.Namespace);
             Assert.Collection(
                 schema.Symbols,
-                s => Assert.Equal(nameof(DuplicateEnum.A), s),
-                s => Assert.Equal(nameof(DuplicateEnum.B), s),
-                s => Assert.Equal(nameof(DuplicateEnum.C), s));
+                symbol => Assert.Equal(nameof(DuplicateEnum.A), symbol),
+                symbol => Assert.Equal(nameof(DuplicateEnum.B), symbol),
+                symbol => Assert.Equal(nameof(DuplicateEnum.C), symbol));
         }
 
         [Fact]
         public void BuildEnumsWithExplicitValues()
         {
-            var schema = builder.BuildSchema<ExplicitEnum>() as EnumSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<ExplicitEnum>());
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(ExplicitEnum).Name, schema.Name);
             Assert.Equal(typeof(ExplicitEnum).Namespace, schema.Namespace);
             Assert.Collection(
                 schema.Symbols,
-                s => Assert.Equal(nameof(ExplicitEnum.Third), s),
-                s => Assert.Equal(nameof(ExplicitEnum.First), s),
-                s => Assert.Equal(nameof(ExplicitEnum.None), s),
-                s => Assert.Equal(nameof(ExplicitEnum.Second), s),
-                s => Assert.Equal(nameof(ExplicitEnum.Fourth), s));
+                symbol => Assert.Equal(nameof(ExplicitEnum.Third), symbol),
+                symbol => Assert.Equal(nameof(ExplicitEnum.First), symbol),
+                symbol => Assert.Equal(nameof(ExplicitEnum.None), symbol),
+                symbol => Assert.Equal(nameof(ExplicitEnum.Second), symbol),
+                symbol => Assert.Equal(nameof(ExplicitEnum.Fourth), symbol));
         }
 
         [Fact]
         public void BuildEnumsWithImplicitValues()
         {
-            var schema = builder.BuildSchema<ImplicitEnum>() as EnumSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<ImplicitEnum>());
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(ImplicitEnum).Name, schema.Name);
             Assert.Equal(typeof(ImplicitEnum).Namespace, schema.Namespace);
             Assert.Collection(
                 schema.Symbols,
-                s => Assert.Equal(nameof(ImplicitEnum.None), s),
-                s => Assert.Equal(nameof(ImplicitEnum.First), s),
-                s => Assert.Equal(nameof(ImplicitEnum.Second), s),
-                s => Assert.Equal(nameof(ImplicitEnum.Third), s),
-                s => Assert.Equal(nameof(ExplicitEnum.Fourth), s));
+                symbol => Assert.Equal(nameof(ImplicitEnum.None), symbol),
+                symbol => Assert.Equal(nameof(ImplicitEnum.First), symbol),
+                symbol => Assert.Equal(nameof(ImplicitEnum.Second), symbol),
+                symbol => Assert.Equal(nameof(ImplicitEnum.Third), symbol),
+                symbol => Assert.Equal(nameof(ExplicitEnum.Fourth), symbol));
         }
 
         [Fact]
         public void BuildEnumsWithNoSymbols()
         {
-            var schema = builder.BuildSchema<EmptyEnum>() as EnumSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<EmptyEnum>());
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(EmptyEnum).Name, schema.Name);
             Assert.Equal(typeof(EmptyEnum).Namespace, schema.Namespace);
@@ -306,7 +547,6 @@ namespace Chr.Avro.Tests
         public void BuildFlagEnums(Type enumType, Type schemaType)
         {
             var schema = builder.BuildSchema(enumType);
-
             Assert.IsType(schemaType, schema);
             Assert.Null(schema.LogicalType);
         }
@@ -315,24 +555,20 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(float))]
         public void BuildFloats(Type type)
         {
-            var schema = builder.BuildSchema(type) as FloatSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<FloatSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
         [Fact]
         public void BuildInterfacesWithFields()
         {
-            var schema = builder.BuildSchema<IVisibilityInterface>() as RecordSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<IVisibilityInterface>());
             Assert.Collection(
                 schema.Fields,
-                f =>
+                field =>
                 {
-                    Assert.Equal(nameof(IVisibilityInterface.PublicProperty), f.Name);
-                    Assert.IsType<IntSchema>(f.Type);
+                    Assert.Equal(nameof(IVisibilityInterface.PublicProperty), field.Name);
+                    Assert.IsType<IntSchema>(field.Type);
                 });
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(IVisibilityInterface).Name, schema.Name);
@@ -342,9 +578,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void BuildInterfacesWithNoFields()
         {
-            var schema = builder.BuildSchema<IEmptyInterface>() as RecordSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<IEmptyInterface>());
             Assert.Empty(schema.Fields);
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(IEmptyInterface).Name, schema.Name);
@@ -361,9 +595,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(ushort))]
         public void BuildInts(Type type)
         {
-            var schema = builder.BuildSchema(type) as IntSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<IntSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
@@ -372,9 +604,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(ulong))]
         public void BuildLongs(Type type)
         {
-            var schema = builder.BuildSchema(type) as LongSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<LongSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
@@ -384,9 +614,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(IEnumerable<KeyValuePair<string, string>>), typeof(StringSchema))]
         public void BuildMaps(Type type, Type inner)
         {
-            var schema = builder.BuildSchema(type) as MapSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<MapSchema>(builder.BuildSchema(type));
             Assert.IsType(inner, schema.Value);
             Assert.Null(schema.LogicalType);
         }
@@ -395,18 +623,14 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(string))]
         public void BuildStrings(Type type)
         {
-            var schema = builder.BuildSchema(type) as StringSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<StringSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
         [Fact]
         public void BuildStructsWithNoFields()
         {
-            var schema = builder.BuildSchema<EmptyStruct>() as RecordSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<EmptyStruct>());
             Assert.Empty(schema.Fields);
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(EmptyStruct).Name, schema.Name);
@@ -438,9 +662,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(UIntFlagEnum?), typeof(IntSchema))]
         public void BuildNullables(Type type, Type inner)
         {
-            var schema = builder.BuildSchema(type) as UnionSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<UnionSchema>(builder.BuildSchema(type));
             Assert.Collection(
                 schema.Schemas,
                 s => Assert.IsType<NullSchema>(s),
@@ -453,9 +675,7 @@ namespace Chr.Avro.Tests
         public void BuildTimestampsAsIso8601Strings(Type type)
         {
             var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.Iso8601);
-            var schema = builder.BuildSchema(type) as StringSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<StringSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
@@ -465,9 +685,7 @@ namespace Chr.Avro.Tests
         public void BuildTimestampsAsMicrosecondsFromEpoch(Type type)
         {
             var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.EpochMicroseconds);
-            var schema = builder.BuildSchema(type) as LongSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<LongSchema>(builder.BuildSchema(type));
             Assert.IsType<MicrosecondTimestampLogicalType>(schema.LogicalType);
         }
 
@@ -477,9 +695,7 @@ namespace Chr.Avro.Tests
         public void BuildTimestampsAsMillisecondsFromEpoch(Type type)
         {
             var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.EpochMilliseconds);
-            var schema = builder.BuildSchema(type) as LongSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<LongSchema>(builder.BuildSchema(type));
             Assert.IsType<MillisecondTimestampLogicalType>(schema.LogicalType);
         }
 
@@ -487,9 +703,7 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(Uri))]
         public void BuildUris(Type type)
         {
-            var schema = builder.BuildSchema(type) as StringSchema;
-
-            Assert.NotNull(schema);
+            var schema = Assert.IsType<StringSchema>(builder.BuildSchema(type));
             Assert.Null(schema.LogicalType);
         }
 
@@ -497,13 +711,8 @@ namespace Chr.Avro.Tests
         [InlineData(typeof(Guid))]
         public void BuildUuids(Type type)
         {
-            var schema = builder.BuildSchema(type) as StringSchema;
-
-            Assert.NotNull(schema);
-
-            var logicalType = schema.LogicalType as UuidLogicalType;
-
-            Assert.NotNull(logicalType);
+            var schema = Assert.IsType<StringSchema>(builder.BuildSchema(type));
+            Assert.IsType<UuidLogicalType>(schema.LogicalType);
         }
 
         [Theory]

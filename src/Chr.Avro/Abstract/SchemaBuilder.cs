@@ -29,7 +29,7 @@ namespace Chr.Avro.Abstract
         public SchemaBuilder(
             BindingFlags memberVisibility = BindingFlags.Public | BindingFlags.Instance,
             EnumBehavior enumBehavior = EnumBehavior.Symbolic,
-            NullableReferenceTypeBehavior nullableReferenceTypeBehavior = NullableReferenceTypeBehavior.None,
+            NullableReferenceTypeBehavior nullableReferenceTypeBehavior = NullableReferenceTypeBehavior.Annotated,
             TemporalBehavior temporalBehavior = TemporalBehavior.Iso8601)
             : this(CreateDefaultCaseBuilders(memberVisibility, enumBehavior, nullableReferenceTypeBehavior, temporalBehavior))
         {

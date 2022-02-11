@@ -46,12 +46,16 @@ namespace Chr.Avro.Cli
         [Option('s', "subject", SetName = BySubjectSet, HelpText = "If an ID is not specified, the subject of the schema.")]
         public string SchemaSubject { get; set; }
 
+        [Option("nullable-references", HelpText = "Whether reference types selected for nullable record fields should be annotated as nullable.")]
+        public bool NullableReferences { get; set; }
+
         [Option('v', "version", SetName = BySubjectSet, HelpText = "The version of the schema.")]
         public int? SchemaVersion { get; set; }
 
         protected override async Task Run()
         {
-            var generator = new CSharpCodeGenerator();
+            var generator = new CSharpCodeGenerator(
+                enableNullableReferenceTypes: NullableReferences);
             var reader = new JsonSchemaReader();
             var schema = reader.Read(await ((ISchemaResolutionOptions)this).ResolveSchema());
 
