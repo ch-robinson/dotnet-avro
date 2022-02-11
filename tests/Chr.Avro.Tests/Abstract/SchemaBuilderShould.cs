@@ -89,6 +89,22 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
+        public void BuildClassesWithGenericParameters()
+        {
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<GenericClass<string>>());
+            Assert.Collection(
+                schema.Fields,
+                field =>
+                {
+                    Assert.Equal(nameof(GenericClass<string>.Item), field.Name);
+                    Assert.IsType<StringSchema>(field.Type);
+                });
+            Assert.Null(schema.LogicalType);
+            Assert.Equal("GenericClass_String", schema.Name);
+            Assert.Equal(typeof(GenericClass<string>).Namespace, schema.Namespace);
+        }
+
+        [Fact]
         public void BuildClassesWithMultipleRecursion()
         {
             var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<CircularClassA>());

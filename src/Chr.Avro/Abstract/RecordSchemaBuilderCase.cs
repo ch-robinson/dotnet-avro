@@ -4,6 +4,7 @@ namespace Chr.Avro.Abstract
     using System.ComponentModel;
     using System.Linq;
     using System.Reflection;
+    using System.Text.RegularExpressions;
     using Chr.Avro.Infrastructure;
 
     /// <summary>
@@ -68,9 +69,9 @@ namespace Chr.Avro.Abstract
             if (!type.IsArray && !type.IsPrimitive)
             {
                 // defer setting the field schemas so the record schema can be cached:
-                var recordSchema = new RecordSchema(type.Name)
+                var recordSchema = new RecordSchema(GetSchemaName(type))
                 {
-                    Namespace = string.IsNullOrEmpty(type.Namespace) ? null : type.Namespace,
+                    Namespace = GetSchemaNamespace(type),
                 };
 
                 Schema schema = recordSchema;
@@ -134,6 +135,41 @@ namespace Chr.Avro.Abstract
             {
                 return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(RecordSchemaBuilderCase)} cannot be applied to array or primitive types."));
             }
+        }
+
+        /// <summary>
+        /// Derives a schema name from a <see cref="Type" />.
+        /// </summary>
+        /// <param name="type">
+        /// A type to derive the name from.
+        /// </param>
+        /// <returns>
+        /// An unqualified schema name that conforms to the Avro naming rules.
+        /// </returns>
+        protected virtual string GetSchemaName(Type type)
+        {
+            var name = Regex.Replace(type.Name, @"`\d+$", string.Empty);
+
+            foreach (var parameter in type.GetGenericArguments())
+            {
+                name += $"_{GetSchemaName(parameter)}";
+            }
+
+            return name;
+        }
+
+        /// <summary>
+        /// Derives a schema namespace from a <see cref="Type" />.
+        /// </summary>
+        /// <param name="type">
+        /// A type to derive the namespace from.
+        /// </param>
+        /// <returns>
+        /// An schema namespace that conforms to the Avro naming rules.
+        /// </returns>
+        protected virtual string? GetSchemaNamespace(Type type)
+        {
+            return string.IsNullOrEmpty(type.Namespace) ? null : type.Namespace;
         }
 
         /// <summary>
