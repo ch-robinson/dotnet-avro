@@ -46,6 +46,15 @@ namespace Chr.Avro.Serialization
                         Expression.Constant(DateTimeStyles.RoundtripKind)),
                     target);
             }
+            else if (target.IsEnum)
+            {
+                var parseEnum = typeof(Enum)
+                    .GetMethod(nameof(Enum.Parse), new[] { typeof(Type), value.Type });
+
+                value = Expression.Convert(
+                    Expression.Call(null, parseEnum, Expression.Constant(target), value),
+                    target);
+            }
             else if (target == typeof(Guid) || target == typeof(Guid?))
             {
                 var guidConstructor = typeof(Guid)

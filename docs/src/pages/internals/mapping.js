@@ -168,7 +168,7 @@ export default function MappingPage () {
       </ul>
       <p>By default, Chr.Avro also honors data contract attributes if a <DotnetReference id='T:System.Runtime.Serialization.DataContractAttribute' /> is present on the enumeration. In that case, if <DotnetReference id='P:System.Runtime.Serialization.EnumMemberAttribute.Value' /> is set on an enumerator, the custom value must match the symbol exactly. If it’s not set, the enumerator name will be compared inexactly as described above.</p>
       <p>To change or extend this behavior, implement <DotnetReference id='T:Chr.Avro.Resolution.ITypeResolver' /> or extend one of the existing resolvers (<DotnetReference id='T:Chr.Avro.Resolution.ReflectionResolver' /> and <DotnetReference id='T:Chr.Avro.Resolution.DataContractResolver' />).</p>
-      <p>Because enum types are able to be implicitly converted to and from integral types, Chr.Avro can map any integral type to <Highlight inline language='avro'>"enum"</Highlight> as well.</p>
+      <p>Because <Highlight inline language='avro'>"enum"</Highlight> symbols are represented as strings, Chr.Avro also supports mapping enum schemas to <DotnetReference id='T:System.String' />. On serialization, if the name of the enumerator is not a symbol in the schema, <DotnetReference id='T:System.ArgumentException' /> will be thrown.</p>
 
       <h2 id='maps'>Maps</h2>
       <p>Avro’s <Highlight inline language='avro'>"map"</Highlight> type represents a map of keys (assumed to be strings) to values. Chr.Avro can map a .NET type to <Highlight inline language='avro'>"map"</Highlight> if any of the following is true:</p>
@@ -321,6 +321,7 @@ export default function MappingPage () {
         </tbody>
       </table>
       <p>Whether a schema is <Highlight inline language='avro'>"int"</Highlight> or <Highlight inline language='avro'>"long"</Highlight> has no impact on serialization. Integers are <ExternalLink to='https://avro.apache.org/docs/current/spec.html#binary_encoding'>zig-zag encoded</ExternalLink>, so they take up as much space as they need. For that reason, Chr.Avro imposes no constraints on which numeric types can be serialized or deserialized to <Highlight inline language='avro'>"int"</Highlight> or <Highlight inline language='avro'>"long"</Highlight>—if a conversion exists, the binary serializer and deserializer will use it.</p>
+      <p>Because enum types are able to be implicitly converted to and from integral types, Chr.Avro can map any enum type to <Highlight inline language='avro'>"int"</Highlight> or <Highlight inline language='avro'>"long"</Highlight> as well.</p>
       <h3>Non-integral types</h3>
       <p>On the non-integral side, .NET types are mapped to their respective Avro types:</p>
       <table>

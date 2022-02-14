@@ -66,6 +66,13 @@ namespace Chr.Avro.Serialization
                                 Expression.Constant("O"),
                                 Expression.Constant(CultureInfo.InvariantCulture)))),
                     Expression.IfThen(
+                        Expression.Property(Expression.Call(intermediate, getType), isEnum),
+                        Expression.Return(
+                            result,
+                            Expression.Call(
+                                intermediate,
+                                toString))),
+                    Expression.IfThen(
                         Expression.TypeIs(intermediate, typeof(Guid)),
                         Expression.Return(
                             result,
@@ -118,6 +125,13 @@ namespace Chr.Avro.Serialization
                         convertDateTimeOffset,
                         Expression.Constant("O"),
                         Expression.Constant(CultureInfo.InvariantCulture));
+                }
+                else if (value.Type.IsEnum)
+                {
+                    var convertEnum = typeof(Enum)
+                        .GetMethod(nameof(Enum.ToString), Type.EmptyTypes);
+
+                    value = Expression.Call(value, convertEnum);
                 }
                 else if (value.Type == typeof(Guid))
                 {

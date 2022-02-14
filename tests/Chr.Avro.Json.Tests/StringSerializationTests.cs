@@ -36,6 +36,12 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { new DateTimeOffset(new DateTime(2000, 01, 01, 0, 0, 0, DateTimeKind.Utc)) },
         };
 
+        public static IEnumerable<object[]> Enums => new List<object[]>
+        {
+            new object[] { DateTimeKind.Unspecified },
+            new object[] { DateTimeKind.Local },
+        };
+
         public static IEnumerable<object[]> Guids => new List<object[]>
         {
             new object[] { Guid.Empty },
@@ -205,6 +211,25 @@ namespace Chr.Avro.Serialization.Tests
             // comparing two DateTimeOffsets doesn’t necessarily ensure that they’re identical:
             Assert.Equal(value.DateTime, decoded.Value.DateTime);
             Assert.Equal(value.Offset, decoded.Value.Offset);
+        }
+
+        [Theory]
+        [MemberData(nameof(Enums))]
+        public void EnumValues(DateTimeKind value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<DateTimeKind>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTimeKind>(schema);
+
+            using (stream)
+            {
+                serialize(value, new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
