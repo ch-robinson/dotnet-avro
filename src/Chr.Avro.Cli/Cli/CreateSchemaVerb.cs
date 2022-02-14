@@ -33,13 +33,13 @@ namespace Chr.Avro.Cli
         [Option('a', "assembly", HelpText = "The name of or path to an assembly to load (multiple space-separated values accepted).")]
         public IEnumerable<string> AssemblyNames { get; set; }
 
-        [Option("enums-as-integers", HelpText = "Whether enums should be represented with \"int\" or \"long\" schemas.")]
-        public bool EnumsAsIntegers { get; set; }
+        [Option("enum-behavior", HelpText = "The type of schema that enum types should be represented by. Options are \"symbolic\" (generate an \"enum\" schema; the default behavior), \"integral\" (generate an \"int\" or \"long\" schema based on the underlying type; the behavior for all flag enums), and \"nominal\" (generate a \"string\" schema).")]
+        public EnumBehavior EnumBehavior { get; set; }
 
-        [Option("nullable-references", HelpText = "Which reference types should be represented with nullable union schemas. Options are annotated (use nullable annotations if available), none, and all.", Default = NullableReferenceTypeBehavior.Annotated)]
+        [Option("nullable-references", HelpText = "Which reference types should be represented with nullable union schemas. Options are \"annotated\" (use nullable annotations if available; the default behavior), \"none\", and \"all\".", Default = NullableReferenceTypeBehavior.Annotated)]
         public NullableReferenceTypeBehavior NullableReferences { get; set; }
 
-        [Option("temporal-behavior", HelpText = "Whether timestamps should be represented with \"string\" schemas (ISO 8601) or \"long\" schemas (timestamp logical types). Options are iso8601, epochmilliseconds, and epochmicroseconds.")]
+        [Option("temporal-behavior", HelpText = "Whether timestamps should be represented with \"string\" schemas (ISO 8601) or \"long\" schemas (timestamp logical types). Options are \"iso8601\", \"epochmilliseconds\", and \"epochmicroseconds\".")]
         public TemporalBehavior TemporalBehavior { get; set; }
 
         [Option('t', "type", Required = true, HelpText = "The type to build a schema for.")]
@@ -60,7 +60,7 @@ namespace Chr.Avro.Cli
             var type = ((IClrTypeOptions)this).ResolveType();
 
             var builder = new SchemaBuilder(
-                enumBehavior: EnumsAsIntegers ? EnumBehavior.Integral : EnumBehavior.Symbolic,
+                enumBehavior: EnumBehavior,
                 nullableReferenceTypeBehavior: NullableReferences,
                 temporalBehavior: TemporalBehavior);
 

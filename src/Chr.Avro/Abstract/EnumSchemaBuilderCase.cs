@@ -53,7 +53,15 @@ namespace Chr.Avro.Abstract
             {
                 Schema schema;
 
-                if (type.GetAttribute<FlagsAttribute>() == null && EnumBehavior == EnumBehavior.Symbolic)
+                if (type.GetAttribute<FlagsAttribute>() is not null || EnumBehavior == EnumBehavior.Integral)
+                {
+                    schema = SchemaBuilder.BuildSchema(type.GetEnumUnderlyingType(), context);
+                }
+                else if (EnumBehavior == EnumBehavior.Nominal)
+                {
+                    schema = new StringSchema();
+                }
+                else
                 {
                     schema = new EnumSchema(type.Name)
                     {
@@ -66,10 +74,6 @@ namespace Chr.Avro.Abstract
                             .Select(field => field.Name)
                             .ToList(),
                     };
-                }
-                else
-                {
-                    schema = SchemaBuilder.BuildSchema(type.GetEnumUnderlyingType(), context);
                 }
 
                 try

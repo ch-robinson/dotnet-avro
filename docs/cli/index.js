@@ -55,17 +55,17 @@ module.exports = [{
 {"name":"Example.Models.ExampleModel",type":"record",fields:[{"name":"Text","type":"string"}]}`
   }],
   options: [...clrTypeOptions, {
-    name: 'enums-as-ints',
+    name: 'enum-behavior',
     required: false,
-    summary: 'Whether enums should be represented as integers.'
+    summary: 'The type of schema that enum types should be represented by. Options are "symbolic" (generate an "enum" schema; the default behavior), "integral" (generate an "int" or "long" schema based on the underlying type; the behavior for all flag enums), and "nominal" (generate a "string" schema).'
   }, {
     name: 'nullable-references',
     required: false,
-    summary: 'Which reference types should be represented with nullable union schemas. Options are annotated (use nullable annotations if available), none, and all.'
+    summary: 'Which reference types should be represented with nullable union schemas. Options are "annotated" (use nullable annotations if available; the default behavior), "none", and "all".'
   }, {
     name: 'temporal-behavior',
     required: false,
-    summary: 'Whether timestamps should be represented with "string" schemas (ISO 8601) or "long" schemas (timestamp logical types). Options are iso8601, epochmilliseconds, and epochmicroseconds.'
+    summary: 'Whether timestamps should be represented with "string" schemas (ISO 8601) or "long" schemas (timestamp logical types). Options are "iso8601", "epochmilliseconds", and "epochmicroseconds".'
   }]
 }, {
   name: 'generate',
