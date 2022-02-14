@@ -112,7 +112,14 @@ namespace Chr.Avro.Serialization
                                     inner = Expression.PropertyOrField(argument, match.Name);
                                 }
 
-                                return SerializerBuilder.BuildExpression(inner, field.Type, context);
+                                try
+                                {
+                                    return SerializerBuilder.BuildExpression(inner, field.Type, context);
+                                }
+                                catch (Exception exception)
+                                {
+                                    throw new UnsupportedTypeException(type, $"{(match is null ? "A" : $"The {match.Name}")} member on {type} could not be mapped to the {field.Name} field on {recordSchema.FullName}.", exception);
+                                }
                             })
                             .ToList();
 

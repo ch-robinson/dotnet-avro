@@ -146,9 +146,11 @@ namespace Chr.Avro.Serialization
                                         }
                                         else
                                         {
-                                            expression = Expression.Assign(
-                                                Expression.PropertyOrField(value, match.Name),
-                                                DeserializerBuilder.BuildExpression(
+                                            Expression inner;
+
+                                            try
+                                            {
+                                                inner = DeserializerBuilder.BuildExpression(
                                                     match switch
                                                     {
                                                         FieldInfo fieldMatch => fieldMatch.FieldType,
@@ -156,7 +158,16 @@ namespace Chr.Avro.Serialization
                                                         MemberInfo unknown => throw new InvalidOperationException($"Record fields can only be mapped to fields and properties."),
                                                     },
                                                     field.Type,
-                                                    context));
+                                                    context);
+                                            }
+                                            catch (Exception exception)
+                                            {
+                                                throw new UnsupportedTypeException(type, $"The {match.Name} member on {type} could not be mapped to the {field.Name} field on {recordSchema.FullName}.", exception);
+                                            }
+
+                                            expression = Expression.Assign(
+                                                Expression.PropertyOrField(value, match.Name),
+                                                inner);
                                         }
 
                                         return expression;
