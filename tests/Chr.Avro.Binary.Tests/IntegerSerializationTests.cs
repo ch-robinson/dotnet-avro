@@ -59,6 +59,13 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { long.MaxValue },
         };
 
+        public static IEnumerable<object[]> IntPtrs => new List<object[]>
+        {
+            new object[] { new IntPtr(int.MinValue) },
+            new object[] { new IntPtr(0) },
+            new object[] { new IntPtr(int.MaxValue) },
+        };
+
         public static IEnumerable<object[]> SBytes => new List<object[]>
         {
             new object[] { sbyte.MinValue },
@@ -82,6 +89,12 @@ namespace Chr.Avro.Serialization.Tests
         {
             new object[] { ulong.MinValue },
             new object[] { ulong.MaxValue / 2 },
+        };
+
+        public static IEnumerable<object[]> UIntPtrs => new List<object[]>
+        {
+            new object[] { new UIntPtr(uint.MinValue) },
+            new object[] { new UIntPtr(uint.MaxValue) },
         };
 
         [Theory]
@@ -206,6 +219,25 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserialize(ref reader));
         }
 
+        [Theory]
+        [MemberData(nameof(IntPtrs))]
+        public void IntPtrValues(IntPtr value)
+        {
+            var schema = new LongSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<IntPtr>(schema);
+            var serialize = serializerBuilder.BuildDelegate<IntPtr>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
         [Fact]
         public void OverflowValues()
         {
@@ -300,6 +332,25 @@ namespace Chr.Avro.Serialization.Tests
 
             var deserialize = deserializerBuilder.BuildDelegate<ulong>(schema);
             var serialize = serializerBuilder.BuildDelegate<ulong>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(UIntPtrs))]
+        public void UIntPtrValues(UIntPtr value)
+        {
+            var schema = new LongSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<UIntPtr>(schema);
+            var serialize = serializerBuilder.BuildDelegate<UIntPtr>(schema);
 
             using (stream)
             {
