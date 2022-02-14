@@ -511,6 +511,25 @@ namespace Chr.Avro.Serialization.Tests
 
         [Theory]
         [MemberData(nameof(ArrayData))]
+        public void ObservableCollectionValues(long[] value)
+        {
+            var schema = new ArraySchema(new LongSchema());
+
+            var deserialize = deserializerBuilder.BuildDelegate<ObservableCollection<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ObservableCollection<long>>(schema);
+
+            using (stream)
+            {
+                serialize(new ObservableCollection<long>(value), new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArrayData))]
         public void QueueValues(long[] value)
         {
             var schema = new ArraySchema(new LongSchema());
@@ -521,6 +540,44 @@ namespace Chr.Avro.Serialization.Tests
             using (stream)
             {
                 serialize(new Queue<long>(value), new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArrayData))]
+        public void ReadOnlyCollectionValues(long[] value)
+        {
+            var schema = new ArraySchema(new LongSchema());
+
+            var deserialize = deserializerBuilder.BuildDelegate<ReadOnlyCollection<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ReadOnlyCollection<long>>(schema);
+
+            using (stream)
+            {
+                serialize(new ReadOnlyCollection<long>(value), new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArrayData))]
+        public void ReadOnlyObservableCollectionValues(long[] value)
+        {
+            var schema = new ArraySchema(new LongSchema());
+
+            var deserialize = deserializerBuilder.BuildDelegate<ReadOnlyObservableCollection<long>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ReadOnlyObservableCollection<long>>(schema);
+
+            using (stream)
+            {
+                serialize(new ReadOnlyObservableCollection<long>(new ObservableCollection<long>(value)), new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());

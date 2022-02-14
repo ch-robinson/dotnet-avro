@@ -3,6 +3,7 @@ namespace Chr.Avro.Serialization.Tests
     using System;
     using System.Collections.Generic;
     using System.Collections.Immutable;
+    using System.Collections.ObjectModel;
     using System.IO;
     using System.Linq;
     using Chr.Avro.Abstract;
@@ -198,6 +199,25 @@ namespace Chr.Avro.Serialization.Tests
             using (stream)
             {
                 serialize(value.ToImmutableSortedDictionary(), new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(StringKeyData))]
+        public void ReadOnlyDictionaryValues(Dictionary<string, double> value)
+        {
+            var schema = new MapSchema(new DoubleSchema());
+
+            var deserialize = deserializerBuilder.BuildDelegate<ReadOnlyDictionary<string, double>>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ReadOnlyDictionary<string, double>>(schema);
+
+            using (stream)
+            {
+                serialize(new ReadOnlyDictionary<string, double>(value), new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());

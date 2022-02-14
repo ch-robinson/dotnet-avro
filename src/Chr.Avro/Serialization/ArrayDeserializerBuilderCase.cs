@@ -60,6 +60,30 @@ namespace Chr.Avro.Serialization
                     value = Expression.Call(value, toImmutable);
                 }
             }
+            else if (target.IsAssignableFrom(typeof(ReadOnlyCollection<>).MakeGenericType(target.GenericTypeArguments)))
+            {
+                var readOnlyCollectionConstructor = typeof(ReadOnlyCollection<>)
+                    .MakeGenericType(target.GenericTypeArguments)
+                    .GetConstructor(new[] { typeof(List<>).MakeGenericType(target.GenericTypeArguments) });
+
+                value = Expression.New(readOnlyCollectionConstructor, value);
+            }
+            else if (target.IsAssignableFrom(typeof(ReadOnlyObservableCollection<>).MakeGenericType(target.GenericTypeArguments)))
+            {
+                var observableCollectionType = typeof(ObservableCollection<>)
+                    .MakeGenericType(target.GenericTypeArguments);
+
+                var observableCollectionConstructor = observableCollectionType
+                    .GetConstructor(new[] { typeof(List<>).MakeGenericType(target.GenericTypeArguments) });
+
+                var readOnlyCollectionObservableConstructor = typeof(ReadOnlyObservableCollection<>)
+                    .MakeGenericType(target.GenericTypeArguments)
+                    .GetConstructor(new[] { observableCollectionType });
+
+                value = Expression.New(
+                    readOnlyCollectionObservableConstructor,
+                    Expression.New(observableCollectionConstructor, value));
+            }
 
             return base.BuildStaticConversion(value, target);
         }
