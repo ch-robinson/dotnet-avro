@@ -15,17 +15,54 @@ namespace Chr.Avro.Serialization
         /// used.
         /// </remarks>
         /// <inheritdoc />
-        protected override Expression BuildStaticConversion(Expression value, Type intermediate)
+        protected override Expression BuildDynamicConversion(Expression value, Type target)
         {
-            if (value.Type == typeof(Guid))
+            if (target == typeof(byte[]))
             {
                 var convertGuid = typeof(Guid)
                     .GetMethod(nameof(Guid.ToByteArray), Type.EmptyTypes);
 
-                value = Expression.Call(value, convertGuid);
+                var intermediate = Expression.Variable(value.Type);
+                var result = Expression.Label(target);
+
+                return Expression.Block(
+                    new[] { intermediate },
+                    Expression.Assign(intermediate, value),
+                    Expression.IfThen(
+                        Expression.TypeIs(intermediate, typeof(Guid)),
+                        Expression.Return(
+                            result,
+                            Expression.Call(
+                                Expression.Convert(intermediate, typeof(Guid)),
+                                convertGuid))),
+                    Expression.Label(result, base.BuildDynamicConversion(intermediate, target)));
+            }
+            else
+            {
+                return base.BuildDynamicConversion(value, target);
+            }
+        }
+
+        /// <remarks>
+        /// This override includes additional conditions to handle conversions from types that can
+        /// be idiomatically represented as byte arrays. If none match, the base implementation is
+        /// used.
+        /// </remarks>
+        /// <inheritdoc />
+        protected override Expression BuildStaticConversion(Expression value, Type target)
+        {
+            if (target == typeof(byte[]))
+            {
+                if (value.Type == typeof(Guid))
+                {
+                    var convertGuid = typeof(Guid)
+                        .GetMethod(nameof(Guid.ToByteArray), Type.EmptyTypes);
+
+                    value = Expression.Call(value, convertGuid);
+                }
             }
 
-            return base.BuildStaticConversion(value, intermediate);
+            return base.BuildStaticConversion(value, target);
         }
     }
 }

@@ -13,8 +13,9 @@ namespace Chr.Avro.Serialization
         private static readonly Regex FuzzyCharacters = new(@"[^A-Za-z0-9]");
 
         /// <remarks>
-        /// This override includes additional conditions to handle conversions to types that can be
-        /// idiomatically represented as strings. If none match, the base implementation is used.
+        /// This override includes additional conditions to handle conversions from enumerators to
+        /// strings when the enum type is not known in advance. If <paramref name="value" /> is not
+        /// an enumerator, the base implementation is used.
         /// </remarks>
         /// <inheritdoc />
         protected override Expression BuildDynamicConversion(Expression value, Type target)
