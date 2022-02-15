@@ -4,7 +4,7 @@ namespace Chr.Avro.Benchmarks
 
     public static class IntSuite
     {
-        public const int Iterations = 10_000_000;
+        public const int Iterations = 1_000_000;
 
         public const string Name = "int";
 

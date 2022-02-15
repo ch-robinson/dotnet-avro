@@ -1,19 +1,28 @@
-using Chr.Avro.Abstract;
-using System.Collections.Generic;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using Chr.Avro.Abstract;
+    using Chr.Avro.Fixtures;
+    using Xunit;
+
+    using BinaryReader = Chr.Avro.Serialization.BinaryReader;
+    using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
+
     public class RecordSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder serializerBuilder;
+
+        private readonly MemoryStream stream;
 
         public RecordSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            deserializerBuilder = new BinaryDeserializerBuilder();
+            serializerBuilder = new BinarySerializerBuilder();
+            stream = new MemoryStream();
         }
 
         [Fact]
@@ -23,41 +32,51 @@ namespace Chr.Avro.Serialization.Tests
             schema.Fields.Add(new RecordField("Value", new IntSchema()));
             schema.Fields.Add(new RecordField("Children", new ArraySchema(schema)));
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Node>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Node>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<Node>(schema);
+            var serialize = serializerBuilder.BuildDelegate<Node>(schema);
 
-            var n5 = deserializer.Deserialize(serializer.Serialize(new Node()
+            using (stream)
             {
-                Value = 5,
-                Children = new[]
-                {
+                serialize(
                     new Node()
                     {
-                        Value = 4,
-                        Children = new Node[0]
-                    },
-                    new Node()
-                    {
-                        Value = 7,
+                        Value = 5,
                         Children = new[]
                         {
                             new Node()
                             {
-                                Value = 6,
-                                Children = new Node[0]
+                                Value = 4,
+                                Children = Array.Empty<Node>(),
                             },
-                            new Node
+                            new Node()
                             {
-                                Value = 8,
-                                Children = new Node[0]
-                            }
-                        }
-                    }
-                }
-            }));
+                                Value = 7,
+                                Children = new[]
+                                {
+                                    new Node()
+                                    {
+                                        Value = 6,
+                                        Children = Array.Empty<Node>(),
+                                    },
+                                    new Node
+                                    {
+                                        Value = 8,
+                                        Children = Array.Empty<Node>(),
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            var n5 = deserialize(ref reader);
 
             Assert.Equal(5, n5.Value);
-            Assert.Collection(n5.Children,
+            Assert.Collection(
+                n5.Children,
                 n4 =>
                 {
                     Assert.Equal(4, n4.Value);
@@ -66,7 +85,8 @@ namespace Chr.Avro.Serialization.Tests
                 n7 =>
                 {
                     Assert.Equal(7, n7.Value);
-                    Assert.Collection(n7.Children,
+                    Assert.Collection(
+                        n7.Children,
                         n6 =>
                         {
                             Assert.Equal(6, n6.Value);
@@ -76,10 +96,8 @@ namespace Chr.Avro.Serialization.Tests
                         {
                             Assert.Equal(8, n8.Value);
                             Assert.Empty(n8.Children);
-                        }
-                    );
-                }
-            );
+                        });
+                });
         }
 
         [Fact]
@@ -89,42 +107,52 @@ namespace Chr.Avro.Serialization.Tests
             schema.Fields.Add(new RecordField("Value", new IntSchema()));
             schema.Fields.Add(new RecordField("Children", new ArraySchema(schema)));
 
-            var serializer = SerializerBuilder.BuildSerializer<Node>(schema);
-            var deserializer = DeserializerBuilder.BuildDeserializer<MappedNode>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<MappedNode>(schema);
+            var serialize = serializerBuilder.BuildDelegate<Node>(schema);
 
-            var n5 = deserializer.Deserialize(serializer.Serialize(new Node()
+            using (stream)
             {
-                Value = 5,
-                Children = new[]
-                {
+                serialize(
                     new Node()
                     {
-                        Value = 9,
-                        Children = new Node[0]
-                    },
-                    new Node()
-                    {
-                        Value = 3,
+                        Value = 5,
                         Children = new[]
                         {
                             new Node()
                             {
-                                Value = 2,
-                                Children = new Node[0]
+                                Value = 9,
+                                Children = Array.Empty<Node>(),
                             },
                             new Node()
                             {
-                                Value = 10,
-                                Children = new Node[0]
-                            }
-                        }
-                    }
-                }
-            }));
+                                Value = 3,
+                                Children = new[]
+                                {
+                                    new Node()
+                                    {
+                                        Value = 2,
+                                        Children = Array.Empty<Node>(),
+                                    },
+                                    new Node()
+                                    {
+                                        Value = 10,
+                                        Children = Array.Empty<Node>(),
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            var n5 = deserialize(ref reader);
 
             Assert.Equal(5, n5.RequiredValue);
             Assert.Equal(999, n5.OptionalValue);
-            Assert.Collection(n5.Children,
+            Assert.Collection(
+                n5.Children,
                 n9 =>
                 {
                     Assert.Equal(9, n9.RequiredValue);
@@ -135,7 +163,8 @@ namespace Chr.Avro.Serialization.Tests
                 {
                     Assert.Equal(3, n3.RequiredValue);
                     Assert.Equal(999, n3.OptionalValue);
-                    Assert.Collection(n3.Children,
+                    Assert.Collection(
+                        n3.Children,
                         n2 =>
                         {
                             Assert.Equal(2, n2.RequiredValue);
@@ -147,39 +176,102 @@ namespace Chr.Avro.Serialization.Tests
                             Assert.Equal(10, n10.RequiredValue);
                             Assert.Equal(999, n10.OptionalValue);
                             Assert.Empty(n10.Children);
-                        }
-                    );
-                }
-            );
+                        });
+                });
         }
 
         [Fact]
-        public void RecordWithMissingFields()
+        public void RecordWithDefaultFields()
         {
             var boolean = new BooleanSchema();
             var array = new ArraySchema(boolean);
             var map = new MapSchema(new IntSchema());
-            var @enum = new EnumSchema("Position", new[] { "First", "Last" });
+            var @enum = new EnumSchema("Ordinal", new[] { "None", "First", "Second", "Third", "Fourth" });
             var union = new UnionSchema(new Schema[]
             {
                 new NullSchema(),
-                array
+                array,
             });
 
-            var schema = new RecordSchema("AllFields", new[]
+            var schema = new RecordSchema("AllFields")
             {
-                new RecordField("First", union),
-                new RecordField("Second", union),
-                new RecordField("Third", array),
-                new RecordField("Fourth", array),
-                new RecordField("Fifth", map),
-                new RecordField("Sixth", map),
-                new RecordField("Seventh", @enum),
-                new RecordField("Eighth", @enum)
+                Fields = new[]
+                {
+                    new RecordField("Second", union)
+                    {
+                        Default = new ObjectDefaultValue<List<bool>>(null, union),
+                    },
+                    new RecordField("Fourth", array)
+                    {
+                        Default = new ObjectDefaultValue<List<bool>>(new List<bool>() { false }, array),
+                    },
+                    new RecordField("Sixth", map)
+                    {
+                        Default = new ObjectDefaultValue<Dictionary<string, int>>(new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } }, map),
+                    },
+                    new RecordField("Eighth", @enum)
+                    {
+                        Default = new ObjectDefaultValue<ImplicitEnum>(ImplicitEnum.None, @enum),
+                    },
+                },
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<WithEvenFields>(schema);
+            var serialize = serializerBuilder.BuildDelegate<WithoutEvenFields>(schema);
+
+            var value = new WithoutEvenFields()
+            {
+                First = new List<bool>() { false },
+                Third = new List<bool>() { false, false, false },
+                Fifth = new Dictionary<string, int>() { { "first", 1 } },
+                Seventh = ImplicitEnum.First,
+            };
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            var with = deserialize(ref reader);
+
+            Assert.Null(with.Second);
+            Assert.Equal(new List<bool>() { false }, with.Fourth);
+            Assert.Equal(new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } }, with.Sixth);
+            Assert.Equal(ImplicitEnum.None, with.Eighth);
+        }
+
+        [Fact]
+        public void RecordWithDynamicType()
+        {
+            var boolean = new BooleanSchema();
+            var array = new ArraySchema(boolean);
+            var map = new MapSchema(new IntSchema());
+            var @enum = new EnumSchema("Ordinal", new[] { "None", "First", "Second", "Third", "Fourth" });
+            var union = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                array,
             });
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<WithoutEvenFields>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<WithEvenFields>(schema);
+            var schema = new RecordSchema("AllFields")
+            {
+                Fields = new[]
+                {
+                    new RecordField("First", union),
+                    new RecordField("Second", union),
+                    new RecordField("Third", array),
+                    new RecordField("Fourth", array),
+                    new RecordField("Fifth", map),
+                    new RecordField("Sixth", map),
+                    new RecordField("Seventh", @enum),
+                    new RecordField("Eighth", @enum),
+                },
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
 
             var value = new WithEvenFields()
             {
@@ -189,11 +281,71 @@ namespace Chr.Avro.Serialization.Tests
                 Fourth = new List<bool>() { false },
                 Fifth = new Dictionary<string, int>() { { "first", 1 } },
                 Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
-                Seventh = Position.Last,
-                Eighth = Position.First
+                Seventh = ImplicitEnum.First,
+                Eighth = ImplicitEnum.None,
             };
 
-            Assert.Equal(value.Seventh, deserializer.Deserialize(serializer.Serialize(value)).Seventh);
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value.Seventh.ToString(), deserialize(ref reader).Seventh);
+        }
+
+        [Fact]
+        public void RecordWithMissingFields()
+        {
+            var boolean = new BooleanSchema();
+            var array = new ArraySchema(boolean);
+            var map = new MapSchema(new IntSchema());
+            var @enum = new EnumSchema("Ordinal", new[] { "None", "First", "Second", "Third", "Fourth" });
+            var union = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                array,
+            });
+
+            var schema = new RecordSchema("AllFields")
+            {
+                Fields = new[]
+                {
+                    new RecordField("First", union),
+                    new RecordField("Second", union),
+                    new RecordField("Third", array),
+                    new RecordField("Fourth", array),
+                    new RecordField("Fifth", map),
+                    new RecordField("Sixth", map),
+                    new RecordField("Seventh", @enum),
+                    new RecordField("Eighth", @enum),
+                },
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<WithoutEvenFields>(schema);
+            var serialize = serializerBuilder.BuildDelegate<WithEvenFields>(schema);
+
+            var value = new WithEvenFields()
+            {
+                First = new List<bool>() { false },
+                Second = new List<bool>() { false, false },
+                Third = new List<bool>() { false, false, false },
+                Fourth = new List<bool>() { false },
+                Fifth = new Dictionary<string, int>() { { "first", 1 } },
+                Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
+                Seventh = ImplicitEnum.First,
+                Eighth = ImplicitEnum.None,
+            };
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value.Seventh, deserialize(ref reader).Seventh);
         }
 
         [Fact]
@@ -207,17 +359,26 @@ namespace Chr.Avro.Serialization.Tests
             schema.Fields.Add(new RecordField("Node", node));
             schema.Fields.Add(new RecordField("RelatedNodes", new ArraySchema(node)));
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Reference>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Reference>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<Reference>(schema);
+            var serialize = serializerBuilder.BuildDelegate<Reference>(schema);
 
-            var root = deserializer.Deserialize(serializer.Serialize(new Reference()
+            using (stream)
             {
-                Node = new Node()
-                {
-                    Children = new Node[0]
-                },
-                RelatedNodes = new Node[0]
-            }));
+                serialize(
+                    new Reference()
+                    {
+                        Node = new Node()
+                        {
+                            Children = Array.Empty<Node>(),
+                        },
+                        RelatedNodes = Array.Empty<Node>(),
+                    },
+                    new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            var root = deserialize(ref reader);
 
             Assert.Empty(root.Node.Children);
             Assert.Empty(root.RelatedNodes);
@@ -225,18 +386,18 @@ namespace Chr.Avro.Serialization.Tests
 
         public class MappedNode
         {
-            public int RequiredValue { get; set; }
-
-            public int OptionalValue { get; set; }
-
-            public IEnumerable<MappedNode> Children { get; set; }
-
             public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999)
             {
                 Children = children;
                 OptionalValue = optionalValue;
                 RequiredValue = value;
             }
+
+            public int RequiredValue { get; set; }
+
+            public int OptionalValue { get; set; }
+
+            public IEnumerable<MappedNode> Children { get; set; }
         }
 
         public class Node
@@ -267,9 +428,9 @@ namespace Chr.Avro.Serialization.Tests
 
             public IDictionary<string, int> Sixth { get; set; }
 
-            public Position Seventh { get; set; }
+            public ImplicitEnum Seventh { get; set; }
 
-            public Position Eighth { get; set; }
+            public ImplicitEnum Eighth { get; set; }
         }
 
         public class WithoutEvenFields
@@ -280,13 +441,7 @@ namespace Chr.Avro.Serialization.Tests
 
             public IDictionary<string, int> Fifth { get; set; }
 
-            public Position Seventh { get; set; }
-        }
-
-        public enum Position
-        {
-            First,
-            Last
+            public ImplicitEnum Seventh { get; set; }
         }
     }
 }

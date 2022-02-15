@@ -1,0 +1,11 @@
+namespace Chr.Avro.Serialization
+{
+    using Chr.Avro.Abstract;
+
+    /// <summary>
+    /// Provides a base implementation for deserializer builder cases that match <see cref="DecimalLogicalType" />.
+    /// </summary>
+    public abstract class DecimalDeserializerBuilderCase : DeserializerBuilderCase
+    {
+    }
+}

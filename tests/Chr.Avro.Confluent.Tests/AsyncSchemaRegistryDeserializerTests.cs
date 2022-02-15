@@ -1,44 +1,40 @@
-using Confluent.Kafka;
-using Confluent.SchemaRegistry;
-using Moq;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Xunit;
-
-using ISchemaRegistryClient = Confluent.SchemaRegistry.ISchemaRegistryClient;
-
 namespace Chr.Avro.Confluent.Tests
 {
+    using System;
+    using System.Linq;
+    using System.Net.Http;
+    using System.Threading.Tasks;
+    using global::Confluent.Kafka;
+    using global::Confluent.SchemaRegistry;
+    using Moq;
+    using Xunit;
+
     public class AsyncSchemaRegistryDeserializerTests
     {
-        protected readonly Mock<ISchemaRegistryClient> RegistryClientMock;
+        private readonly Mock<ISchemaRegistryClient> registryClientMock;
 
         public AsyncSchemaRegistryDeserializerTests()
         {
-            RegistryClientMock = new Mock<ISchemaRegistryClient>();
+            registryClientMock = new Mock<ISchemaRegistryClient>();
         }
 
         [Fact]
         public async Task CachesGeneratedDeserializers()
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<object>(
-                RegistryClientMock.Object
-            );
+                registryClientMock.Object);
 
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
-            RegistryClientMock
+            registryClientMock
                 .Setup(c => c.GetSchemaAsync(0, null))
                 .ReturnsAsync(new Schema("\"null\"", SchemaType.Avro));
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)
-            ));
+                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)));
 
-            RegistryClientMock
+            registryClientMock
                 .Verify(c => c.GetSchemaAsync(0, null), Times.Once());
         }
 
@@ -46,21 +42,19 @@ namespace Chr.Avro.Confluent.Tests
         public async Task DoesNotCacheSchemaRegistryFailures()
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<object>(
-                RegistryClientMock.Object
-            );
+                registryClientMock.Object);
 
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
-            RegistryClientMock
+            registryClientMock
                 .Setup(c => c.GetSchemaAsync(0, null))
                 .ThrowsAsync(new HttpRequestException());
 
             await Assert.ThrowsAsync<HttpRequestException>(() =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)
-            );
+                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
 
-            RegistryClientMock
+            registryClientMock
                 .Setup(c => c.GetSchemaAsync(0, null))
                 .ReturnsAsync(new Schema("\"null\"", SchemaType.Avro));
 
@@ -68,34 +62,49 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
+        public async Task HandlesConfluentWireFormatBytesCase()
+        {
+            var deserializer = new AsyncSchemaRegistryDeserializer<byte[]>(
+                registryClientMock.Object);
+
+            var data = new byte[] { 0x02 };
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+
+            registryClientMock
+                .Setup(c => c.GetSchemaAsync(0, null))
+                .ReturnsAsync(new Schema("\"bytes\"", SchemaType.Avro));
+
+            Assert.Equal(data, await deserializer.DeserializeAsync(encoding, false, context));
+        }
+
+        [Fact]
         public async Task ProvidesDefaultDeserializationComponents()
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<int>(
-                RegistryClientMock.Object
-            );
+                registryClientMock.Object);
 
             var data = 4;
             var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x04, 0x08 };
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
-            RegistryClientMock
+            registryClientMock
                 .Setup(c => c.GetSchemaAsync(4, null))
                 .ReturnsAsync(new Schema("\"int\"", SchemaType.Avro));
 
-            Assert.Equal(data,
-                await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)
-            );
+            Assert.Equal(
+                data,
+                await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
         }
 
         [Fact]
         public async Task ReturnsTombstone()
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<object>(
-                RegistryClientMock.Object,
-                tombstoneBehavior: TombstoneBehavior.Strict
-            );
+                registryClientMock.Object,
+                tombstoneBehavior: TombstoneBehavior.Strict);
 
-            var encoding = new byte[0];
+            var encoding = Array.Empty<byte>();
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
             Assert.Null(await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
@@ -105,25 +114,22 @@ namespace Chr.Avro.Confluent.Tests
         public async Task ThrowsOnInvalidTombstoneComponent()
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<object>(
-                RegistryClientMock.Object,
-                tombstoneBehavior: TombstoneBehavior.Strict
-            );
+                registryClientMock.Object,
+                tombstoneBehavior: TombstoneBehavior.Strict);
 
-            var encoding = new byte[0];
+            var encoding = Array.Empty<byte>();
             var context = new SerializationContext(MessageComponentType.Key, "test_topic");
 
-            await Assert.ThrowsAsync<InvalidDataException>(() =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)
-            );
+            await Assert.ThrowsAsync<InvalidEncodingException>(() =>
+                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
         }
 
         [Fact]
         public void ThrowsOnInvalidTombstoneType()
         {
             Assert.Throws<UnsupportedTypeException>(() => new AsyncSchemaRegistryDeserializer<int>(
-                RegistryClientMock.Object,
-                tombstoneBehavior: TombstoneBehavior.Strict
-            ));
+                registryClientMock.Object,
+                tombstoneBehavior: TombstoneBehavior.Strict));
         }
 
         [Theory]
@@ -133,14 +139,12 @@ namespace Chr.Avro.Confluent.Tests
         public async Task ThrowsOnUnrecognizedWireFormat(byte[] encoding)
         {
             var deserializer = new AsyncSchemaRegistryDeserializer<int>(
-                RegistryClientMock.Object
-            );
+                registryClientMock.Object);
 
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
-            await Assert.ThrowsAsync<InvalidDataException>(() =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)
-            );
+            await Assert.ThrowsAsync<InvalidEncodingException>(() =>
+                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
         }
     }
 }

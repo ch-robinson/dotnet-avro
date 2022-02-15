@@ -1,11 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../../Chr.Avro.Build.props" />
-
   <PropertyGroup>
     <Description>Integration tools for the Confluent Kafka and Schema Registry clients</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <LangVersion>8.0</LangVersion>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
   </PropertyGroup>
 

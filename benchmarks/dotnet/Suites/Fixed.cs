@@ -5,7 +5,7 @@ namespace Chr.Avro.Benchmarks
 
     public static class SmallFixedSuite
     {
-        public const int Iterations = 10_000_000;
+        public const int Iterations = 1_000_000;
 
         public const string Name = "fixed[12]";
 
@@ -19,7 +19,7 @@ namespace Chr.Avro.Benchmarks
 
     public static class LargeFixedSuite
     {
-        public const int Iterations = 1_000_000;
+        public const int Iterations = 100_000;
 
         public const string Name = "fixed[2048]";
 

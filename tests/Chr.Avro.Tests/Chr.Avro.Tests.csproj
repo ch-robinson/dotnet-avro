@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
-    <TargetFrameworks>netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks>net6.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Chr.Avro\Chr.Avro.csproj" />
+    <ProjectReference Include="..\..\src\Chr.Avro.Fixtures\Chr.Avro.Fixtures.csproj" />
   </ItemGroup>
 
 </Project>

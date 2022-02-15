@@ -12,8 +12,12 @@ trim_trailing_whitespace = true
 [*.md]
 trim_trailing_whitespace = false
 
-[*.{cake,cs,vb,ps1}]
+[*.{cake,cs,ps1}]
 indent_size = 4
+
+[*.cs]
+dotnet_diagnostic.SA1101.severity = none  # no `this.` prefix for local calls
+dotnet_diagnostic.SA1633.severity = none  # no file headers
 
 [*.sh]
 end_of_line = lf

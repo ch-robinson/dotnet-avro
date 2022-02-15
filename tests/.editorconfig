@@ -1,0 +1,3 @@
+[*.cs]
+dotnet_diagnostic.SA0001.severity = none  # no XML documentation for test projects
+dotnet_diagnostic.SA1600.severity = none  # no need to document test elements

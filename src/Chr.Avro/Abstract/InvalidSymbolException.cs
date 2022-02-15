@@ -1,9 +1,9 @@
-using System;
-
 namespace Chr.Avro.Abstract
 {
+    using System;
+
     /// <summary>
-    /// An exception thrown when a symbol does not conform to the Avro naming rules.
+    /// The exception thrown when a symbol does not conform to the Avro naming rules.
     /// </summary>
     /// <remarks>
     /// See the <a href="https://avro.apache.org/docs/current/spec.html#names">Avro spec</a>
@@ -13,19 +13,20 @@ namespace Chr.Avro.Abstract
     public class InvalidSymbolException : Exception
     {
         /// <summary>
-        /// The symbol that caused the exception to be thrown.
-        /// </summary>
-        public string Symbol { get; private set; }
-
-        /// <summary>
-        /// Creates an exception describing an invalid symbol.
+        /// Initializes a new instance of the <see cref="InvalidSymbolException" /> class.
         /// </summary>
         /// <param name="symbol">
         /// The invalid symbol.
         /// </param>
-        public InvalidSymbolException(string symbol) : base($"\"{symbol}\" is not a valid Avro enum symbol.")
+        public InvalidSymbolException(string symbol)
+            : base($"\"{symbol}\" is not a valid Avro enum symbol.")
         {
-            Symbol = symbol;
+            Symbol = symbol ?? throw new ArgumentNullException(nameof(symbol), "Symbol cannot be null.");
         }
+
+        /// <summary>
+        /// Gets symbol that caused the exception to be thrown.
+        /// </summary>
+        public string Symbol { get; private set; }
     }
 }
