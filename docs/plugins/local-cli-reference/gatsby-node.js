@@ -27,15 +27,47 @@ module.exports.createPages = async function ({ graphql, actions }, { verbCompone
   }
 }
 
+module.exports.createSchemaCustomization = function ({ actions }) {
+  const { createTypes } = actions
+
+  createTypes(`
+    type CliExample implements Node {
+      id: ID!
+      language: String!
+      title: String!
+      body: String!
+      verb: CliVerb! @link
+    }
+
+    type CliOption implements Node {
+      id: ID!
+      abbreviation: String
+      name: String!
+      required: Boolean!
+      set: String
+      summary: String
+      verb: CliVerb! @link
+    }
+
+    type CliVerb implements Node {
+      id: ID!
+      name: String!
+      summary: String
+      examples: [CliExample!] @link
+      options: [CliOption!] @link
+    }
+  `)
+}
+
 module.exports.sourceNodes = async function ({ actions, createContentDigest, createNodeId }, { path }) {
   const { createNode } = actions
 
   for (const verb of await load(path)) {
     const verbNode = {
       id: createNodeId(verb.name),
-      examples___NODE: [],
+      examples: [],
       name: verb.name,
-      options___NODE: [],
+      options: [],
       summary: verb.summary,
       internal: {
         content: JSON.stringify(verb),
@@ -44,15 +76,13 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
       }
     }
 
-    createNode(verbNode)
-
     for (const example of verb.examples) {
       const exampleNode = {
         id: createNodeId(example.title),
         body: example.body,
         language: example.language || 'bash',
         title: example.title,
-        verb___NODE: verbNode.id,
+        verb: verbNode.id,
         internal: {
           content: JSON.stringify(example),
           contentDigest: createContentDigest(example),
@@ -60,7 +90,7 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
         }
       }
 
-      verbNode.examples___NODE.push(exampleNode.id)
+      verbNode.examples.push(exampleNode.id)
       createNode(exampleNode)
     }
 
@@ -72,7 +102,7 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
         required: option.required,
         set: option.set,
         summary: option.summary,
-        verb___NODE: verbNode.id,
+        verb: verbNode.id,
         internal: {
           content: JSON.stringify(option),
           contentDigest: createContentDigest(option),
@@ -80,9 +110,11 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
         }
       }
 
-      verbNode.options___NODE.push(optionNode.id)
+      verbNode.options.push(optionNode.id)
       createNode(optionNode)
     }
+
+    createNode(verbNode)
   }
 }
 

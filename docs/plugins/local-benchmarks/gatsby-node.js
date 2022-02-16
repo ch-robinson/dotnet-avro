@@ -4,24 +4,42 @@ const { GraphQLEnumType } = require('gatsby/graphql')
 
 const { process } = require('../../utilities/benchmarks')
 
-module.exports.setFieldsOnGraphQLNodeType = ({ type }) => {
-  switch (type.name) {
-    case 'BenchmarkResult':
-      return {
-        component: {
-          type: new GraphQLEnumType({
-            name: 'BenchmarkComponent',
-            values: {
-              'DESERIALIZATION': {},
-              'SERIALIZATION': {}
-            }
-          })
-        }
-      }
+module.exports.createSchemaCustomization = function ({ actions }) {
+  const { createTypes } = actions
 
-    default:
-      return {}
-  }
+  createTypes(`
+    enum BenchmarkComponent {
+      DESERIALIZATION
+      SERIALIZATION
+    }
+
+    type BenchmarkLibrary implements Node {
+      id: ID!
+      name: String!
+      results: [BenchmarkResult!]! @link
+    }
+
+    type BenchmarkResult implements Node {
+      id: ID!
+      component: BenchmarkComponent!
+      iterations: Int!
+      library: BenchmarkLibrary! @link
+      suite: BenchmarkSuite! @link
+      times: [Float!]!
+    }
+
+    type BenchmarkRuntime implements Node {
+      id: ID!
+      name: String!
+      libraries: [BenchmarkLibrary!]! @link
+    }
+
+    type BenchmarkSuite implements Node {
+      id: ID!
+      name: String!
+      results: [BenchmarkResult!]! @link
+    }
+  `)
 }
 
 module.exports.sourceNodes = async function ({ actions, createContentDigest, createNodeId }, { path }) {
@@ -34,7 +52,7 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
     const runtimeNode = {
       id: createNodeId(runtime.name),
       name: runtime.name,
-      libraries___NODE: [],
+      libraries: [],
       internal: {
         content: JSON.stringify(runtime),
         contentDigest: createContentDigest(runtime),
@@ -42,22 +60,18 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
       }
     }
 
-    createNode(runtimeNode)
-
     for (const library of runtime.libraries) {
       const libraryNode = {
         id: createNodeId(`${runtime.name}:${library.name}`),
         name: library.name,
-        results___NODE: [],
-        runtime___NODE: runtimeNode.id,
+        results: [],
+        runtime: runtimeNode.id,
         internal: {
           content: JSON.stringify(library),
           contentDigest: createContentDigest(library),
           type: 'BenchmarkLibrary'
         }
       }
-
-      createNode(libraryNode)
 
       for (const result of library.results) {
         let suiteNode = suites.get(result.suite)
@@ -66,7 +80,7 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
           suiteNode = {
             id: createNodeId(result.suite),
             name: result.suite,
-            results___NODE: [],
+            results: [],
             internal: {
               content: JSON.stringify(result.suite),
               contentDigest: createContentDigest(result.suite),
@@ -75,7 +89,6 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
           }
 
           suites.set(result.suite, suiteNode)
-          createNode(suiteNode)
         }
 
         const resultNode = {
@@ -83,8 +96,8 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
           component: result.component.toUpperCase(),
           iterations: result.iterations,
           times: result.times,
-          library___NODE: libraryNode.id,
-          suite___NODE: suiteNode.id,
+          library: libraryNode.id,
+          suite: suiteNode.id,
           internal: {
             content: JSON.stringify(result.suite),
             contentDigest: createContentDigest(result.suite),
@@ -92,10 +105,18 @@ module.exports.sourceNodes = async function ({ actions, createContentDigest, cre
           }
         }
 
-        libraryNode.results___NODE.push(resultNode.id)
-        suiteNode.results___NODE.push(resultNode.id)
+        libraryNode.results.push(resultNode.id)
+        suiteNode.results.push(resultNode.id)
         createNode(resultNode)
       }
+
+      createNode(libraryNode)
     }
+
+    createNode(runtimeNode)
+  }
+
+  for (const suiteNode of suites.values()) {
+    createNode(suiteNode)
   }
 }

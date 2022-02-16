@@ -17,6 +17,7 @@ const clrTypeOptions = [{
 const schemaResolutionOptions = [{
   abbreviation: 'c',
   name: 'registry-config',
+  required: false,
   summary: 'Configuration options to provide to the registry client (multiple space-separated key=value pairs accepted).'
 }, {
   abbreviation: 'r',
@@ -38,6 +39,7 @@ const schemaResolutionOptions = [{
 }, {
   abbreviation: 'v',
   name: 'version',
+  required: false,
   set: 'Resolve schema by subject/version',
   summary: 'The version of the schema.'
 }]
