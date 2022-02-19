@@ -35,6 +35,8 @@ namespace Chr.Avro.Representation
                     {
                         LogicalType = new UuidLogicalType(),
                     };
+
+                    context.Schemas.Add(key, schema);
                 }
 
                 return JsonSchemaReaderCaseResult.FromSchema(schema);
