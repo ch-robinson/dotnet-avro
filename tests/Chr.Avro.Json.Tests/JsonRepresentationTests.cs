@@ -1,6 +1,7 @@
 namespace Chr.Avro.Representation.Tests
 {
     using System.Collections.Generic;
+    using Chr.Avro.Abstract;
     using Xunit;
 
     public class JsonRepresentationTests
@@ -112,6 +113,21 @@ namespace Chr.Avro.Representation.Tests
         {
             Assert.Equal(@out, writer.Write(reader.Read(@out)));
             Assert.Equal(@out, writer.Write(reader.Read(@in)));
+        }
+
+        [Fact]
+        public void DefaultValueRepresentations()
+        {
+            var union = new UnionSchema(new Schema[] { new NullSchema(), new StringSchema() });
+            var schema = new RecordSchema("DefaultValueTest", new[]
+            {
+                new RecordField("maybeString", union)
+                {
+                    Default = new ObjectDefaultValue<string>(null, union),
+                },
+            });
+
+            Assert.Equal("{\"name\":\"DefaultValueTest\",\"type\":\"record\",\"fields\":[{\"name\":\"maybeString\",\"default\":null,\"type\":[\"null\",\"string\"]}]}", writer.Write(schema));
         }
 
         [Theory]

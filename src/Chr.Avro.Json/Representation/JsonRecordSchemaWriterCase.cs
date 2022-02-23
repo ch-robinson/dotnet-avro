@@ -83,14 +83,18 @@ namespace Chr.Avro.Representation
                         {
                             if (field.Default != null)
                             {
+                                json.WritePropertyName(JsonAttributeToken.Default);
+
                                 if (field.Default is JsonDefaultValue jsonDefault)
                                 {
-                                    json.WritePropertyName(JsonAttributeToken.Default);
                                     jsonDefault.Element.WriteTo(json);
                                 }
                                 else
                                 {
-                                    throw new UnsupportedSchemaException(schema, $"The default value of the {field.Name} field on {recordSchema} must be a JSON value.");
+                                    // work around lack of JsonSerializer.SerializeToDocument in netstandard2.0:
+                                    var serialized = JsonSerializer.SerializeToUtf8Bytes(field.Default.ToObject<object>());
+                                    var element = JsonSerializer.Deserialize<JsonElement>(serialized);
+                                    element.WriteTo(json);
                                 }
                             }
 
