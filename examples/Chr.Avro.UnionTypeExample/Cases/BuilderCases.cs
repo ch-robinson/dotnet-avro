@@ -3,9 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Chr.Avro.Abstract;
 using Chr.Avro.Resolution;
-using Chr.Avro.Sample.Models;
+using Chr.Avro.UnionTypeExample.Models;
 
-namespace Chr.Avro.Sample.Cases
+namespace Chr.Avro.UnionTypeExample.Cases
 {
     public class MyBuilderCases : SchemaBuilderCase
     {

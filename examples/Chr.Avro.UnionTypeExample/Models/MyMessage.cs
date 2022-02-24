@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Chr.Avro.Sample.Models
+namespace Chr.Avro.UnionTypeExample.Models
 {
     /// <summary>
     /// Class MyMessage.

@@ -148,9 +148,9 @@ namespace Example
 }
 ```
 
-### Union Types
+For more complex examples, see the [examples directory](examples):
 
-A sample using union types and the custom cases can be found in the [samples directory](samples).
+*   [Discriminated union types](examples/Chr.Avro.UnionTypeExample)
 
 ## Contributing
 

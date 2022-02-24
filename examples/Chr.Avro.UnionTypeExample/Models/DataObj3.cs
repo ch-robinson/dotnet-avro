@@ -1,4 +1,4 @@
-﻿namespace Chr.Avro.Sample.Models
+﻿namespace Chr.Avro.UnionTypeExample.Models
 {
     public class DataObj3 : IDataObj
     {

@@ -1,15 +1,18 @@
-﻿using Chr.Avro.Abstract;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using Chr.Avro.Abstract;
 using Chr.Avro.Resolution;
-using Chr.Avro.Sample.Models;
+using Chr.Avro.UnionTypeExample.Models;
 using Chr.Avro.Serialization;
 
-namespace Chr.Avro.Sample.Cases
+namespace Chr.Avro.UnionTypeExample.Cases
 {
-    public class DataSerializerCase : UnionSerializerBuilderCase
+    class DataDeserializerCase : UnionDeserializerBuilderCase
     {
         public ITypeResolver Resolver { get; }
 
-        public DataSerializerCase(ITypeResolver resolver, IBinaryCodec codec, IBinarySerializerBuilder builder) : base(codec, builder)
+        public DataDeserializerCase(ITypeResolver resolver, IBinaryCodec codec, IBinaryDeserializerBuilder builder) : base(codec, builder)
         {
             Resolver = resolver;
 
@@ -37,6 +40,5 @@ namespace Chr.Avro.Sample.Cases
                     throw new UnsupportedSchemaException(schema);
             }
         }
-
     }
 }

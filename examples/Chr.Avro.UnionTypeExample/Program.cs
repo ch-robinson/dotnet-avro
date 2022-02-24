@@ -7,14 +7,14 @@ using Chr.Avro.Abstract;
 using Chr.Avro.Confluent;
 using Chr.Avro.Representation;
 using Chr.Avro.Resolution;
-using Chr.Avro.Sample.Cases;
-using Chr.Avro.Sample.Models;
+using Chr.Avro.UnionTypeExample.Cases;
+using Chr.Avro.UnionTypeExample.Models;
 using Chr.Avro.Serialization;
 using Confluent.Kafka;
 using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 
-namespace Chr.Avro.Sample
+namespace Chr.Avro.UnionTypeExample
 {
     internal class Program
     {
@@ -122,7 +122,7 @@ namespace Chr.Avro.Sample
             };
 
             var codec = new BinaryCodec();
-            var resolver = new ReflectionResolver(); // customize as needed 
+            var resolver = new ReflectionResolver(); // customize as needed
 
             var deserializerBuilder = new BinaryDeserializerBuilder(BinaryDeserializerBuilder.CreateBinaryDeserializerCaseBuilders(codec)
                 .Prepend(builder => new DataDeserializerCase(resolver, codec, builder)), resolver);

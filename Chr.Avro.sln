@@ -19,9 +19,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chr.Avro.Fixtures", "src\Ch
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chr.Avro.Json", "src\Chr.Avro.Json\Chr.Avro.Json.csproj", "{ECD02FE5-7124-4711-9349-7245BC6BAB4F}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{8A836E7F-D023-410B-8F1A-327B08EF23E5}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{8A836E7F-D023-410B-8F1A-327B08EF23E5}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chr.Avro.Sample", "samples\Chr.Avro.Sample\Chr.Avro.Sample.csproj", "{015EBB31-9AD7-4B8B-91B5-39FEBAB2634E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chr.Avro.UnionTypeExample", "examples\Chr.Avro.UnionTypeExample\Chr.Avro.UnionTypeExample.csproj", "{015EBB31-9AD7-4B8B-91B5-39FEBAB2634E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{108FC1A0-2BA3-45F1-931F-A078CACE3E6F}"
 EndProject
