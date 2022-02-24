@@ -1,22 +1,25 @@
-using System;
-
 namespace Chr.Avro.Representation
 {
+    using System;
+
     /// <summary>
-    /// The exception that is thrown when a schema representation cannot be parsed.
+    /// The exception thrown when a schema representation cannot be parsed.
     /// </summary>
     [Serializable]
     public class UnknownSchemaException : Exception
     {
         /// <summary>
-        /// Creates an exception describing the error.
+        /// Initializes a new instance of the <see cref="UnknownSchemaException" /> class.
         /// </summary>
         /// <param name="message">
         /// A message describing the exception.
         /// </param>
         /// <param name="inner">
-        /// An underlying error that may provide additional context.
+        /// An underlying exception that may provide additional context.
         /// </param>
-        public UnknownSchemaException(string message, Exception? inner = null) : base(message, inner) { }
+        public UnknownSchemaException(string message, Exception? inner = null)
+            : base(message, inner)
+        {
+        }
     }
 }

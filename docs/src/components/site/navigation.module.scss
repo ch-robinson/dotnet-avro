@@ -50,6 +50,15 @@
   }
 }
 
+.delegate-link {
+  composes: type-link;
+
+  &:before {
+    background-color: $dark-gray;
+    content: 'D';
+  }
+}
+
 .enumeration-link {
   composes: type-link;
 

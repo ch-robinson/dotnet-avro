@@ -1,4 +1,4 @@
-namespace Chr.Avro.Representation
+namespace Chr.Avro
 {
     /// <summary>
     /// JSON object keys defined by the Avro spec.
@@ -9,6 +9,11 @@ namespace Chr.Avro.Representation
         /// The named schema aliases key.
         /// </summary>
         public const string Aliases = "aliases";
+
+        /// <summary>
+        /// The record field default value key.
+        /// </summary>
+        public const string Default = "default";
 
         /// <summary>
         /// The enum/record schema documentation key.

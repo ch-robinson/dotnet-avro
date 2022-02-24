@@ -1,13 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../../Chr.Avro.Build.props" />
-
   <PropertyGroup>
     <Description>A tool for working with Avro from the command line</Description>
     <IsPackable>true</IsPackable>
     <OutputType>Exe</OutputType>
     <PackAsTool>true</PackAsTool>
-    <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1;net5.0;net6.0</TargetFrameworks>
     <ToolCommandName>dotnet-avro</ToolCommandName>
   </PropertyGroup>
 

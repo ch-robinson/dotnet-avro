@@ -1,4 +1,4 @@
-namespace Chr.Avro.Representation
+namespace Chr.Avro
 {
     /// <summary>
     /// Schema types defined by the Avro spec.

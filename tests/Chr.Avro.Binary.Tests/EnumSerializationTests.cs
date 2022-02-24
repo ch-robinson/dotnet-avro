@@ -1,69 +1,147 @@
-using System;
-using Chr.Avro.Abstract;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System;
+    using System.IO;
+    using Chr.Avro.Abstract;
+    using Chr.Avro.Fixtures;
+    using Xunit;
+
+    using BinaryReader = Chr.Avro.Serialization.BinaryReader;
+    using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
+
     public class EnumSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder serializerBuilder;
+
+        private readonly MemoryStream stream;
 
         public EnumSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
-        }
-
-        [Theory]
-        [InlineData(Suit.Clubs)]
-        [InlineData(Suit.Diamonds)]
-        [InlineData(Suit.Hearts)]
-        [InlineData(Suit.Spades)]
-        public void EnumValues(Suit value)
-        {
-            var schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" });
-
-            var deserializer = DeserializerBuilder.BuildDeserializer<Suit>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Suit>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            deserializerBuilder = new BinaryDeserializerBuilder();
+            serializerBuilder = new BinarySerializerBuilder();
+            stream = new MemoryStream();
         }
 
         [Fact]
-        public void MissingValues()
+        public void DefaultEnumValues()
         {
-            var schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES", "EAGLES" });
-            Assert.Throws<UnsupportedTypeException>(() => DeserializerBuilder.BuildDeserializer<Suit>(schema));
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH" })
+            {
+                Default = "NONE",
+            };
 
-            schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS" });
-            Assert.Throws<UnsupportedTypeException>(() => SerializerBuilder.BuildSerializer<Suit>(schema));
+            var deserialize = deserializerBuilder.BuildDelegate<ImplicitEnum>(schema);
+            var serialize = serializerBuilder.BuildDelegate<string>(schema);
 
-            schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" });
-            var serializer = SerializerBuilder.BuildSerializer<Suit>(schema);
-            Assert.Throws<ArgumentOutOfRangeException>(() => serializer.Serialize((Suit)(-1)));
+            using (stream)
+            {
+                serialize("FIFTH", new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(ImplicitEnum.None, deserialize(ref reader));
         }
 
         [Theory]
-        [InlineData(Suit.Clubs)]
-        [InlineData(Suit.Diamonds)]
-        [InlineData(Suit.Hearts)]
-        [InlineData(Suit.Spades)]
-        public void NullableEnumValues(Suit value)
+        [InlineData(ImplicitEnum.None)]
+        [InlineData(ImplicitEnum.First)]
+        [InlineData(ImplicitEnum.Second)]
+        [InlineData(ImplicitEnum.Third)]
+        [InlineData(ImplicitEnum.Fourth)]
+        public void EnumValues(ImplicitEnum value)
         {
-            var schema = new EnumSchema("suit", new[] { "CLUBS", "DIAMONDS", "HEARTS", "SPADES" });
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH" });
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<Suit?>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<Suit>(schema);
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            var deserialize = deserializerBuilder.BuildDelegate<ImplicitEnum>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ImplicitEnum>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
-        public enum Suit
+        [Fact]
+        public void MissingEnumValues()
         {
-            Clubs,
-            Diamonds,
-            Hearts,
-            Spades
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH" });
+            Assert.Throws<UnsupportedTypeException>(() => deserializerBuilder.BuildDelegate<ImplicitEnum>(schema));
+
+            schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND" });
+            Assert.Throws<UnsupportedTypeException>(() => serializerBuilder.BuildDelegate<ImplicitEnum>(schema));
+
+            schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH" });
+            var serialize = serializerBuilder.BuildDelegate<ImplicitEnum>(schema);
+
+            using (stream)
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => serialize((ImplicitEnum)(-1), new BinaryWriter(stream)));
+            }
+        }
+
+        [Fact]
+        public void MissingStringValues()
+        {
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST" });
+            var serialize = serializerBuilder.BuildDelegate<string>(schema);
+
+            using (stream)
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => serialize("SECOND", new BinaryWriter(stream)));
+            }
+        }
+
+        [Theory]
+        [InlineData(ImplicitEnum.None)]
+        [InlineData(ImplicitEnum.First)]
+        [InlineData(ImplicitEnum.Second)]
+        [InlineData(ImplicitEnum.Third)]
+        [InlineData(ImplicitEnum.Fourth)]
+        public void NullableEnumValues(ImplicitEnum value)
+        {
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH" });
+
+            var deserialize = deserializerBuilder.BuildDelegate<ImplicitEnum?>(schema);
+            var serialize = serializerBuilder.BuildDelegate<ImplicitEnum>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [InlineData("NONE")]
+        [InlineData("FIRST")]
+        [InlineData("SECOND")]
+        [InlineData("THIRD")]
+        [InlineData("FOURTH")]
+        public void StringValues(string value)
+        {
+            var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH" });
+
+            var deserialize = deserializerBuilder.BuildDelegate<string>(schema);
+            var serialize = serializerBuilder.BuildDelegate<string>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
     }
 }

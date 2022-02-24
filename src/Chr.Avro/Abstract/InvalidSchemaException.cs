@@ -1,9 +1,9 @@
-using System;
-
 namespace Chr.Avro.Abstract
 {
+    using System;
+
     /// <summary>
-    /// The exception that is thrown when a schema contraint is violated.
+    /// The exception thrown when a schema contraint is violated.
     /// </summary>
     /// <remarks>
     /// This exception should only be thrown for abstract constraint violations.
@@ -12,11 +12,14 @@ namespace Chr.Avro.Abstract
     public class InvalidSchemaException : Exception
     {
         /// <summary>
-        /// Creates an exception describing the invalid schema.
+        /// Initializes a new instance of the <see cref="InvalidSchemaException" /> class.
         /// </summary>
         /// <param name="message">
         /// A description of the constraint violation.
         /// </param>
-        public InvalidSchemaException(string message) : base(message) { }
+        public InvalidSchemaException(string message)
+            : base(message)
+        {
+        }
     }
 }

@@ -392,6 +392,36 @@ async function processType (type) {
         result.members = await Promise.all(node.children.filter(n => n.name === 'Member').map(processMember))
         break
 
+      case 'Parameters':
+        result.parameters = result.parameters || []
+
+        for (const child of node.children.filter(n => n.name === 'Parameter')) {
+          const name = child.attributes['Name']
+          const type = child.attributes['Type']
+
+          let parameter = result.parameters.find(p => p.name === name)
+
+          if (!parameter) {
+            result.parameters.push(parameter = {
+              name
+            })
+          }
+
+          parameter.type = type
+        }
+
+        break
+
+      case 'ReturnValue':
+        const returns = node.children.find(n => n.name === 'ReturnType')
+
+        if (returns) {
+          result.returns = result.returns || {}
+          result.returns.type = getText(returns)
+        }
+
+        break
+
       case 'TypeParameters':
         result.typeParameters = result.typeParameters || []
 

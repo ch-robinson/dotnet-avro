@@ -8,18 +8,6 @@ const clrTypeOptions = [{
   required: false,
   summary: 'The name of or path to an assembly to load (multiple space-separated values accepted).'
 }, {
-  name: 'enums-as-ints',
-  required: false,
-  summary: 'Whether enums should be represented as integers.'
-}, {
-  name: 'nullable-references',
-  required: false,
-  summary: 'Whether reference types should be nullable.'
-}, {
-  name: 'temporal-behavior',
-  required: false,
-  summary: 'Whether timestamps should be represented with "string" schemas (ISO 8601) or "long" schemas (timestamp logical types). Options are iso8601, epochmilliseconds, and epochmicroseconds.'
-}, {
   abbreviation: 't',
   name: 'type',
   required: true,
@@ -29,6 +17,7 @@ const clrTypeOptions = [{
 const schemaResolutionOptions = [{
   abbreviation: 'c',
   name: 'registry-config',
+  required: false,
   summary: 'Configuration options to provide to the registry client (multiple space-separated key=value pairs accepted).'
 }, {
   abbreviation: 'r',
@@ -50,6 +39,7 @@ const schemaResolutionOptions = [{
 }, {
   abbreviation: 'v',
   name: 'version',
+  required: false,
   set: 'Resolve schema by subject/version',
   summary: 'The version of the schema.'
 }]
@@ -66,7 +56,19 @@ module.exports = [{
     body: `$ dotnet avro create --assembly ./out/Example.Models.dll --type Example.Models.ExampleModel
 {"name":"Example.Models.ExampleModel",type":"record",fields:[{"name":"Text","type":"string"}]}`
   }],
-  options: [...clrTypeOptions]
+  options: [...clrTypeOptions, {
+    name: 'enum-behavior',
+    required: false,
+    summary: 'The type of schema that enum types should be represented by. Options are "symbolic" (generate an "enum" schema; the default behavior), "integral" (generate an "int" or "long" schema based on the underlying type; the behavior for all flag enums), and "nominal" (generate a "string" schema).'
+  }, {
+    name: 'nullable-references',
+    required: false,
+    summary: 'Which reference types should be represented with nullable union schemas. Options are "annotated" (use nullable annotations if available; the default behavior), "none", and "all".'
+  }, {
+    name: 'temporal-behavior',
+    required: false,
+    summary: 'Whether timestamps should be represented with "string" schemas (ISO 8601) or "long" schemas (timestamp logical types). Options are "iso8601", "epochmilliseconds", and "epochmicroseconds".'
+  }]
 }, {
   name: 'generate',
   summary: 'Generates C# code for a schema from the Schema Registry.',
@@ -98,7 +100,11 @@ namespace Example.Models
     body: `PS C:\\> Get-Content .\\example-model.avsc | dotnet avro generate | Out-File .\\ExampleModel.cs`,
     language: 'powershell'
   }],
-  options: [...schemaResolutionOptions]
+  options: [...schemaResolutionOptions, {
+    name: 'nullable-references',
+    required: false,
+    summary: 'Whether reference types selected for nullable record fields should be annotated as nullable.'
+  }]
 }, {
   name: 'registry-get',
   summary: 'Retrieve a schema from the Schema Registry.',

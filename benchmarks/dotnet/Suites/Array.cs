@@ -4,7 +4,7 @@ namespace Chr.Avro.Benchmarks
 
     public static class DoubleArraySuite
     {
-        public const int Iterations = 1_000_000;
+        public const int Iterations = 100_000;
 
         public const string Name = "array[double]";
 

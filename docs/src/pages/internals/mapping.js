@@ -160,12 +160,15 @@ export default function MappingPage () {
           <p>When the serializer builder and deserializer builder find multiple matching enumerators, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
         </li>
         <li>
-          <p>When the deserializer builder can’t find a matching enumerator, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
+          <p>When the deserializer builder can’t find a matching enumerator but a default is specified by the schema, the deserializer builder will attempt to map the default instead.</p>
+        </li>
+        <li>
+          <p>When the deserializer builder can’t find a matching enumerator and no default is specified by the schema, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
         </li>
       </ul>
       <p>By default, Chr.Avro also honors data contract attributes if a <DotnetReference id='T:System.Runtime.Serialization.DataContractAttribute' /> is present on the enumeration. In that case, if <DotnetReference id='P:System.Runtime.Serialization.EnumMemberAttribute.Value' /> is set on an enumerator, the custom value must match the symbol exactly. If it’s not set, the enumerator name will be compared inexactly as described above.</p>
       <p>To change or extend this behavior, implement <DotnetReference id='T:Chr.Avro.Resolution.ITypeResolver' /> or extend one of the existing resolvers (<DotnetReference id='T:Chr.Avro.Resolution.ReflectionResolver' /> and <DotnetReference id='T:Chr.Avro.Resolution.DataContractResolver' />).</p>
-      <p>Because enum types are able to be implicitly converted to and from integral types, Chr.Avro can map any integral type to <Highlight inline language='avro'>"enum"</Highlight> as well.</p>
+      <p>Because <Highlight inline language='avro'>"enum"</Highlight> symbols are represented as strings, Chr.Avro also supports mapping enum schemas to <DotnetReference id='T:System.String' />. On serialization, if the name of the enumerator is not a symbol in the schema, <DotnetReference id='T:System.ArgumentException' /> will be thrown.</p>
 
       <h2 id='maps'>Maps</h2>
       <p>Avro’s <Highlight inline language='avro'>"map"</Highlight> type represents a map of keys (assumed to be strings) to values. Chr.Avro can map a .NET type to <Highlight inline language='avro'>"map"</Highlight> if any of the following is true:</p>
@@ -318,6 +321,7 @@ export default function MappingPage () {
         </tbody>
       </table>
       <p>Whether a schema is <Highlight inline language='avro'>"int"</Highlight> or <Highlight inline language='avro'>"long"</Highlight> has no impact on serialization. Integers are <ExternalLink to='https://avro.apache.org/docs/current/spec.html#binary_encoding'>zig-zag encoded</ExternalLink>, so they take up as much space as they need. For that reason, Chr.Avro imposes no constraints on which numeric types can be serialized or deserialized to <Highlight inline language='avro'>"int"</Highlight> or <Highlight inline language='avro'>"long"</Highlight>—if a conversion exists, the binary serializer and deserializer will use it.</p>
+      <p>Because enum types are able to be implicitly converted to and from integral types, Chr.Avro can map any enum type to <Highlight inline language='avro'>"int"</Highlight> or <Highlight inline language='avro'>"long"</Highlight> as well.</p>
       <h3>Non-integral types</h3>
       <p>On the non-integral side, .NET types are mapped to their respective Avro types:</p>
       <table>
@@ -419,14 +423,17 @@ export default function MappingPage () {
       </ul>
       <p>If no matching constructors are found then it will attempt to match each record field to a field or property on the type. The rules:</p>
       <ul>
-      <li>
+        <li>
           <p>Type member names don’t need to match the schema exactly—all non-alphanumeric characters are stripped and comparisons are case-insensitive. So, for example, a record field named <code>addressLine1</code> will match type members named <code>AddressLine1</code>, <code>AddressLine_1</code>, <code>ADDRESS_LINE_1</code>, etc.</p>
         </li>
         <li>
           <p>When the serializer builder and deserializer builder find multiple matching type members, <DotnetReference id='T:System.AggregateException' /> is thrown.</p>
         </li>
         <li>
-          <p>When the serializer builder can’t find a matching type member, <DotnetReference id='T:System.AggregateException' /> is thrown. When the deserializer can’t find a matching type member, the field is ignored.</p>
+          <p>When the serializer builder can’t find a matching type member but a default is specified by the schema, the default value will be serialized.</p>
+        </li>
+        <li>
+          <p>When the serializer builder can’t find a matching type member and no default is specified by the schema, <DotnetReference id='T:System.AggregateException' /> is thrown. When the deserializer can’t find a matching type member, the field is ignored.</p>
         </li>
         <li>
           <p>The deserializer builder throws <DotnetReference id='T:System.AggregateException' /> if a type doesn’t have a parameterless public constructor.</p>

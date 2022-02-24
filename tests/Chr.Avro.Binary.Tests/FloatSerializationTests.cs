@@ -1,49 +1,101 @@
-using Chr.Avro.Abstract;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System.Collections.Generic;
+    using System.IO;
+    using Chr.Avro.Abstract;
+    using Xunit;
+
+    using BinaryReader = Chr.Avro.Serialization.BinaryReader;
+    using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
+
     public class FloatSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder serializerBuilder;
+
+        private readonly MemoryStream stream;
 
         public FloatSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
+            deserializerBuilder = new BinaryDeserializerBuilder();
+            serializerBuilder = new BinarySerializerBuilder();
+            stream = new MemoryStream();
+        }
+
+        public static IEnumerable<object[]> Integers => new List<object[]>
+        {
+            new object[] { -5 },
+            new object[] { 0 },
+            new object[] { 5 },
+        };
+
+        public static IEnumerable<object[]> Singles => new List<object[]>
+        {
+            new object[] { float.NaN },
+            new object[] { float.NegativeInfinity },
+            new object[] { float.MinValue },
+            new object[] { 0.0f },
+            new object[] { float.MaxValue },
+            new object[] { float.PositiveInfinity },
+        };
+
+        [Theory]
+        [MemberData(nameof(Integers))]
+        [MemberData(nameof(Singles))]
+        public void DynamicFloatValues(dynamic value)
+        {
+            var schema = new FloatSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal((float)value, deserialize(ref reader));
         }
 
         [Theory]
-        [InlineData(-5)]
-        [InlineData(0)]
-        [InlineData(5)]
+        [MemberData(nameof(Integers))]
         public void Int32Values(int value)
         {
             var schema = new FloatSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<float>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<int>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<float>(schema);
+            var serialize = serializerBuilder.BuildDelegate<int>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
 
         [Theory]
-        [InlineData(float.NaN)]
-        [InlineData(float.NegativeInfinity)]
-        [InlineData(float.MinValue)]
-        [InlineData(0.0)]
-        [InlineData(float.MaxValue)]
-        [InlineData(float.PositiveInfinity)]
+        [MemberData(nameof(Singles))]
         public void SingleValues(float value)
         {
             var schema = new FloatSchema();
 
-            var deserializer = DeserializerBuilder.BuildDeserializer<float>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<float>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<float>(schema);
+            var serialize = serializerBuilder.BuildDelegate<float>(schema);
 
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
         }
     }
 }

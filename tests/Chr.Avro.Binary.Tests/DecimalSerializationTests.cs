@@ -1,57 +1,33 @@
-using Chr.Avro.Abstract;
-using System.Collections.Generic;
-using Xunit;
-
 namespace Chr.Avro.Serialization.Tests
 {
+    using System.Collections.Generic;
+    using System.IO;
+    using Chr.Avro.Abstract;
+    using Xunit;
+
+    using BinaryReader = Chr.Avro.Serialization.BinaryReader;
+    using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
+
     public class DecimalSerializationTests
     {
-        protected readonly IBinaryDeserializerBuilder DeserializerBuilder;
+        private readonly IBinaryDeserializerBuilder deserializerBuilder;
 
-        protected readonly IBinarySerializerBuilder SerializerBuilder;
+        private readonly IBinarySerializerBuilder serializerBuilder;
+
+        private readonly MemoryStream stream;
 
         public DecimalSerializationTests()
         {
-            DeserializerBuilder = new BinaryDeserializerBuilder();
-            SerializerBuilder = new BinarySerializerBuilder();
-        }
-
-        [Theory]
-        [MemberData(nameof(BoundaryDecimals))]
-        public void BoundaryDecimalValues(decimal value)
-        {
-            var schema = new BytesSchema()
-            {
-                LogicalType = new DecimalLogicalType(29, 14)
-            };
-
-            var deserializer = DeserializerBuilder.BuildDeserializer<decimal>(schema);
-            var serializer = SerializerBuilder.BuildSerializer<decimal>(schema);
-
-            Assert.Equal(value, deserializer.Deserialize(serializer.Serialize(value)));
-        }
-
-        [Theory]
-        [MemberData(nameof(ResizedDecimals))]
-        public void ResizedDecimalValues(int precision, int scale, decimal value, byte[] encoding, decimal resizing)
-        {
-            var schema = new BytesSchema()
-            {
-                LogicalType = new DecimalLogicalType(precision, scale)
-            };
-
-            var serializer = SerializerBuilder.BuildSerializer<decimal>(schema);
-            Assert.Equal(encoding, serializer.Serialize(value));
-
-            var deserializer = DeserializerBuilder.BuildDeserializer<decimal>(schema);
-            Assert.Equal(resizing, deserializer.Deserialize(encoding));
+            deserializerBuilder = new BinaryDeserializerBuilder();
+            serializerBuilder = new BinarySerializerBuilder();
+            stream = new MemoryStream();
         }
 
         public static IEnumerable<object[]> BoundaryDecimals => new List<object[]>
         {
             new object[] { decimal.MinValue },
             new object[] { decimal.Zero },
-            new object[] { decimal.MaxValue }
+            new object[] { decimal.MaxValue },
         };
 
         public static IEnumerable<object[]> ResizedDecimals => new List<object[]>
@@ -68,5 +44,73 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { 6, 0, 32767m, new byte[] { 0x04, 0x7f, 0xff }, 32767m },
             new object[] { 6, 0, 32768m, new byte[] { 0x06, 0x00, 0x80, 0x00 }, 32768m },
         };
+
+        [Theory]
+        [MemberData(nameof(BoundaryDecimals))]
+        public void BoundaryDecimalValues(decimal value)
+        {
+            var schema = new BytesSchema()
+            {
+                LogicalType = new DecimalLogicalType(29, 14),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<decimal>(schema);
+            var serialize = serializerBuilder.BuildDelegate<decimal>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(BoundaryDecimals))]
+        public void DynamicDecimalValues(decimal value)
+        {
+            var schema = new BytesSchema()
+            {
+                LogicalType = new DecimalLogicalType(29, 14),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(ResizedDecimals))]
+        public void ResizedDecimalValues(int precision, int scale, decimal value, byte[] encoding, decimal resizing)
+        {
+            var schema = new BytesSchema()
+            {
+                LogicalType = new DecimalLogicalType(precision, scale),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<decimal>(schema);
+            var serialize = serializerBuilder.BuildDelegate<decimal>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var encoded = stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(resizing, deserialize(ref reader));
+        }
     }
 }
