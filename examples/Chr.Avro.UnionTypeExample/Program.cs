@@ -8,7 +8,7 @@ namespace Chr.Avro.UnionTypeExample
     using Chr.Avro.Abstract;
     using Chr.Avro.Confluent;
     using Chr.Avro.Serialization;
-    using Chr.Avro.UnionTypeExample.Cases;
+    using Chr.Avro.UnionTypeExample.Infrastructure;
     using Chr.Avro.UnionTypeExample.Models;
     using global::Confluent.Kafka;
     using global::Confluent.Kafka.Admin;
@@ -49,116 +49,89 @@ namespace Chr.Avro.UnionTypeExample
                 await Task.Delay(TimeSpan.FromSeconds(1));
             }
 
-            var message = await producer.ProduceAsync(
-                Topic,
-                new Message<Null, MyMessage>
-                {
-                    Value = new MyMessage
-                    {
-                        Name = "TestName",
-                        DateTime = DateTime.Now,
-                        Payload = new Dictionary<string, IDataObj>
-                        {
-                            {
-                                "Obj1", new DataObj1
-                                {
-                                    Name = "Obj1",
-                                    Value = 123,
-                                }
-                            },
-                            {
-                                "Obj2", new DataObj2
-                                {
-                                    Name = "Obj2",
-                                    Value = true,
-                                    Foo = 456,
-                                }
-                            },
-                            {
-                                "Obj3", new DataObj3
-                                {
-                                    Name = "Obj3",
-                                    Value = 7.89,
-                                }
-                            },
-                        },
-                    },
-                });
+            foreach (var message in GetEventSequence())
+            {
+                await producer.ProduceAsync(Topic, message);
 
-            var result = consumer.Consume();
-            Console.WriteLine($"{result.Message.Value.Name} {result.Message.Value.DateTime}");
+                var result = consumer.Consume();
+                Console.WriteLine($"Received an {result.Message.Value.Event.GetType().Name} event for {result.Message.Key.OrderId}.");
+            }
 
             return 0;
         }
 
         private static IAdminClient CreateAdmin()
         {
-            var config = new AdminClientConfig
-            {
-                BootstrapServers = BootstrapServers,
-            };
-
-            return new AdminClientBuilder(config)
+            return new AdminClientBuilder(
+                new AdminClientConfig
+                {
+                    BootstrapServers = BootstrapServers,
+                })
                 .Build();
         }
 
-        private static IConsumer<Ignore, MyMessage> CreateConsumer(
+        private static IConsumer<OrderKey, OrderEventRecord> CreateConsumer(
             ISchemaRegistryClient registryClient)
         {
-            var config = new ConsumerConfig
-            {
-                BootstrapServers = BootstrapServers,
-                EnableAutoCommit = false,
-                GroupId = $"union-type-example-{Guid.NewGuid()}",
-            };
-
             var deserializerBuilder = new BinaryDeserializerBuilder(
                 BinaryDeserializerBuilder.CreateDefaultCaseBuilders()
-                    .Prepend(builder => new CustomUnionDeserializerBuilderCase(builder)));
+                    .Prepend(builder => new OrderEventUnionDeserializerBuilderCase(builder)));
 
-            return new ConsumerBuilder<Ignore, MyMessage>(config)
-                .SetValueDeserializer(new AsyncSchemaRegistryDeserializer<MyMessage>(
+            return new ConsumerBuilder<OrderKey, OrderEventRecord>(
+                new ConsumerConfig
+                {
+                    BootstrapServers = BootstrapServers,
+                    EnableAutoCommit = false,
+                    GroupId = $"union-type-example-{Guid.NewGuid()}",
+                })
+                .SetAvroKeyDeserializer(registryClient)
+                .SetValueDeserializer(new AsyncSchemaRegistryDeserializer<OrderEventRecord>(
                     registryClient,
                     deserializerBuilder).AsSyncOverAsync())
                 .Build();
         }
 
-        private static async Task<IProducer<Null, MyMessage>> CreateProducer(
+        private static async Task<IProducer<OrderKey, OrderEventRecord>> CreateProducer(
             ISchemaRegistryClient registryClient,
             AutomaticRegistrationBehavior automaticRegistrationBehavior)
         {
-            var config = new ProducerConfig
-            {
-                BootstrapServers = BootstrapServers,
-            };
-
             var schemaBuilder = new SchemaBuilder(
                 SchemaBuilder.CreateDefaultCaseBuilders()
-                    .Prepend(builder => new CustomUnionSchemaBuilderCase(builder)));
+                    .Prepend(builder => new OrderEventUnionSchemaBuilderCase(builder)));
 
             using var serializerBuilder = new SchemaRegistrySerializerBuilder(
                 registryClient,
                 schemaBuilder,
                 serializerBuilder: new BinarySerializerBuilder(
                     BinarySerializerBuilder.CreateDefaultCaseBuilders()
-                        .Prepend(builder => new CustomUnionSerializerBuilderCase(builder))));
+                        .Prepend(builder => new OrderEventUnionSerializerBuilderCase(builder))));
 
-            return (await new ProducerBuilder<Null, MyMessage>(config)
-                .SetAvroValueSerializer(
-                    serializerBuilder,
-                    SubjectNameStrategy.Topic.ConstructValueSubjectName(Topic),
-                    automaticRegistrationBehavior))
-                .Build();
+            var producerBuilder = new ProducerBuilder<OrderKey, OrderEventRecord>(
+                new ProducerConfig
+                {
+                    BootstrapServers = BootstrapServers,
+                });
+
+            await producerBuilder.SetAvroKeySerializer(
+                registryClient,
+                SubjectNameStrategy.Topic.ConstructKeySubjectName(Topic),
+                automaticRegistrationBehavior);
+
+            await producerBuilder.SetAvroValueSerializer(
+                serializerBuilder,
+                SubjectNameStrategy.Topic.ConstructKeySubjectName(Topic),
+                automaticRegistrationBehavior);
+
+            return producerBuilder.Build();
         }
 
         private static ISchemaRegistryClient CreateSchemaRegistryClient()
         {
-            var config = new SchemaRegistryConfig
-            {
-                Url = SchemaRegistries,
-            };
-
-            return new CachedSchemaRegistryClient(config);
+            return new CachedSchemaRegistryClient(
+                new SchemaRegistryConfig
+                {
+                    Url = SchemaRegistries,
+                });
         }
 
         private static async Task EnsureTopicExists(IAdminClient admin)
@@ -176,6 +149,100 @@ namespace Chr.Avro.UnionTypeExample
                         },
                     });
             }
+        }
+
+        private static IEnumerable<Message<OrderKey, OrderEventRecord>> GetEventSequence()
+        {
+            var order1Key = new OrderKey { OrderId = Guid.NewGuid() };
+            var order2Key = new OrderKey { OrderId = Guid.NewGuid() };
+            var order3Key = new OrderKey { OrderId = Guid.NewGuid() };
+
+            var product1Id = Guid.NewGuid();
+            var product2Id = Guid.NewGuid();
+
+            yield return new Message<OrderKey, OrderEventRecord>
+            {
+                Key = order1Key,
+                Value = new OrderEventRecord
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Event = new OrderCreationEvent
+                    {
+                        LineItems = new[]
+                        {
+                            new OrderLineItem { ProductId = product1Id, Quantity = 1 },
+                            new OrderLineItem { ProductId = product2Id, Quantity = 1 },
+                        },
+                    },
+                },
+            };
+
+            yield return new Message<OrderKey, OrderEventRecord>
+            {
+                Key = order2Key,
+                Value = new OrderEventRecord
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Event = new OrderCreationEvent
+                    {
+                        LineItems = new[]
+                        {
+                            new OrderLineItem { ProductId = product2Id, Quantity = 5 },
+                        },
+                    },
+                },
+            };
+
+            yield return new Message<OrderKey, OrderEventRecord>
+            {
+                Key = order1Key,
+                Value = new OrderEventRecord
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Event = new OrderLineItemModificationEvent
+                    {
+                        Index = 1,
+                        LineItem = new OrderLineItem { ProductId = product2Id, Quantity = 10 },
+                    },
+                },
+            };
+
+            yield return new Message<OrderKey, OrderEventRecord>
+            {
+                Key = order3Key,
+                Value = new OrderEventRecord
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Event = new OrderCreationEvent
+                    {
+                        LineItems = Array.Empty<OrderLineItem>(),
+                    },
+                },
+            };
+
+            yield return new Message<OrderKey, OrderEventRecord>
+            {
+                Key = order1Key,
+                Value = new OrderEventRecord
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Event = new OrderLineItemModificationEvent
+                    {
+                        Index = 0,
+                        LineItem = new OrderLineItem { ProductId = product1Id, Quantity = 5 },
+                    },
+                },
+            };
+
+            yield return new Message<OrderKey, OrderEventRecord>
+            {
+                Key = order3Key,
+                Value = new OrderEventRecord
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Event = new OrderCancellationEvent { },
+                },
+            };
         }
     }
 }

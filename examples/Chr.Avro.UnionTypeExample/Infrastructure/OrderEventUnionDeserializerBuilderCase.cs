@@ -1,27 +1,27 @@
-namespace Chr.Avro.UnionTypeExample.Cases
+namespace Chr.Avro.UnionTypeExample.Infrastructure
 {
     using System;
     using Chr.Avro.Abstract;
     using Chr.Avro.Serialization;
     using Chr.Avro.UnionTypeExample.Models;
 
-    public class CustomUnionDeserializerBuilderCase : BinaryUnionDeserializerBuilderCase
+    public class OrderEventUnionDeserializerBuilderCase : BinaryUnionDeserializerBuilderCase
     {
-        public CustomUnionDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+        public OrderEventUnionDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
             : base(deserializerBuilder)
         {
         }
 
         public override BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
-            if (type == typeof(IDataObj))
+            if (type == typeof(IOrderEvent))
             {
                 return base.BuildExpression(type, schema, context);
             }
             else
             {
                 return BinaryDeserializerBuilderCaseResult.FromException(
-                    new UnsupportedTypeException(type, $"{nameof(CustomUnionDeserializerBuilderCase)} can only be applied to the {typeof(IDataObj)} type."));
+                    new UnsupportedTypeException(type, $"{nameof(OrderEventUnionDeserializerBuilderCase)} can only be applied to the {typeof(IOrderEvent)} type."));
             }
         }
 
@@ -29,9 +29,9 @@ namespace Chr.Avro.UnionTypeExample.Cases
         {
             return (schema as RecordSchema)?.Name switch
             {
-                nameof(DataObj1) => typeof(DataObj1),
-                nameof(DataObj2) => typeof(DataObj2),
-                nameof(DataObj3) => typeof(DataObj3),
+                nameof(OrderCreationEvent) => typeof(OrderCreationEvent),
+                nameof(OrderLineItemModificationEvent) => typeof(OrderLineItemModificationEvent),
+                nameof(OrderCancellationEvent) => typeof(OrderCancellationEvent),
                 _ => throw new UnsupportedSchemaException(schema),
             };
         }
