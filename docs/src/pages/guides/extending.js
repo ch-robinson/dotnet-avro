@@ -2,6 +2,7 @@ import { graphql, useStaticQuery } from 'gatsby'
 import React from 'react'
 import { Helmet } from 'react-helmet'
 
+import ExternalLink from '../../components/site/external-link';
 import Highlight from '../../components/code/highlight'
 
 const title = 'Extending and overriding built-in features'
@@ -9,12 +10,13 @@ const title = 'Extending and overriding built-in features'
 export default function ExtendingPage () {
   const {
     site: {
-      siteMetadata: { projectName }
+      siteMetadata: { githubUrl, projectName }
     }
   } = useStaticQuery(graphql`
     query {
       site {
         siteMetadata {
+          githubUrl
           projectName
         }
       }
@@ -33,7 +35,7 @@ export default function ExtendingPage () {
       <h2>Mapping an interface to concrete types</h2>
       <p>Suppose you have a schema that contains a union of records:</p>
       <Highlight language='avro'>{`{
-  "name": "example.EventRecord",
+  "name": "example.OrderEventRecord",
   "type": "record",
   "fields": [{
     "name": "timestamp",
@@ -44,14 +46,14 @@ export default function ExtendingPage () {
   }, {
     "name": "event",
     "type": [{
-      "name": "example.order.OrderCreation",
+      "name": "example.OrderCreationEvent",
       "type": "record",
       "fields": [{
         "name": "lineItems",
         "type": {
           "type": "array",
           "items": {
-            "name": "example.order.OrderLineItem",
+            "name": "example.OrderLineItem",
             "type": "record",
             "fields": [{
               "name": "productId",
@@ -67,7 +69,7 @@ export default function ExtendingPage () {
         }
       }]
     }, {
-      "name": "example.order.OrderLineItemModification",
+      "name": "example.OrderLineItemModificationEvent",
       "type": "record",
       "fields": [{
         "name": "index",
@@ -77,7 +79,7 @@ export default function ExtendingPage () {
         "type": "OrderLineItem"
       }]
     }, {
-      "name": "example.order.OrderCancellation",
+      "name": "example.OrderCancellationEvent",
       "type": "record",
       "fields": []
     }]
@@ -87,136 +89,130 @@ export default function ExtendingPage () {
       <Highlight language='csharp'>{`using System;
 using System.Collections.Generic;
 
-public class EventRecord
+public class OrderEventRecord
 {
-    public IEvent Event { get; set; }
+    public IOrderEvent Event { get; set; }
     public DateTime Timestamp { get; set; }
 }
 
-public interface IEvent
+public interface IOrderEvent
 {
-
 }
 
-public class OrderCreation : IEvent
+public class OrderCreationEvent : IOrderEvent
 {
-    public IEnumerable<OrderLineItem> LineItems { get; set; }
+    public IList<OrderLineItem> LineItems { get; set; }
 }
 
-public class OrderLineItemModification : IEvent
+public class OrderLineItemModificationEvent : IOrderEvent
 {
     public int Index { get; set; }
     public OrderLineItem LineItem { get; set; }
 }
 
-public class OrderCancellation : IEvent
+public class OrderCancellationEvent : IOrderEvent
 {
-
 }
 
 public class OrderLineItem
 {
-    Guid ProductId { get; set; }
-    int Quantity { get; set; }
+    public Guid ProductId { get; set; }
+    public int Quantity { get; set; }
 }`}</Highlight>
       <p>Out of the box, {projectName} won’t be able to figure out this mapping. When building a serializer, it will try to map <code>IEvent</code> to each schema in the union and fail because there are multiple matches. When building a deserializer, it will fail because <code>IEvent</code> is not a concrete type.</p>
       <p>To support this type of advanced mapping, applications can provide custom cases for the serializer and deserializer builders. The cases will match the union schema and the <code>IEvent</code> interface and choose the appropriate concrete class:</p>
-      <Highlight language='csharp'>{`using Chr.Avro;
+      <Highlight language='csharp'>{`using System;
+using System.Linq.Expressions;
+using Chr.Avro;
 using Chr.Avro.Abstract;
-using Chr.Avro.Resolution;
 using Chr.Avro.Serialization;
 
-public class OrderDeserializerBuilderCase : UnionDeserializerBuilderCase
+public class OrderEventUnionDeserializerBuilderCase : BinaryUnionDeserializerBuilderCase
 {
-    public ITypeResolver Resolver { get; }
-
-    public OrderDeserializerBuilderCase(ITypeResolver resolver, IBinaryCodec codec, IBinaryDeserializerBuilder builder) : base(codec, builder)
+    public CustomUnionDeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+        : base(deserializerBuilder)
     {
-        Resolver = resolver;
     }
 
-    protected override TypeResolution SelectType(TypeResolution resolution, Schema schema)
+    public override BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
     {
-        if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
+        if (type == typeof(IOrderEvent))
         {
-            return resolution;
+            return base.BuildExpression(type, schema, context);
         }
-
-        switch ((schema as RecordSchema)?.Name)
+        else
         {
-            case nameof(OrderCancellation):
-                return Resolver.ResolveType<OrderCancellation>();
-
-            case nameof(OrderCreation):
-                return Resolver.ResolveType<OrderCreation>();
-
-            case nameof(OrderLineItemModification):
-                return Resolver.ResolveType<OrderLineItemModification>();
-
-            default:
-                throw new UnsupportedSchemaException(schema);
+            return BinaryDeserializerBuilderCaseResult.FromException(
+                new UnsupportedTypeException(type, $"{nameof(CustomUnionDeserializerBuilderCase)} can only be applied to the {typeof(IOrderEvent)} type."));
         }
+    }
+
+    protected override Type SelectType(Type type, Schema schema)
+    {
+        return (schema as RecordSchema)?.Name switch
+        {
+            nameof(OrderCreationEvent) => typeof(OrderCreationEvent),
+            nameof(OrderLineItemModificationEvent) => typeof(OrderLineItemModificationEvent),
+            nameof(OrderCancellationEvent) => typeof(OrderCancellationEvent),
+            _ => throw new UnsupportedSchemaException(schema),
+        };
     }
 }
 
-public class OrderSerializerBuilderCase : UnionSerializerBuilderCase
+public class OrderEventUnionSerializerBuilderCase : BinaryUnionSerializerBuilderCase
 {
-    public ITypeResolver Resolver { get; }
-
-    public OrderSerializerBuilderCase(ITypeResolver resolver, IBinaryCodec codec, IBinarySerializerBuilder builder) : base(codec, builder)
+    public OrderEventUnionSerializerBuilderCase(IBinarySerializerBuilder serializerBuilder)
+        : base(serializerBuilder)
     {
-        Resolver = resolver;
     }
 
-    protected override TypeResolution SelectType(TypeResolution resolution, Schema schema)
+    public override BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
     {
-        if (!(resolution is RecordResolution recordResolution) || recordResolution.Type != typeof(IEvent))
+        if (type == typeof(IOrderEvent))
         {
-            return resolution;
+            return base.BuildExpression(value, type, schema, context);
         }
-
-        switch ((schema as RecordSchema)?.Name)
+        else
         {
-            case nameof(OrderCancellation):
-                return Resolver.ResolveType<OrderCancellation>();
-
-            case nameof(OrderCreation):
-                return Resolver.ResolveType<OrderCreation>();
-
-            case nameof(OrderLineItemModification):
-                return Resolver.ResolveType<OrderLineItemModification>();
-
-            default:
-                throw new UnsupportedSchemaException(schema);
+            return BinarySerializerBuilderCaseResult.FromException(
+                new UnsupportedTypeException(type, $"{nameof(OrderEventUnionSerializerBuilderCase)} can only be applied to the {typeof(IOrderEvent)} type."));
         }
+    }
+
+    protected override Type SelectType(Type type, Schema schema)
+    {
+        return (schema as RecordSchema)?.Name switch
+        {
+            nameof(OrderCreationEvent) => typeof(OrderCreationEvent),
+            nameof(OrderLineItemModificationEvent) => typeof(OrderLineItemModificationEvent),
+            nameof(OrderCancellationEvent) => typeof(OrderCancellationEvent),
+            _ => throw new UnsupportedSchemaException(schema),
+        };
     }
 }`}</Highlight>
       <p>In this example, the custom cases rely on record schema names to pick the correct concrete class. Other strategies work too—partial or fuzzy name matching, matching based on record fields, or even relying on custom schema metadata.</p>
       <p>Custom cases should generally be prepended to the default cases to ensure that they take precedence:</p>
-      <Highlight language='csharp'>{`using Chr.Avro.Abstract;
+      <Highlight language='csharp'>{`using System.Linq;
+using Chr.Avro.Abstract;
 using Chr.Avro.Resolution;
 using Chr.Avro.Serialization;
 
-IBinaryDeserializer<EventRecord> CreateEventDeserializer(Schema schema)
+BinaryDeserializer<OrderEventRecord> CreateEventDeserializer(Schema schema)
 {
-    var codec = new BinaryCodec();
-    var resolver = new ReflectionResolver();
-
-    return new BinaryDeserializerBuilder(BinaryDeserializerBuilder.CreateBinaryDeserializerCaseBuilders(codec)
-        .Prepend(builder => new OrderDeserializerBuilderCase(resolver, codec, builder)))
-        .BuildDeserializer<EventRecord>(schema);
+    return new BinaryDeserializerBuilder(
+        BinaryDeserializerBuilder.CreateDefaultCaseBuilders()
+            .Prepend(builder => new OrderEventUnionDeserializerBuilderCase(builder)))
+        .BuildDelegate<EventRecord>(schema);
 }
 
-IBinarySerializer<EventRecord> CreateEventSerializer(Schema schema)
+BinarySerializer<OrderEventRecord> CreateEventSerializer(Schema schema)
 {
-    var codec = new BinaryCodec();
-    var resolver = new ReflectionResolver();
-
-    return new BinarySerializerBuilder(BinarySerializerBuilder.CreateBinarySerializerCaseBuilders(codec)
-        .Prepend(builder => new OrderSerializerBuilderCase(resolver, codec, builder)))
-        .BuildSerializer<EventRecord>(schema);
+    return new BinarySerializerBuilder(
+        BinarySerializerBuilder.CreateDefaultCaseBuilders()
+            .Prepend(builder => new OrderEventUnionSerializerBuilderCase(builder)))
+        .BuildDelegate<EventRecord>(schema);
 }`}</Highlight>
-      <p>With those custom cases in place, {projectName} will be able to properly serialize and deserialize <code>EventRecord</code>s.</p>
+      <p>With those custom cases in place, {projectName} will be able to properly serialize and deserialize <code>OrderEventRecord</code>s. For a working example, see the <ExternalLink to={`${githubUrl}/tree/main/examples/${projectName}.UnionTypeExample`}>{projectName}.UnionTypeExample</ExternalLink> project.</p>
     </>
   )
 }

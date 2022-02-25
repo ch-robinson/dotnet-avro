@@ -148,6 +148,10 @@ namespace Example
 }
 ```
 
+For more complex examples, see the [examples directory](examples):
+
+*   [Discriminated union types](examples/Chr.Avro.UnionTypeExample)
+
 ## Contributing
 
 Check out the [contribution guidelines](CONTRIBUTING.md) prior to opening an issue or creating a pull request. More information about the [benchmark applications](benchmarks) and [documentation site](docs) can be found in their respective directories.
