@@ -81,7 +81,7 @@ namespace Chr.Avro.Serialization
                         var writes = recordSchema.Fields
                             .Select(field =>
                             {
-                                var match = members.SingleOrDefault(member => IsMatch(field, member.Name));
+                                var match = members.SingleOrDefault(member => IsMatch(field, member));
 
                                 Expression inner;
 

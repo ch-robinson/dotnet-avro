@@ -46,11 +46,11 @@ namespace Chr.Avro.Serialization
                     ? enumSchema.Symbols
                         .Select((symbol, index) =>
                         {
-                            var match = fields.SingleOrDefault(field => IsMatch(symbol, field.Name));
+                            var match = fields.SingleOrDefault(field => IsMatch(symbol, field));
 
                             if (enumSchema.Default != null)
                             {
-                                match ??= fields.SingleOrDefault(field => IsMatch(enumSchema.Default, field.Name));
+                                match ??= fields.SingleOrDefault(field => IsMatch(enumSchema.Default, field));
                             }
 
                             if (match == null)

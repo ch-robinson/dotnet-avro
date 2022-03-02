@@ -2,8 +2,11 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Linq.Expressions;
+    using System.Reflection;
+    using System.Runtime.Serialization;
     using System.Text.RegularExpressions;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Infrastructure;
 
     /// <summary>
     /// Provides a base implementation for serializer builder cases that match <see cref="EnumSchema" />.
@@ -45,6 +48,30 @@ namespace Chr.Avro.Serialization
             else
             {
                 return base.BuildDynamicConversion(value, target);
+            }
+        }
+
+        /// <summary>
+        /// Determines whether an enum symbol is a match for a type member.
+        /// </summary>
+        /// <param name="symbol">
+        /// An enum symbol.
+        /// </param>
+        /// <param name="member">
+        /// The member to compare.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if <paramref name="member" /> is a match; <c>false</c> otherwise.
+        /// </returns>
+        protected virtual bool IsMatch(string symbol, MemberInfo member)
+        {
+            if (member.DeclaringType.HasAttribute<DataContractAttribute>())
+            {
+                return symbol == member.GetAttribute<EnumMemberAttribute>()?.Value;
+            }
+            else
+            {
+                return !member.HasAttribute<NonSerializedAttribute>() && IsMatch(symbol, member.Name);
             }
         }
 

@@ -126,7 +126,7 @@ namespace Chr.Avro.Serialization
                                 new[] { (Expression)Expression.Assign(value, Expression.New(value.Type)) }
                                     .Concat(recordSchema.Fields.Select(field =>
                                     {
-                                        var match = members.SingleOrDefault(member => IsMatch(field, member.Name));
+                                        var match = members.SingleOrDefault(member => IsMatch(field, member));
 
                                         Expression expression;
 

@@ -42,14 +42,14 @@ namespace Chr.Avro.Serialization
                     ? fields
                         .Select(field =>
                         {
-                            var match = symbols.Find(symbol => IsMatch(symbol, field.Name));
+                            var match = symbols.Find(symbol => IsMatch(symbol, field));
 
                             if (match == null)
                             {
                                 throw new UnsupportedTypeException(type, $"{type} has a field {field.Name} that cannot be serialized.");
                             }
 
-                            if (symbols.FindLast(symbol => IsMatch(symbol, field.Name)) != match)
+                            if (symbols.FindLast(symbol => IsMatch(symbol, field)) != match)
                             {
                                 throw new UnsupportedTypeException(type, $"{type.Name} has an ambiguous field {field.Name}.");
                             }

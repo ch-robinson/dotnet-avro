@@ -4,8 +4,10 @@ namespace Chr.Avro.Serialization
     using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
+    using System.Runtime.Serialization;
     using System.Text.RegularExpressions;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Infrastructure;
 
     /// <summary>
     /// Provides a base implementation for deserializer builder cases that match <see cref="RecordSchema" />.
@@ -54,6 +56,30 @@ namespace Chr.Avro.Serialization
 
                 return true;
             });
+        }
+
+        /// <summary>
+        /// Determines whether a <see cref="RecordField" /> is a match for a type member.
+        /// </summary>
+        /// <param name="field">
+        /// A record field.
+        /// </param>
+        /// <param name="member">
+        /// The member to compare.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if <paramref name="member" /> is a match; <c>false</c> otherwise.
+        /// </returns>
+        protected virtual bool IsMatch(RecordField field, MemberInfo member)
+        {
+            if (member.DeclaringType.HasAttribute<DataContractAttribute>())
+            {
+                return field.Name == member.GetAttribute<DataMemberAttribute>()?.Name;
+            }
+            else
+            {
+                return !member.HasAttribute<NonSerializedAttribute>() && IsMatch(field, member.Name);
+            }
         }
 
         /// <summary>

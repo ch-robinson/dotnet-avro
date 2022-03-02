@@ -43,14 +43,14 @@ namespace Chr.Avro.Serialization
                     ? fields
                         .Select(field =>
                         {
-                            var index = symbols.FindIndex(symbol => IsMatch(symbol, field.Name));
+                            var index = symbols.FindIndex(symbol => IsMatch(symbol, field));
 
                             if (index < 0)
                             {
                                 throw new UnsupportedTypeException(type, $"{type} has a field {field.Name} that cannot be serialized.");
                             }
 
-                            if (symbols.FindLastIndex(symbol => IsMatch(symbol, field.Name)) != index)
+                            if (symbols.FindLastIndex(symbol => IsMatch(symbol, field)) != index)
                             {
                                 throw new UnsupportedTypeException(type, $"{type} has an ambiguous field {field.Name}.");
                             }

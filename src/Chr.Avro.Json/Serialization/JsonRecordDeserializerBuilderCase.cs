@@ -200,7 +200,7 @@ namespace Chr.Avro.Serialization
                                             recordSchema.Fields
                                                 .Select(field =>
                                                 {
-                                                    var match = members.SingleOrDefault(member => IsMatch(field, member.Name));
+                                                    var match = members.SingleOrDefault(member => IsMatch(field, member));
 
                                                     Expression expression;
 

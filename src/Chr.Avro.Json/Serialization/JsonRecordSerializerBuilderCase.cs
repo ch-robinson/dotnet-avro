@@ -96,7 +96,7 @@ namespace Chr.Avro.Serialization
 
                         foreach (var field in recordSchema.Fields)
                         {
-                            var match = members.SingleOrDefault(member => IsMatch(field, member.Name));
+                            var match = members.SingleOrDefault(member => IsMatch(field, member));
 
                             Expression inner;
 
