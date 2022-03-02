@@ -47,6 +47,21 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
+        public void BuildClassesWithDataContractAttributes()
+        {
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<DataContractAnnotatedClass>());
+            Assert.Equal("annotated", schema.Name);
+            Assert.Equal("chr.fixtures", schema.Namespace);
+            Assert.Collection(
+                schema.Fields,
+                field => Assert.Equal(nameof(DataContractAnnotatedClass.AnnotatedDefaultField), field.Name),
+                field => Assert.Equal(nameof(DataContractAnnotatedClass.AnnotatedDefaultProperty), field.Name),
+                field => Assert.Equal(nameof(DataContractAnnotatedClass.ConflictingField), field.Name),
+                field => Assert.Equal("DifferentProperty", field.Name),
+                field => Assert.Equal("DifferentField", field.Name));
+        }
+
+        [Fact]
         public void BuildClassesWithDefaultValues()
         {
             var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<DefaultValuesClass>());
@@ -139,6 +154,20 @@ namespace Chr.Avro.Tests
             Assert.Null(schema.LogicalType);
             Assert.Equal(typeof(EmptyClass).Name, schema.Name);
             Assert.Equal(typeof(EmptyClass).Namespace, schema.Namespace);
+        }
+
+        [Fact]
+        public void BuildClassesWithNonSerializedMemberAttributes()
+        {
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<DataContractNonAnnotatedClass>());
+            Assert.Collection(
+                schema.Fields,
+                field => Assert.Equal(nameof(DataContractNonAnnotatedClass.AnnotatedCustomField), field.Name),
+                field => Assert.Equal(nameof(DataContractNonAnnotatedClass.AnnotatedCustomProperty), field.Name),
+                field => Assert.Equal(nameof(DataContractNonAnnotatedClass.AnnotatedDefaultField), field.Name),
+                field => Assert.Equal(nameof(DataContractNonAnnotatedClass.AnnotatedDefaultProperty), field.Name),
+                field => Assert.Equal(nameof(DataContractNonAnnotatedClass.UnannotatedField), field.Name),
+                field => Assert.Equal(nameof(DataContractNonAnnotatedClass.UnannotatedProperty), field.Name));
         }
 
         [Fact]
@@ -501,6 +530,19 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
+        public void BuildEnumsWithDataContractAttributes()
+        {
+            var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<DataContractAnnotatedEnum>());
+            Assert.Equal("annotated", schema.Name);
+            Assert.Equal("chr.fixtures", schema.Namespace);
+            Assert.Collection(
+                schema.Symbols,
+                symbol => Assert.Equal(nameof(DataContractAnnotatedEnum.Conflicting), symbol),
+                symbol => Assert.Equal(nameof(DataContractAnnotatedEnum.Default), symbol),
+                symbol => Assert.Equal("Different", symbol));
+        }
+
+        [Fact]
         public void BuildEnumsWithDuplicateValues()
         {
             var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<DuplicateEnum>());
@@ -554,6 +596,17 @@ namespace Chr.Avro.Tests
             Assert.Equal(typeof(EmptyEnum).Name, schema.Name);
             Assert.Equal(typeof(EmptyEnum).Namespace, schema.Namespace);
             Assert.Empty(schema.Symbols);
+        }
+
+        [Fact]
+        public void BuildEnumsWithNonSerializedSymbolAttributes()
+        {
+            var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<DataContractNonAnnotatedEnum>());
+            Assert.Collection(
+                schema.Symbols,
+                symbol => Assert.Equal(nameof(DataContractNonAnnotatedEnum.None), symbol),
+                symbol => Assert.Equal(nameof(DataContractNonAnnotatedEnum.Default), symbol),
+                symbol => Assert.Equal(nameof(DataContractNonAnnotatedEnum.Custom), symbol));
         }
 
         [Theory]

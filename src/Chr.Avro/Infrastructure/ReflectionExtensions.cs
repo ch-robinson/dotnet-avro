@@ -32,26 +32,6 @@ namespace Chr.Avro.Infrastructure
         }
 
         /// <summary>
-        /// Gets an attribute on a <see cref="Type" />.
-        /// </summary>
-        /// <typeparam name="T">
-        /// The <see cref="Type" /> of attribute to get.
-        /// </typeparam>
-        /// <param name="type">
-        /// A <see cref="Type" /> object to search for <typeparamref name="T" />.
-        /// </param>
-        /// <returns>
-        /// The <typeparamref name="T" /> if present; <c>null</c> otherwise.
-        /// </returns>
-        public static T? GetAttribute<T>(this Type type)
-            where T : Attribute
-        {
-            return type.GetCustomAttributes(typeof(T), true)
-                .OfType<T>()
-                .SingleOrDefault();
-        }
-
-        /// <summary>
         /// Gets the key and value <see cref="Type" />s of a dictionary <see cref="Type" />.
         /// </summary>
         /// <param name="type">
@@ -146,6 +126,26 @@ namespace Chr.Avro.Infrastructure
             where T : notnull
         {
             return (T)FormatterServices.GetUninitializedObject(typeof(T));
+        }
+
+        /// <summary>
+        /// Determines whether <see cref="MemberInfo" /> has <typeparamref name="T" /> as an
+        /// attribute.
+        /// </summary>
+        /// <typeparam name="T">
+        /// The <see cref="Type" /> of attribute to test for.
+        /// </typeparam>
+        /// <param name="member">
+        /// A <see cref="MemberInfo" /> object to search for <typeparamref name="T" />.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if <typeparamref name="T" /> is present; <c>false</c> otherwise.
+        /// </returns>
+        public static bool HasAttribute<T>(this MemberInfo member)
+            where T : Attribute
+        {
+            return member.GetCustomAttributes(typeof(T), true)
+                .Any();
         }
 
         /// <summary>

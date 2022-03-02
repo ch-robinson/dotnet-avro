@@ -3,6 +3,7 @@ namespace Chr.Avro.Abstract
     using System;
     using System.Linq;
     using System.Reflection;
+    using System.Runtime.Serialization;
     using Chr.Avro.Infrastructure;
 
     /// <summary>
@@ -63,17 +64,31 @@ namespace Chr.Avro.Abstract
                 }
                 else
                 {
-                    schema = new EnumSchema(type.Name)
+                    var enumSchema = new EnumSchema(GetSchemaName(type))
                     {
-                        Namespace = string.IsNullOrEmpty(type.Namespace) ? null : type.Namespace,
-
-                        // enum fields will always be public static, so no need to expose binding flags:
-                        Symbols = type.GetFields(BindingFlags.Public | BindingFlags.Static)
-                            .OrderBy(field => Enum.Parse(type, field.Name))
-                            .ThenBy(field => field.Name)
-                            .Select(field => field.Name)
-                            .ToList(),
+                        Namespace = GetSchemaNamespace(type),
                     };
+
+                    foreach (var member in type.GetMembers(BindingFlags.Public | BindingFlags.Static)
+                        .OrderBy(field => Enum.Parse(type, field.Name))
+                        .ThenBy(field => field.Name))
+                    {
+                        if (!type.HasAttribute<DataContractAttribute>()
+                            && member.HasAttribute<NonSerializedAttribute>())
+                        {
+                            continue;
+                        }
+
+                        if (type.HasAttribute<DataContractAttribute>()
+                            && !member.HasAttribute<EnumMemberAttribute>())
+                        {
+                            continue;
+                        }
+
+                        enumSchema.Symbols.Add(GetSymbol(member));
+                    }
+
+                    schema = enumSchema;
                 }
 
                 try
@@ -90,6 +105,74 @@ namespace Chr.Avro.Abstract
             else
             {
                 return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(EnumSchemaBuilderCase)} can only be applied to {typeof(Enum)} types."));
+            }
+        }
+
+        /// <summary>
+        /// Derives a schema name from a <see cref="Type" />.
+        /// </summary>
+        /// <param name="type">
+        /// A type to derive the name from.
+        /// </param>
+        /// <returns>
+        /// An unqualified schema name that conforms to the Avro naming rules.
+        /// </returns>
+        protected virtual string GetSchemaName(Type type)
+        {
+            var dataContractAttribute = type.GetAttribute<DataContractAttribute>();
+
+            if (dataContractAttribute is not null && !string.IsNullOrEmpty(dataContractAttribute.Name))
+            {
+                return dataContractAttribute.Name;
+            }
+            else
+            {
+                return type.Name;
+            }
+        }
+
+        /// <summary>
+        /// Derives a schema namespace from a <see cref="Type" />.
+        /// </summary>
+        /// <param name="type">
+        /// A type to derive the namespace from.
+        /// </param>
+        /// <returns>
+        /// An schema namespace that conforms to the Avro naming rules.
+        /// </returns>
+        protected virtual string? GetSchemaNamespace(Type type)
+        {
+            if (type.GetAttribute<DataContractAttribute>() is DataContractAttribute contractAttribute
+                && !string.IsNullOrEmpty(contractAttribute.Namespace))
+            {
+                return contractAttribute.Namespace;
+            }
+            else
+            {
+                return string.IsNullOrEmpty(type.Namespace) ? null : type.Namespace;
+            }
+        }
+
+        /// <summary>
+        /// Derives an enum symbol from a <see cref="MemberInfo" />.
+        /// </summary>
+        /// <param name="member">
+        /// A member to derive the name from.
+        /// </param>
+        /// <returns>
+        /// A symbol that conforms to the Avro naming rules.
+        /// </returns>
+        protected virtual string GetSymbol(MemberInfo member)
+        {
+            if (member.DeclaringType.HasAttribute<DataContractAttribute>()
+                && member.GetAttribute<EnumMemberAttribute>() is EnumMemberAttribute memberAttribute
+                && !string.IsNullOrEmpty(memberAttribute.Value))
+            {
+                return memberAttribute.Value;
+            }
+            else
+            {
+                return member.Name;
             }
         }
     }
