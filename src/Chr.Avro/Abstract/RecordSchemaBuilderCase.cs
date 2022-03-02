@@ -4,6 +4,7 @@ namespace Chr.Avro.Abstract
     using System.ComponentModel;
     using System.Linq;
     using System.Reflection;
+    using System.Runtime.Serialization;
     using System.Text.RegularExpressions;
     using Chr.Avro.Infrastructure;
 
@@ -90,8 +91,24 @@ namespace Chr.Avro.Abstract
                     throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
-                foreach (var member in type.GetMembers(MemberVisibility).OrderBy(member => member.Name))
+                foreach (var member in type.GetMembers(MemberVisibility)
+                    .OrderBy(member => type.HasAttribute<DataContractAttribute>()
+                        ? member.GetAttribute<DataMemberAttribute>()?.Order ?? 0
+                        : default)
+                    .ThenBy(member => member.Name))
                 {
+                    if (!type.HasAttribute<DataContractAttribute>()
+                        && member.HasAttribute<NonSerializedAttribute>())
+                    {
+                        continue;
+                    }
+
+                    if (type.HasAttribute<DataContractAttribute>()
+                        && !member.HasAttribute<DataMemberAttribute>())
+                    {
+                        continue;
+                    }
+
                     var memberType = member switch
                     {
                         FieldInfo fieldInfo => fieldInfo.FieldType,
@@ -104,7 +121,7 @@ namespace Chr.Avro.Abstract
                         continue;
                     }
 
-                    var field = new RecordField(member.Name, SchemaBuilder.BuildSchema(memberType, context));
+                    var field = new RecordField(GetFieldName(member), SchemaBuilder.BuildSchema(memberType, context));
 
                     if (NullableReferenceTypeBehavior == NullableReferenceTypeBehavior.Annotated)
                     {
@@ -138,6 +155,29 @@ namespace Chr.Avro.Abstract
         }
 
         /// <summary>
+        /// Derives a field name from a <see cref="MemberInfo" />.
+        /// </summary>
+        /// <param name="member">
+        /// A member to derive the name from.
+        /// </param>
+        /// <returns>
+        /// A field name that conforms to the Avro naming rules.
+        /// </returns>
+        protected virtual string GetFieldName(MemberInfo member)
+        {
+            if (member.DeclaringType.HasAttribute<DataContractAttribute>()
+                && member.GetAttribute<DataMemberAttribute>() is DataMemberAttribute memberAttribute
+                && !string.IsNullOrEmpty(memberAttribute.Name))
+            {
+                return memberAttribute.Name;
+            }
+            else
+            {
+                return member.Name;
+            }
+        }
+
+        /// <summary>
         /// Derives a schema name from a <see cref="Type" />.
         /// </summary>
         /// <param name="type">
@@ -148,14 +188,22 @@ namespace Chr.Avro.Abstract
         /// </returns>
         protected virtual string GetSchemaName(Type type)
         {
-            var name = Regex.Replace(type.Name, @"`\d+$", string.Empty);
-
-            foreach (var parameter in type.GetGenericArguments())
+            if (type.GetAttribute<DataContractAttribute>() is DataContractAttribute contractAttribute
+                && !string.IsNullOrEmpty(contractAttribute.Name))
             {
-                name += $"_{GetSchemaName(parameter)}";
+                return contractAttribute.Name;
             }
+            else
+            {
+                var name = Regex.Replace(type.Name, @"`\d+$", string.Empty);
 
-            return name;
+                foreach (var parameter in type.GetGenericArguments())
+                {
+                    name += $"_{GetSchemaName(parameter)}";
+                }
+
+                return name;
+            }
         }
 
         /// <summary>
@@ -169,7 +217,15 @@ namespace Chr.Avro.Abstract
         /// </returns>
         protected virtual string? GetSchemaNamespace(Type type)
         {
-            return string.IsNullOrEmpty(type.Namespace) ? null : type.Namespace;
+            if (type.GetAttribute<DataContractAttribute>() is DataContractAttribute contractAttribute
+                && !string.IsNullOrEmpty(contractAttribute.Namespace))
+            {
+                return contractAttribute.Namespace;
+            }
+            else
+            {
+                return string.IsNullOrEmpty(type.Namespace) ? null : type.Namespace;
+            }
         }
 
         /// <summary>
