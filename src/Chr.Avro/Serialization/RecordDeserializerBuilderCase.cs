@@ -74,7 +74,21 @@ namespace Chr.Avro.Serialization
         {
             if (member.DeclaringType.HasAttribute<DataContractAttribute>())
             {
-                return field.Name == member.GetAttribute<DataMemberAttribute>()?.Name;
+                if (member.GetAttribute<DataMemberAttribute>() is DataMemberAttribute memberAttribute)
+                {
+                    if (string.IsNullOrEmpty(memberAttribute.Name))
+                    {
+                        return IsMatch(field, member.Name);
+                    }
+                    else
+                    {
+                        return field.Name == memberAttribute.Name;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
             }
             else
             {

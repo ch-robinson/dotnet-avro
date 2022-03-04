@@ -30,7 +30,21 @@ namespace Chr.Avro.Serialization
         {
             if (member.DeclaringType.HasAttribute<DataContractAttribute>())
             {
-                return symbol == member.GetAttribute<EnumMemberAttribute>()?.Value;
+                if (member.GetAttribute<EnumMemberAttribute>() is EnumMemberAttribute memberAttribute)
+                {
+                    if (string.IsNullOrEmpty(memberAttribute.Value))
+                    {
+                        return IsMatch(symbol, member.Name);
+                    }
+                    else
+                    {
+                        return symbol == memberAttribute.Value;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
             }
             else
             {
