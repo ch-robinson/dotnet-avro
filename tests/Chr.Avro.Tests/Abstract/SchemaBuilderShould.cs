@@ -2,6 +2,7 @@ namespace Chr.Avro.Tests
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using Chr.Avro.Abstract;
     using Chr.Avro.Fixtures;
     using Xunit;
@@ -511,6 +512,27 @@ namespace Chr.Avro.Tests
             var logicalType = Assert.IsType<DecimalLogicalType>(schema.LogicalType);
             Assert.Equal(29, logicalType.Precision);
             Assert.Equal(14, logicalType.Scale);
+        }
+
+        [Theory]
+        [InlineData(nameof(RangeAnnotatedPropertiesClass.Currency), 8, 2)]
+        [InlineData(nameof(RangeAnnotatedPropertiesClass.DoubleBounded), 29, 14)]
+        [InlineData(nameof(RangeAnnotatedPropertiesClass.FractionOnly), 4, 3)]
+        [InlineData(nameof(RangeAnnotatedPropertiesClass.NullableCurrency), 8, 2)]
+        [InlineData(nameof(RangeAnnotatedPropertiesClass.WholeOnly), 1, 0)]
+        public void BuildsDecimalFieldsWithSizesInferredFromRange(string fieldName, int precision, int scale)
+        {
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<RangeAnnotatedPropertiesClass>());
+            var fieldSchema = schema.Fields.Single(field => field.Name == fieldName).Type;
+
+            if (fieldSchema is UnionSchema unionSchema)
+            {
+                fieldSchema = unionSchema.Schemas.OfType<BytesSchema>().Single();
+            }
+
+            var logicalType = Assert.IsType<DecimalLogicalType>(fieldSchema.LogicalType);
+            Assert.Equal(precision, logicalType.Precision);
+            Assert.Equal(scale, logicalType.Scale);
         }
 
         [Theory]
