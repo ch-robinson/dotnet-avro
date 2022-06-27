@@ -32,6 +32,55 @@ namespace Chr.Avro.Infrastructure
         }
 
         /// <summary>
+        /// Gets all members on a type that should be considered for serialization, taking
+        /// <see cref="DataContractAttribute"/> and <see cref="DataMemberAttribute" /> into account.
+        /// </summary>
+        /// <param name="type">
+        /// A class or struct <see cref="Type" />.
+        /// </param>
+        /// <param name="attributes">
+        /// Binding attributes that should be used to select members.
+        /// </param>
+        /// <returns>
+        /// An enumerable of <see cref="MemberInfo" />s representing serializable members.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="type" /> is not an enum.
+        /// </exception>
+        public static IEnumerable<MemberInfo> GetDataMembers(this Type type, BindingFlags attributes)
+        {
+            return type.GetMembers(attributes)
+                .Where(member => type.HasAttribute<DataContractAttribute>()
+                    ? member.HasAttribute<DataMemberAttribute>()
+                    : !member.HasAttribute<NonSerializedAttribute>());
+        }
+
+        /// <summary>
+        /// Gets the name of a type member, taking <see cref="DataMemberAttribute" /> into
+        /// account.
+        /// </summary>
+        /// <param name="member">
+        /// A <see cref="MemberInfo" /> of a field or property.
+        /// </param>
+        /// <returns>
+        /// The name of the member (as overridden by <see cref="DataMemberAttribute" /> if
+        /// present).
+        /// </returns>
+        public static string GetDataMemberName(this MemberInfo member)
+        {
+            if (member.DeclaringType.HasAttribute<DataContractAttribute>()
+                && member.GetAttribute<DataMemberAttribute>() is DataMemberAttribute memberAttribute
+                && !string.IsNullOrEmpty(memberAttribute.Name))
+            {
+                return memberAttribute.Name;
+            }
+            else
+            {
+                return member.Name;
+            }
+        }
+
+        /// <summary>
         /// Gets the key and value <see cref="Type" />s of a dictionary <see cref="Type" />.
         /// </summary>
         /// <param name="type">
@@ -53,6 +102,91 @@ namespace Chr.Avro.Infrastructure
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Gets all members on an enum type that should be considered for serialization, taking
+        /// <see cref="DataContractAttribute"/> and <see cref="EnumMemberAttribute" /> into account.
+        /// </summary>
+        /// <param name="type">
+        /// An enum <see cref="Type" />.
+        /// </param>
+        /// <returns>
+        /// An enumerable of <see cref="MemberInfo" />s representing serializable enum members.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="type" /> is not an enum.
+        /// </exception>
+        public static IEnumerable<MemberInfo> GetEnumMembers(this Type type)
+        {
+            if (!type.IsEnum)
+            {
+                throw new ArgumentException($"{type.FullName} is not an enum type.", nameof(type));
+            }
+
+            return type.GetMembers(BindingFlags.Public | BindingFlags.Static)
+                .Where(member => type.HasAttribute<DataContractAttribute>()
+                    ? member.HasAttribute<EnumMemberAttribute>()
+                    : !member.HasAttribute<NonSerializedAttribute>());
+        }
+
+        /// <summary>
+        /// Gets the name of an enum member, taking <see cref="EnumMemberAttribute" /> into
+        /// account.
+        /// </summary>
+        /// <param name="member">
+        /// A <see cref="MemberInfo" /> declared by an enum <see cref="Type" />.
+        /// </param>
+        /// <returns>
+        /// The name of the member (as overridden by <see cref="EnumMemberAttribute" /> if
+        /// present).
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="member" /> is not declared by an enum type.
+        /// </exception>
+        public static string GetEnumMemberName(this MemberInfo member)
+        {
+            if (!member.DeclaringType.IsEnum)
+            {
+                throw new ArgumentException($"{member.DeclaringType.FullName} is not an enum type.", nameof(member));
+            }
+
+            if (member.DeclaringType.HasAttribute<DataContractAttribute>()
+                && member.GetAttribute<EnumMemberAttribute>() is EnumMemberAttribute memberAttribute
+                && !string.IsNullOrEmpty(memberAttribute.Value))
+            {
+                return memberAttribute.Value;
+            }
+            else
+            {
+                return member.Name;
+            }
+        }
+
+        /// <summary>
+        /// Gets the name of an enum member, taking <see cref="EnumMemberAttribute" /> into
+        /// account.
+        /// </summary>
+        /// <param name="type">
+        /// An enum <see cref="Type" />.
+        /// </param>
+        /// <param name="value">
+        /// A value of <paramref name="type" />.
+        /// </param>
+        /// <returns>
+        /// The name of the member (as overridden by <see cref="EnumMemberAttribute" /> if
+        /// present).
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="type" /> is not an enum or <paramref name="value" /> is
+        /// not of <paramref name="type" />.
+        /// </exception>
+        public static string GetEnumMemberName(this Type type, object value)
+        {
+            var name = Enum.GetName(type, value);
+            var field = type.GetField(name);
+
+            return field.GetEnumMemberName();
         }
 
         /// <summary>

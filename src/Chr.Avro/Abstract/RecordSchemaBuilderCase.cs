@@ -95,24 +95,12 @@ namespace Chr.Avro.Abstract
                     throw new InvalidOperationException($"A schema for {type} already exists on the schema builder context.", exception);
                 }
 
-                foreach (var member in type.GetMembers(MemberVisibility)
+                foreach (var member in type.GetDataMembers(MemberVisibility)
                     .OrderBy(member => type.HasAttribute<DataContractAttribute>()
                         ? member.GetAttribute<DataMemberAttribute>()?.Order ?? 0
                         : default)
                     .ThenBy(member => member.Name))
                 {
-                    if (!type.HasAttribute<DataContractAttribute>()
-                        && member.HasAttribute<NonSerializedAttribute>())
-                    {
-                        continue;
-                    }
-
-                    if (type.HasAttribute<DataContractAttribute>()
-                        && !member.HasAttribute<DataMemberAttribute>())
-                    {
-                        continue;
-                    }
-
                     var memberType = member switch
                     {
                         FieldInfo fieldInfo => fieldInfo.FieldType,
@@ -174,16 +162,7 @@ namespace Chr.Avro.Abstract
         /// </returns>
         protected virtual string GetFieldName(MemberInfo member)
         {
-            if (member.DeclaringType.HasAttribute<DataContractAttribute>()
-                && member.GetAttribute<DataMemberAttribute>() is DataMemberAttribute memberAttribute
-                && !string.IsNullOrEmpty(memberAttribute.Name))
-            {
-                return memberAttribute.Name;
-            }
-            else
-            {
-                return member.Name;
-            }
+            return member.GetDataMemberName();
         }
 
         /// <summary>
@@ -365,7 +344,7 @@ namespace Chr.Avro.Abstract
                     {
                         return new BytesSchema()
                         {
-                            LogicalType = logicalType
+                            LogicalType = logicalType,
                         };
                     }
 

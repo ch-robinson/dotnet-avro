@@ -69,22 +69,10 @@ namespace Chr.Avro.Abstract
                         Namespace = GetSchemaNamespace(type),
                     };
 
-                    foreach (var member in type.GetMembers(BindingFlags.Public | BindingFlags.Static)
+                    foreach (var member in type.GetEnumMembers()
                         .OrderBy(field => Enum.Parse(type, field.Name))
                         .ThenBy(field => field.Name))
                     {
-                        if (!type.HasAttribute<DataContractAttribute>()
-                            && member.HasAttribute<NonSerializedAttribute>())
-                        {
-                            continue;
-                        }
-
-                        if (type.HasAttribute<DataContractAttribute>()
-                            && !member.HasAttribute<EnumMemberAttribute>())
-                        {
-                            continue;
-                        }
-
                         enumSchema.Symbols.Add(GetSymbol(member));
                     }
 
@@ -164,16 +152,7 @@ namespace Chr.Avro.Abstract
         /// </returns>
         protected virtual string GetSymbol(MemberInfo member)
         {
-            if (member.DeclaringType.HasAttribute<DataContractAttribute>()
-                && member.GetAttribute<EnumMemberAttribute>() is EnumMemberAttribute memberAttribute
-                && !string.IsNullOrEmpty(memberAttribute.Value))
-            {
-                return memberAttribute.Value;
-            }
-            else
-            {
-                return member.Name;
-            }
+            return member.GetEnumMemberName();
         }
     }
 }
