@@ -2,9 +2,11 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Globalization;
+    using System.Linq;
     using System.Linq.Expressions;
     using System.Xml;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Infrastructure;
 
     /// <summary>
     /// Provides a base implementation for serializer builder cases that match <see cref="StringSchema" />.
@@ -25,6 +27,9 @@ namespace Chr.Avro.Serialization
 
                 var convertDateTimeOffset = typeof(DateTimeOffset)
                     .GetMethod(nameof(DateTimeOffset.ToString), new[] { typeof(string), typeof(IFormatProvider) });
+
+                var convertEnum = typeof(ReflectionExtensions)
+                    .GetMethod(nameof(ReflectionExtensions.GetEnumMemberName), new[] { typeof(Type), typeof(object) });
 
                 var convertGuid = typeof(Guid)
                     .GetMethod(nameof(Guid.ToString), Type.EmptyTypes);
@@ -70,8 +75,10 @@ namespace Chr.Avro.Serialization
                         Expression.Return(
                             result,
                             Expression.Call(
-                                intermediate,
-                                toString))),
+                                null,
+                                convertEnum,
+                                Expression.Call(intermediate, getType),
+                                intermediate))),
                     Expression.IfThen(
                         Expression.TypeIs(intermediate, typeof(Guid)),
                         Expression.Return(
@@ -128,10 +135,22 @@ namespace Chr.Avro.Serialization
                 }
                 else if (value.Type.IsEnum)
                 {
-                    var convertEnum = typeof(Enum)
-                        .GetMethod(nameof(Enum.ToString), Type.EmptyTypes);
+                    var cases = value.Type.GetEnumMembers()
+                        .Select(field => Expression.SwitchCase(
+                            Expression.Constant(field.GetEnumMemberName()),
+                            Expression.Constant(Enum.Parse(value.Type, field.Name))));
 
-                    value = Expression.Call(value, convertEnum);
+                    var exceptionConstructor = typeof(ArgumentException)
+                        .GetConstructor(new[] { typeof(string) });
+
+                    value = Expression.Switch(
+                        value,
+                        Expression.Throw(
+                            Expression.New(
+                                exceptionConstructor,
+                                Expression.Constant($"Value does not correspond to a named enum member.")),
+                            target),
+                        cases.ToArray());
                 }
                 else if (value.Type == typeof(Guid))
                 {

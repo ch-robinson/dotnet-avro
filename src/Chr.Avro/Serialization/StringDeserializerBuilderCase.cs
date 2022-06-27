@@ -2,9 +2,11 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Globalization;
+    using System.Linq;
     using System.Linq.Expressions;
     using System.Xml;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Infrastructure;
 
     /// <summary>
     /// Provides a base implementation for deserializer builder cases that match <see cref="StringSchema" />.
@@ -48,12 +50,22 @@ namespace Chr.Avro.Serialization
             }
             else if (target.IsEnum)
             {
-                var parseEnum = typeof(Enum)
-                    .GetMethod(nameof(Enum.Parse), new[] { typeof(Type), value.Type });
+                var cases = target.GetEnumMembers()
+                    .Select(field => Expression.SwitchCase(
+                        Expression.Constant(Enum.Parse(target, field.Name)),
+                        Expression.Constant(field.GetEnumMemberName())));
 
-                value = Expression.Convert(
-                    Expression.Call(null, parseEnum, Expression.Constant(target), value),
-                    target);
+                var exceptionConstructor = typeof(ArgumentException)
+                    .GetConstructor(new[] { typeof(string) });
+
+                value = Expression.Switch(
+                    value,
+                    Expression.Throw(
+                        Expression.New(
+                            exceptionConstructor,
+                            Expression.Constant($"Invalid enum symbol.")),
+                        target),
+                    cases.ToArray());
             }
             else if (target == typeof(Guid) || target == typeof(Guid?))
             {
