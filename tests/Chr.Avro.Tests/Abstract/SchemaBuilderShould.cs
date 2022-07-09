@@ -172,6 +172,14 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
+        public void BuildClassesWithDescriptionAttributes()
+        {
+            var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<DescriptionAnnotatedClass>());
+            Assert.NotNull(schema.Documentation);
+            Assert.NotNull(schema.Fields.First(f => f.Name == nameof(DescriptionAnnotatedClass.DescriptionField)).Documentation);
+        }
+
+        [Fact]
         public void BuildClassesWithNullableProperties()
         {
             var context = new SchemaBuilderContext();
