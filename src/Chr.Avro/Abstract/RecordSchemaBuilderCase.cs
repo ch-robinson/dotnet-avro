@@ -77,6 +77,7 @@ namespace Chr.Avro.Abstract
                 var recordSchema = new RecordSchema(GetSchemaName(type))
                 {
                     Namespace = GetSchemaNamespace(type),
+                    Documentation = type.GetAttribute<DescriptionAttribute>()?.Description,
                 };
 
                 Schema schema = recordSchema;
@@ -113,7 +114,10 @@ namespace Chr.Avro.Abstract
                         continue;
                     }
 
-                    var field = new RecordField(GetFieldName(member), SchemaBuilder.BuildSchema(memberType, context));
+                    var field = new RecordField(GetFieldName(member), SchemaBuilder.BuildSchema(memberType, context))
+                    {
+                        Documentation = member.GetAttribute<DescriptionAttribute>()?.Description,
+                    };
 
                     if (NullableReferenceTypeBehavior == NullableReferenceTypeBehavior.Annotated)
                     {
