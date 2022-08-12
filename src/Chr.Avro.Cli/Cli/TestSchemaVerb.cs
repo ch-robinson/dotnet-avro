@@ -2,7 +2,7 @@ namespace Chr.Avro.Cli
 {
     using System;
     using System.Collections.Generic;
-    using System.Reflection;
+    using System.Linq.Expressions;
     using System.Threading.Tasks;
     using Chr.Avro.Representation;
     using Chr.Avro.Serialization;
@@ -59,29 +59,25 @@ namespace Chr.Avro.Cli
             try
             {
                 var builder = new BinaryDeserializerBuilder();
-                var method = typeof(BinaryDeserializerBuilder)
-                    .GetMethod(nameof(BinaryDeserializerBuilder.BuildDelegate))
-                    .MakeGenericMethod(type);
+                var context = new BinaryDeserializerBuilderContext();
 
-                method.Invoke(builder, new[] { schema });
+                builder.BuildExpression(type, schema, context);
             }
-            catch (TargetInvocationException exception) when (exception.InnerException is Exception inner)
+            catch (Exception exception)
             {
-                throw new ProgramException(message: $"A deserializer cannot be created for {type}: {inner.Message}", inner: inner);
+                throw new ProgramException(message: $"A deserializer cannot be created for {type}: {exception.Message}", inner: exception);
             }
 
             try
             {
                 var builder = new BinarySerializerBuilder();
-                var method = typeof(IBinarySerializerBuilder)
-                    .GetMethod(nameof(IBinarySerializerBuilder.BuildDelegate))
-                    .MakeGenericMethod(type);
+                var context = new BinarySerializerBuilderContext();
 
-                method.Invoke(builder, new[] { schema });
+                builder.BuildExpression(Expression.Parameter(type), schema, context);
             }
-            catch (TargetInvocationException exception) when (exception.InnerException is Exception inner)
+            catch (Exception exception)
             {
-                throw new ProgramException(message: $"A serializer cannot be created for {type}: {inner.Message}", inner: inner);
+                throw new ProgramException(message: $"A serializer cannot be created for {type}: {exception.Message}", inner: exception);
             }
 
             Console.Error.WriteLine($"{type} is compatible with the schema.");
