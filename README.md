@@ -150,6 +150,7 @@ namespace Example
 
 For more complex examples, see the [examples directory](examples):
 
+*   [Default field values](examples/Chr.Avro.DefaultValuesExample)
 *   [Discriminated union types](examples/Chr.Avro.UnionTypeExample)
 
 ## Contributing
