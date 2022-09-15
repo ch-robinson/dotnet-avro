@@ -87,9 +87,9 @@ namespace Chr.Avro.Serialization
                         Write(
                             Expression.ConvertChecked(
                                 Expression.Subtract(
-                                    Expression.Convert(Expression.Property(value, totalMs), typeof(ulong)),
+                                    Expression.ConvertChecked(Expression.Property(value, totalMs), typeof(ulong)),
                                     Expression.Multiply(
-                                        Expression.Convert(Expression.Property(value, totalDays), typeof(ulong)),
+                                        Expression.ConvertChecked(Expression.Property(value, totalDays), typeof(ulong)),
                                         Expression.Constant(86400000UL))),
                                 typeof(uint)),
                             Expression.Constant(8)),
