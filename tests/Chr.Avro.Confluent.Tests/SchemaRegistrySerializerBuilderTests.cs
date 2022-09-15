@@ -65,7 +65,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync(new RegisteredSchema(subject, version, id, json, SchemaType.Avro, null))
                 .Verifiable();
 
-            registryMock.Setup(r => r.GetSchemaIdAsync(subject, It.Is<Schema>(s => s.SchemaString == json)))
+            registryMock.Setup(r => r.GetSchemaIdAsync(subject, It.Is<Schema>(s => s.SchemaString == json), false))
                 .ReturnsAsync(id)
                 .Verifiable();
 
@@ -125,7 +125,7 @@ namespace Chr.Avro.Confluent.Tests
             var id = 40;
             var subject = "new_subject";
 
-            registryMock.Setup(r => r.RegisterSchemaAsync(subject, It.Is<Schema>(s => s.SchemaType == SchemaType.Avro)))
+            registryMock.Setup(r => r.RegisterSchemaAsync(subject, It.Is<Schema>(s => s.SchemaType == SchemaType.Avro), false))
                 .ReturnsAsync(id)
                 .Verifiable();
 
@@ -134,7 +134,7 @@ namespace Chr.Avro.Confluent.Tests
             await builder.Build<string>(subject, registerAutomatically: AutomaticRegistrationBehavior.Always);
 
             registryMock.Verify(r => r.GetLatestSchemaAsync(subject), Times.Never());
-            registryMock.Verify(r => r.RegisterSchemaAsync(subject, It.IsAny<Schema>()), Times.Once());
+            registryMock.Verify(r => r.RegisterSchemaAsync(subject, It.IsAny<Schema>(), false), Times.Once());
             registryMock.VerifyNoOtherCalls();
         }
 

@@ -132,7 +132,7 @@ namespace Chr.Avro.Confluent.Tests
             var subject = $"{context.Topic}-value";
 
             registryClientMock
-                .Setup(c => c.RegisterSchemaAsync(subject, It.Is<Schema>(s => s.SchemaType == SchemaType.Avro)))
+                .Setup(c => c.RegisterSchemaAsync(subject, It.Is<Schema>(s => s.SchemaType == SchemaType.Avro), false))
                 .ReturnsAsync(9);
 
             Assert.Equal(encoding, await serializer.SerializeAsync(data, context));

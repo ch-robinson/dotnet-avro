@@ -66,7 +66,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync(new RegisteredSchema(subject, version, id, json, SchemaType.Avro, null))
                 .Verifiable();
 
-            registryMock.Setup(r => r.GetSchemaIdAsync(subject, It.Is<Schema>(s => s.SchemaString == json)))
+            registryMock.Setup(r => r.GetSchemaIdAsync(subject, It.Is<Schema>(s => s.SchemaString == json), false))
                 .ReturnsAsync(id)
                 .Verifiable();
 
