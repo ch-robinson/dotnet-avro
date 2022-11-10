@@ -12,6 +12,10 @@ jobs:
     steps:
       - name: Pull code
         uses: actions/checkout@v2
+      - name: Use .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          global-json-file: global.json
       - name: Use Node.js
         uses: actions/setup-node@v2
         with:

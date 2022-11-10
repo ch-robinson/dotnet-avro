@@ -9,6 +9,10 @@ jobs:
     steps:
       - name: Pull code
         uses: actions/checkout@v2
+      - name: Use .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          global-json-file: global.json
       - name: Run unit tests
         uses: cake-build/cake-action@v1
         with:
