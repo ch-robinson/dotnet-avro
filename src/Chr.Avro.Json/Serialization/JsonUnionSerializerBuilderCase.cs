@@ -105,14 +105,6 @@ namespace Chr.Avro.Serialization
                             continue;
                         }
 
-                        if (@null != null && !(selected.IsValueType && Nullable.GetUnderlyingType(selected) == null))
-                        {
-                            body = Expression.IfThenElse(
-                                Expression.Equal(value, Expression.Constant(null, selected)),
-                                Expression.Call(context.Writer, writeNull),
-                                body);
-                        }
-
                         cases.Add(selected, body);
                     }
 
@@ -144,6 +136,14 @@ namespace Chr.Avro.Serialization
                                 @case.Value,
                                 expression);
                         }
+                    }
+
+                    if (@null != null && !(type.IsValueType && Nullable.GetUnderlyingType(type) == null))
+                    {
+                        expression = Expression.IfThenElse(
+                            Expression.Equal(value, Expression.Constant(null, type)),
+                            Expression.Call(context.Writer, writeNull),
+                            expression);
                     }
                 }
 

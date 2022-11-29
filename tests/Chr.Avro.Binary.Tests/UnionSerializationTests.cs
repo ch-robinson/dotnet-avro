@@ -306,6 +306,150 @@ namespace Chr.Avro.Serialization.Tests
             }
         }
 
+        [Fact]
+        public void NullableSelectedTypes()
+        {
+            var schema = new RecordSchema(nameof(EventContainer))
+            {
+                Fields = new[]
+                {
+                    new RecordField(
+                        "event",
+                        new UnionSchema(new Schema[]
+                        {
+                            new NullSchema(),
+                            new RecordSchema(nameof(OrderCreatedEvent))
+                            {
+                                Fields = new[]
+                                {
+                                    new RecordField("timestamp", new StringSchema()),
+                                    new RecordField(
+                                        "total",
+                                        new BytesSchema()
+                                        {
+                                            LogicalType = new DecimalLogicalType(5, 2),
+                                        }),
+                                },
+                            },
+                            new RecordSchema(nameof(OrderCancelledEvent))
+                            {
+                                Fields = new[]
+                                {
+                                    new RecordField("timestamp", new StringSchema()),
+                                },
+                            },
+                        })),
+                },
+            };
+
+            var deserialize = new BinaryDeserializerBuilder(BinaryDeserializerBuilder
+                .CreateDefaultCaseBuilders()
+                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
+                .BuildDelegate<EventContainer>(schema);
+
+            var serialize = new BinarySerializerBuilder(BinarySerializerBuilder
+                .CreateDefaultCaseBuilders()
+                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
+                .BuildDelegate<EventContainer>(schema);
+
+            var creation = new EventContainer
+            {
+                Event = new OrderCreatedEvent
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Total = 40M,
+                },
+            };
+
+            var cancellation = new EventContainer
+            {
+                Event = new OrderCancelledEvent
+                {
+                    Timestamp = DateTime.UtcNow,
+                },
+            };
+
+            using (stream)
+            {
+                serialize(creation, new BinaryWriter(stream));
+
+                var reader = new BinaryReader(stream.ToArray());
+
+                var result = deserialize(ref reader);
+                Assert.IsType<OrderCreatedEvent>(result.Event);
+
+                stream.Position = 0;
+                serialize(cancellation, new BinaryWriter(stream));
+
+                reader = new BinaryReader(stream.ToArray());
+
+                result = deserialize(ref reader);
+                Assert.IsType<OrderCancelledEvent>(result.Event);
+            }
+        }
+
+        [Fact]
+        public void NullableSelectedTypesNull()
+        {
+            var schema = new RecordSchema(nameof(EventContainer))
+            {
+                Fields = new[]
+                {
+                    new RecordField(
+                        "event",
+                        new UnionSchema(new Schema[]
+                        {
+                            new NullSchema(),
+                            new RecordSchema(nameof(OrderCreatedEvent))
+                            {
+                                Fields = new[]
+                                {
+                                    new RecordField("timestamp", new StringSchema()),
+                                    new RecordField(
+                                        "total",
+                                        new BytesSchema()
+                                        {
+                                            LogicalType = new DecimalLogicalType(5, 2),
+                                        }),
+                                },
+                            },
+                            new RecordSchema(nameof(OrderCancelledEvent))
+                            {
+                                Fields = new[]
+                                {
+                                    new RecordField("timestamp", new StringSchema()),
+                                },
+                            },
+                        })),
+                },
+            };
+
+            var deserialize = new BinaryDeserializerBuilder(BinaryDeserializerBuilder
+                .CreateDefaultCaseBuilders()
+                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
+                .BuildDelegate<EventContainer>(schema);
+
+            var serialize = new BinarySerializerBuilder(BinarySerializerBuilder
+                .CreateDefaultCaseBuilders()
+                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
+                .BuildDelegate<EventContainer>(schema);
+
+            var empty = new EventContainer
+            {
+                Event = null,
+            };
+
+            using (stream)
+            {
+                serialize(empty, new BinaryWriter(stream));
+
+                var reader = new BinaryReader(stream.ToArray());
+
+                var result = deserialize(ref reader);
+                Assert.Null(result.Event);
+            }
+        }
+
         [Theory]
         [MemberData(nameof(StringUnionEncodings))]
         public void StringUnionToStringType(string value, byte[] encoding)
@@ -360,10 +504,11 @@ namespace Chr.Avro.Serialization.Tests
             {
                 if (type.IsAssignableFrom(typeof(OrderEvent)))
                 {
-                    return (schema as RecordSchema)?.Name switch
+                    return schema switch
                     {
-                        nameof(OrderCreatedEvent) => typeof(OrderCreatedEvent),
-                        nameof(OrderCancelledEvent) => typeof(OrderCancelledEvent),
+                        NullSchema => type,
+                        RecordSchema and { Name: nameof(OrderCreatedEvent) } => typeof(OrderCreatedEvent),
+                        RecordSchema and { Name: nameof(OrderCancelledEvent) } => typeof(OrderCancelledEvent),
                         _ => throw new UnsupportedSchemaException(schema),
                     };
                 }
@@ -383,10 +528,11 @@ namespace Chr.Avro.Serialization.Tests
             {
                 if (type.IsAssignableFrom(typeof(OrderEvent)))
                 {
-                    return (schema as RecordSchema)?.Name switch
+                    return schema switch
                     {
-                        nameof(OrderCreatedEvent) => typeof(OrderCreatedEvent),
-                        nameof(OrderCancelledEvent) => typeof(OrderCancelledEvent),
+                        NullSchema => type,
+                        RecordSchema and { Name: nameof(OrderCreatedEvent) } => typeof(OrderCreatedEvent),
+                        RecordSchema and { Name: nameof(OrderCancelledEvent) } => typeof(OrderCancelledEvent),
                         _ => throw new UnsupportedSchemaException(schema),
                     };
                 }
