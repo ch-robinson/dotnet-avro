@@ -476,7 +476,7 @@ namespace Chr.Avro.Serialization.Tests
 
         public class EventContainer
         {
-            public IEvent? Event { get; set; }
+            public IEvent Event { get; set; }
         }
 
         public abstract class OrderEvent : IEvent
@@ -507,11 +507,9 @@ namespace Chr.Avro.Serialization.Tests
                     return schema switch
                     {
                         NullSchema => type,
-                        _ => (schema as NamedSchema)?.Name switch { 
-                            nameof(OrderCreatedEvent) => typeof(OrderCreatedEvent),
-                            nameof(OrderCancelledEvent) => typeof(OrderCancelledEvent),
-                            _ => throw new UnsupportedSchemaException(schema),
-                        },
+                        RecordSchema and { Name: nameof(OrderCreatedEvent) } => typeof(OrderCreatedEvent),
+                        RecordSchema and { Name: nameof(OrderCancelledEvent) } => typeof(OrderCancelledEvent),
+                        _ => throw new UnsupportedSchemaException(schema),
                     };
                 }
 

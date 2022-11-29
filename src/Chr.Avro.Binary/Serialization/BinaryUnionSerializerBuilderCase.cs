@@ -139,7 +139,6 @@ namespace Chr.Avro.Serialization
                                 Expression.Constant((long)schemas.IndexOf(@null))),
                             expression);
                     }
-
                 }
 
                 // otherwise, we know that the schema is just ["null"]:
