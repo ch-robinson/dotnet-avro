@@ -1,16 +1,6 @@
 name: Docs
 
-on:
-  push:
-    paths:
-      - mkdocs.yml
-      - 'docs/**'
-      - 'src/**'
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+on: push
 
 concurrency:
   group: pages
@@ -19,9 +9,6 @@ concurrency:
 jobs:
   build:
     name: Build documentation site
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Pull code
@@ -34,13 +21,24 @@ jobs:
         run: pip install mkdocs=='1.4.2' mkdocs-material=='9.0.1'
       - name: Build site
         run: mkdocs build --site-dir "$RUNNER_TEMP/site"
-      - name: Set up Pages
+      - name: Set up GitHub Pages
         uses: actions/configure-pages@v2
       - name: Upload generated docs
         uses: actions/upload-pages-artifact@v1
         with:
           path: ${{ runner.temp }}/site
+  deploy:
+    name: Deploy documentation site
+    environment:
+      name: GitHub Pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    permissions:
+      id-token: write
+      pages: write
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        if: github.ref == 'refs/heads/main'
         uses: actions/deploy-pages@v1
