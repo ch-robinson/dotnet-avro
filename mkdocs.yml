@@ -1,8 +1,8 @@
 site_name: Chr.Avro
 
 nav:
-  - Home: index.md
-  - Guides:
+  - Getting started:
+      - Home: index.md
       - Building Kafka producers and consumers: guides/kafka.md
       - Creating schemas from .NET types: guides/cli-create.md
       - Generating C# code from Avro schemas: guides/cli-generate.md
@@ -34,3 +34,9 @@ theme:
     - navigation.tabs
   icon:
     repo: material/github
+  logo: logo.png
+  palette:
+    scheme: chr
+
+extra_css:
+  - stylesheets/chr.css
