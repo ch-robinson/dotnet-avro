@@ -1,0 +1,42 @@
+site_name: Chr.Avro
+
+nav:
+  - Getting started:
+      - Home: index.md
+      - Building Kafka producers and consumers: guides/kafka.md
+      - Creating schemas from .NET types: guides/cli-create.md
+      - Generating C# code from Avro schemas: guides/cli-generate.md
+      - Extending and overriding built-in features: guides/extending.md
+  - Technical documentation:
+      - Implementation differences: internals/implementation.md
+      - Schema compatibility: internals/schema-compatibility.md
+      - Types and conversions: internals/mapping.md
+  - CLI reference:
+      - create: cli/create.md
+      - generate: cli/generate.md
+      - registry-get: cli/registry-get.md
+      - registry-test: cli/registry-test.md
+
+repo_name: ch-robinson/dotnet-avro
+repo_url: https://github.com/ch-robinson/dotnet-avro
+
+markdown_extensions:
+  - def_list
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+theme:
+  name: material
+  favicon: favicon.ico
+  features:
+    - navigation.tabs
+  icon:
+    repo: material/github
+  logo: logo.png
+  palette:
+    scheme: chr
+
+extra_css:
+  - stylesheets/chr.css

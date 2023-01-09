@@ -1,10 +1,5 @@
-#tool nuget:?package=mdoc&version=5.8.6.1
-
 var ROOT = ".";
 
-var BENCHMARK_APPLICATIONS_PATH = $"{ROOT}/benchmarks";
-var BENCHMARK_RESULTS_PATH = $"{ROOT}/docs/benchmarks";
-var MDOC_PATH = $"{ROOT}/docs/api";
 var RELEASES_PATH = $"{ROOT}/releases";
 var SLN_PATH = $"{ROOT}/Chr.Avro.sln";
 var SRC_PATH = $"{ROOT}/src";
@@ -12,47 +7,6 @@ var TESTS_PATH = $"{ROOT}/tests";
 
 var configuration = Argument<string>("configuration", "Release");
 var target = Argument("target", "Default");
-
-Task("Analyze")
-    .IsDependentOn("Build")
-    .Does(() =>
-    {
-        var mdoc = Context.Tools.Resolve("mdoc.exe");
-
-        // whitelist for now:
-        var names = new[]
-        {
-            "Chr.Avro",
-            "Chr.Avro.Binary",
-            "Chr.Avro.Confluent",
-            "Chr.Avro.Json"
-        };
-
-        var arguments = new List<string>()
-            .Concat(names.Select(n => $"-i \"{SRC_PATH}/{n}/bin/{configuration}/netstandard2.0/{n}.xml\""))
-            .Concat(names.Select(n => $"-L \"{SRC_PATH}/{n}/bin/{configuration}/netstandard2.0\""))
-            .Concat(names.Select(n => $"\"{SRC_PATH}/{n}/bin/{configuration}/netstandard2.0/{n}.dll\""));
-
-        StartProcess(mdoc, new ProcessSettings
-        {
-            Arguments = $"update --debug --delete -o \"{MDOC_PATH}\" {string.Join(" ", arguments)}"
-        });
-    });
-
-Task("Benchmark")
-    .Does(() =>
-    {
-        Information("Running .NET benchmarks.");
-
-        DotNetRun(
-            $"{BENCHMARK_APPLICATIONS_PATH}/dotnet/Chr.Avro.Benchmarks.csproj",
-            $"{BENCHMARK_RESULTS_PATH}/dotnet.csv",
-            new DotNetRunSettings()
-            {
-                Configuration = configuration
-            }
-        );
-    });
 
 Task("Build")
     .IsDependentOn("Clean")
@@ -70,8 +24,6 @@ Task("Build")
 Task("Clean")
     .Does(() =>
     {
-        CleanDirectories(MDOC_PATH);
-
         CleanDirectories(RELEASES_PATH);
 
         CleanDirectories($"{SRC_PATH}/**/bin");
