@@ -3,6 +3,7 @@ namespace Chr.Avro.Confluent.Tests
     using System;
     using System.Linq;
     using System.Net.Http;
+    using System.Threading;
     using System.Threading.Tasks;
     using global::Confluent.Kafka;
     using global::Confluent.SchemaRegistry;
@@ -52,6 +53,32 @@ namespace Chr.Avro.Confluent.Tests
                 .ThrowsAsync(new HttpRequestException());
 
             await Assert.ThrowsAsync<HttpRequestException>(() =>
+                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
+
+            registryClientMock
+                .Setup(c => c.GetSchemaAsync(0, null))
+                .ReturnsAsync(new Schema("\"null\"", SchemaType.Avro));
+
+            await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context);
+        }
+
+        [Fact]
+        public async Task DoesNotCacheSchemaRegistryTimeouts()
+        {
+            var deserializer = new AsyncSchemaRegistryDeserializer<object>(
+                registryClientMock.Object);
+
+            var encoding = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+            var context = new SerializationContext(MessageComponentType.Value, "test_topic");
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            registryClientMock
+                .Setup(c => c.GetSchemaAsync(0, null))
+                .Returns(Task.FromCanceled<Schema>(cts.Token));
+
+            await Assert.ThrowsAsync<TaskCanceledException>(() =>
                 deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
 
             registryClientMock

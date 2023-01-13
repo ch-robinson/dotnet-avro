@@ -182,7 +182,7 @@ namespace Chr.Avro.Confluent
 
             lock (cache)
             {
-                if (!cache.TryGetValue(id, out task) || task.IsFaulted)
+                if (!cache.TryGetValue(id, out task) || task.IsCanceled || task.IsFaulted)
                 {
                     cache[id] = task = ((Func<int, Task<Func<ReadOnlyMemory<byte>, T>>>)(async id =>
                     {
