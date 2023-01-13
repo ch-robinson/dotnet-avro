@@ -14,7 +14,7 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <SignAssembly>true</SignAssembly>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Version>9.3.1</Version>
+    <Version>9.3.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)\docs\static\nuget-icon.png" Pack="true" PackagePath="icon.png" />
+    <None Include="$(MSBuildThisFileDirectory)\docs\nuget-icon.png" Pack="true" PackagePath="icon.png" />
     <None Include="$(MSBuildThisFileDirectory)\LICENSE.md" Pack="true" PackagePath="LICENSE.md" />
   </ItemGroup>
 
