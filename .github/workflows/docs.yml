@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Pull code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Use Python
         uses: actions/setup-python@v4
         with:
@@ -22,7 +22,7 @@ jobs:
       - name: Build site
         run: mkdocs build --site-dir "$RUNNER_TEMP/site"
       - name: Set up GitHub Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v3
       - name: Upload generated docs
         uses: actions/upload-pages-artifact@v1
         with:
