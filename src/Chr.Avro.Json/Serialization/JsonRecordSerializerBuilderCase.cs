@@ -8,9 +8,6 @@ namespace Chr.Avro.Serialization
     using System.Reflection;
     using System.Text.Json;
     using Chr.Avro.Abstract;
-    using Microsoft.CSharp.RuntimeBinder;
-
-    using Binder = Microsoft.CSharp.RuntimeBinder.Binder;
 
     /// <summary>
     /// Implements a <see cref="JsonSerializerBuilder" /> case that matches <see cref="RecordSchema" />
@@ -105,10 +102,7 @@ namespace Chr.Avro.Serialization
                                 // if the type could be dynamic, attempt to use a dynamic getter:
                                 if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type) || type == typeof(object))
                                 {
-                                    var flags = CSharpBinderFlags.None;
-                                    var infos = new[] { CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, null) };
-                                    var binder = Binder.GetMember(flags, field.Name, type, infos);
-                                    inner = Expression.Dynamic(binder, typeof(object), value);
+                                    inner = this.BuildDynamicGet(value, field.Name);
                                 }
                                 else
                                 {
