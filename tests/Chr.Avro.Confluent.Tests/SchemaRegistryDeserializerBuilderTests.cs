@@ -1,6 +1,5 @@
 namespace Chr.Avro.Confluent.Tests
 {
-    using System.IO;
     using System.Threading.Tasks;
     using global::Confluent.Kafka;
     using global::Confluent.SchemaRegistry;
@@ -14,6 +13,25 @@ namespace Chr.Avro.Confluent.Tests
         public SchemaRegistryDeserializerBuilderTests()
         {
             registryMock = new Mock<ISchemaRegistryClient>(MockBehavior.Strict);
+        }
+
+        [Fact]
+        public async Task BuildsDeserializerForDynamicObject()
+        {
+            var id = 6;
+            var json = @"{""type"":""record"",""name"":""Test"",""fields"":[{""type"":""string"",""name"":""Field""}]}";
+
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
+                .Verifiable();
+
+            var context = new SerializationContext(MessageComponentType.Value, "test-topic");
+            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x06, 0x00 };
+
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
+
+            var deserializer = await builder.Build<dynamic>(id);
+            deserializer.Deserialize(data, false, context);
         }
 
         [Fact]

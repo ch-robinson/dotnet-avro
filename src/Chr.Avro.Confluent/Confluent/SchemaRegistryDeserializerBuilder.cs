@@ -213,8 +213,9 @@ namespace Chr.Avro.Confluent
 
             var inner = DeserializerBuilder.BuildDelegateExpression<T>(schema);
             var span = Expression.Parameter(typeof(ReadOnlySpan<byte>));
+            var reader = inner.Parameters[0];
 
-            var readerConstructor = inner.Parameters[0].Type
+            var readerConstructor = reader.Type
                 .GetConstructor(new[] { span.Type });
 
             if (schema is BytesSchema)

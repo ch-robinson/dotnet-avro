@@ -261,8 +261,9 @@ namespace Chr.Avro.Confluent
             var inner = SerializerBuilder.BuildDelegateExpression<T>(schema);
             var stream = Expression.Parameter(typeof(Stream));
             var value = inner.Parameters[0];
+            var writer = inner.Parameters[1];
 
-            var writerConstructor = inner.Parameters[1].Type
+            var writerConstructor = writer.Type
                 .GetConstructor(new[] { stream.Type });
 
             if (schema is Abstract.BytesSchema)
@@ -274,10 +275,12 @@ namespace Chr.Avro.Confluent
             return new DelegateSerializer<T>(
                 Expression
                     .Lambda<DelegateSerializer<T>.Implementation>(
-                        Expression.Invoke(
-                            inner,
-                            value,
-                            Expression.New(writerConstructor, stream)),
+                        Expression.Block(
+                            new[] { writer },
+                            Expression.Assign(
+                                writer,
+                                Expression.New(writerConstructor, stream)),
+                            inner.Body),
                         new[] { value, stream })
                     .Compile(),
                 id,
