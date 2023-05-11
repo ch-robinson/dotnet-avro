@@ -110,13 +110,13 @@ namespace Chr.Avro.Serialization
         /// Thrown when no case can map <typeparamref name="T" /> to <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual Expression<BinarySerializer<T>> BuildDelegateExpression<T>(Schema schema, BinarySerializerBuilderContext? context = default)
+        public virtual Expression<BinarySerializer<T>> BuildDelegateExpression<T>(Schema schema, BinarySerializerBuilderContext? context)
         {
             context ??= new BinarySerializerBuilderContext();
             var value = Expression.Parameter(typeof(T));
 
             // ensure that all assignments are present before building the lambda:
-            var root = BuildExpression(value, schema, context);
+            var root = BuildExpression(value, schema, context, registerExpression: true);
 
             return Expression.Lambda<BinarySerializer<T>>(
                 Expression.Block(
@@ -132,13 +132,13 @@ namespace Chr.Avro.Serialization
         /// to <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual Expression BuildExpression(Expression value, Schema schema, BinarySerializerBuilderContext context)
+        public virtual Expression BuildExpression(Expression value, Schema schema, BinarySerializerBuilderContext context, bool registerExpression = true)
         {
             var exceptions = new List<Exception>();
 
             foreach (var @case in Cases)
             {
-                var result = @case.BuildExpression(value, value.Type, schema, context);
+                var result = @case.BuildExpression(value, value.Type, schema, context, registerExpression);
 
                 if (result.Expression != null)
                 {

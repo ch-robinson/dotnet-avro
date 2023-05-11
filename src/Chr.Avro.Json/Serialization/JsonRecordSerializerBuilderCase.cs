@@ -55,7 +55,7 @@ namespace Chr.Avro.Serialization
         /// <see cref="RecordField" /> on <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context, bool registerExpression)
         {
             if (schema is RecordSchema recordSchema)
             {
@@ -124,7 +124,7 @@ namespace Chr.Avro.Serialization
                             try
                             {
                                 writes.Add(Expression.Call(context.Writer, writePropertyName, Expression.Constant(field.Name)));
-                                writes.Add(SerializerBuilder.BuildExpression(inner, field.Type, context));
+                                writes.Add(SerializerBuilder.BuildExpression(inner, field.Type, context, registerExpression));
                             }
                             catch (Exception exception)
                             {

@@ -26,7 +26,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="type" /> cannot be converted to <see cref="TimeSpan" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context, bool registerExpression)
         {
             if (schema.LogicalType is DurationLogicalType)
             {

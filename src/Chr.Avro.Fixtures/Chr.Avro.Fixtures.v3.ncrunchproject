@@ -1,0 +1,6 @@
+﻿<ProjectConfiguration>
+  <Settings>
+    <NUnit3Enabled>False</NUnit3Enabled>
+    <XUnit2Enabled>False</XUnit2Enabled>
+  </Settings>
+</ProjectConfiguration>

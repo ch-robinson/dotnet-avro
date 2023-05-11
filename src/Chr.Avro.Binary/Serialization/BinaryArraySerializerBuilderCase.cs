@@ -3,6 +3,8 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Collections;
     using System.Collections.Generic;
+    using System.Data.Common;
+    using System.Diagnostics;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
 
@@ -40,7 +42,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="type" /> does not implement <see cref="IEnumerable{T}" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context, bool registerExpression)
         {
             if (schema is ArraySchema arraySchema)
             {
@@ -51,9 +53,11 @@ namespace Chr.Avro.Serialization
                     // support dynamic mapping:
                     var itemType = enumerableType ?? typeof(object);
 
-                    var collection = Expression.Variable(typeof(ICollection<>).MakeGenericType(itemType));
-                    var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(itemType));
-                    var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(itemType));
+                    var collection = Expression.Variable(typeof(ICollection<>).MakeGenericType(itemType), "collection");
+                    var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(itemType), "enumerable");
+                    var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(itemType), "enumerator");
+                    var item = Expression.Parameter(itemType, "item");
+
                     var loop = Expression.Label();
 
                     var getCount = collection.Type
@@ -73,8 +77,29 @@ namespace Chr.Avro.Serialization
                     var writeInteger = typeof(BinaryWriter)
                         .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
 
-                    var writeItem = SerializerBuilder
-                        .BuildExpression(Expression.Property(enumerator, getCurrent), arraySchema.Item, context);
+                    var setItem = Expression.Assign(item, Expression.Property(enumerator, getCurrent));
+
+                    var referenceKey = (arraySchema.Item, itemType);
+                    if (!context.References.TryGetValue(referenceKey, out var writeItem))
+                    {
+                        var argument = Expression.Variable(itemType, "arg");
+                        var writeItemExpression = SerializerBuilder.BuildExpression(argument, arraySchema.Item, context, true);
+
+                        if (!context.References.TryGetValue(referenceKey, out writeItem))
+                        {
+                            writeItem = Expression.Parameter(
+                                Expression.GetDelegateType(itemType, context.Writer.Type, typeof(void)));
+                            context.References[referenceKey] = writeItem;
+
+                            var itemExpression = Expression.Lambda(
+                                writeItem.Type,
+                                writeItemExpression,
+                                $"{itemType.Name} to {arraySchema.Item} serializer",
+                                new[] { argument, context.Writer });
+
+                            context.Assignments.Add(writeItem, itemExpression);
+                        }
+                    }
 
                     var dispose = typeof(IDisposable)
                         .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
@@ -103,7 +128,8 @@ namespace Chr.Avro.Serialization
                     //         {
                     //             if (enumerator.MoveNext())
                     //             {
-                    //                 ...
+                    //                 var item = enumerator.Current
+                    //                 <Serialize>(item);
                     //             }
                     //             else
                     //             {
@@ -121,7 +147,7 @@ namespace Chr.Avro.Serialization
                     // writer.WriteInteger(0L);
                     return BinarySerializerBuilderCaseResult.FromExpression(
                         Expression.Block(
-                            new[] { collection, enumerator },
+                            new[] { collection, enumerator, item },
                             Expression.Assign(collection, expression),
                             Expression.IfThen(
                                 Expression.GreaterThan(
@@ -141,7 +167,9 @@ namespace Chr.Avro.Serialization
                                         Expression.Loop(
                                             Expression.IfThenElse(
                                                 Expression.Call(enumerator, moveNext),
-                                                writeItem,
+                                                Expression.Block(
+                                                    setItem,
+                                                    Expression.Invoke(writeItem, item, context.Writer)),
                                                 Expression.Break(loop)),
                                             loop),
                                         Expression.Call(enumerator, dispose)))),

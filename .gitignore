@@ -21,3 +21,4 @@ msbuild.log
 msbuild.err
 msbuild.wrn
 tools/
+_NCrunch_*/

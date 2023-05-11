@@ -19,7 +19,7 @@ namespace Chr.Avro.Serialization
         /// otherwise.
         /// </returns>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context, bool registerExpression)
         {
             if (schema is NullSchema)
             {

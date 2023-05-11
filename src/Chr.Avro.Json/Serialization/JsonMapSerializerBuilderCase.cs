@@ -42,7 +42,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="type" /> does not implement <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context, bool registerExpression)
         {
             if (schema is MapSchema mapSchema)
             {
@@ -82,10 +82,10 @@ namespace Chr.Avro.Serialization
 
                     var writeKey = new KeySerializerVisitor().Visit(
                         SerializerBuilder.BuildExpression(
-                            Expression.Property(Expression.Property(enumerator, getCurrent), getKey), new StringSchema(), context));
+                            Expression.Property(Expression.Property(enumerator, getCurrent), getKey), new StringSchema(), context, registerExpression));
 
                     var writeValue = SerializerBuilder.BuildExpression(
-                        Expression.Property(Expression.Property(enumerator, getCurrent), getValue), mapSchema.Value, context);
+                        Expression.Property(Expression.Property(enumerator, getCurrent), getValue), mapSchema.Value, context, registerExpression);
 
                     var writeEndObject = typeof(Utf8JsonWriter)
                         .GetMethod(nameof(Utf8JsonWriter.WriteEndObject), Type.EmptyTypes);

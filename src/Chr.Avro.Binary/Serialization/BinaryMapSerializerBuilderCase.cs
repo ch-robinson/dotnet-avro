@@ -40,7 +40,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="type" /> does not implement <see cref="T:System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair`2}" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context, bool registerExpression)
         {
             if (schema is MapSchema mapSchema)
             {
@@ -82,10 +82,10 @@ namespace Chr.Avro.Serialization
                         .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
 
                     var writeKey = SerializerBuilder
-                        .BuildExpression(Expression.Property(Expression.Property(enumerator, getCurrent), getKey), new StringSchema(), context);
+                        .BuildExpression(Expression.Property(Expression.Property(enumerator, getCurrent), getKey), new StringSchema(), context, registerExpression);
 
                     var writeValue = SerializerBuilder
-                        .BuildExpression(Expression.Property(Expression.Property(enumerator, getCurrent), getValue), mapSchema.Value, context);
+                        .BuildExpression(Expression.Property(Expression.Property(enumerator, getCurrent), getValue), mapSchema.Value, context, registerExpression);
 
                     var dispose = typeof(IDisposable)
                         .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);

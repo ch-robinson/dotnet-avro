@@ -44,7 +44,7 @@ namespace Chr.Avro.Serialization
         /// in <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context, bool registerExpression)
         {
             if (schema is UnionSchema unionSchema)
             {
@@ -88,7 +88,7 @@ namespace Chr.Avro.Serialization
                                     context.Writer,
                                     writeInteger,
                                     Expression.Constant((long)schemas.IndexOf(candidate))),
-                                SerializerBuilder.BuildExpression(Expression.Convert(value, underlying), candidate, context));
+                                SerializerBuilder.BuildExpression(Expression.Convert(value, underlying), candidate, context, registerExpression));
                         }
                         catch (Exception exception)
                         {
