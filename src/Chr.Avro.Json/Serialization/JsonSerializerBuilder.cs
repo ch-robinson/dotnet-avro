@@ -117,7 +117,7 @@ namespace Chr.Avro.Serialization
             var value = Expression.Parameter(typeof(T));
 
             // ensure that all assignments are present before building the lambda:
-            var root = BuildExpression(value, schema, context, registerExpression: true);
+            var root = BuildExpression(value, schema, context);
 
             var flush = typeof(Utf8JsonWriter)
                 .GetMethod(nameof(Utf8JsonWriter.Flush), Type.EmptyTypes);
@@ -136,13 +136,13 @@ namespace Chr.Avro.Serialization
         /// to <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual Expression BuildExpression(Expression value, Schema schema, JsonSerializerBuilderContext context, bool registerExpression)
+        public virtual Expression BuildExpression(Expression value, Schema schema, JsonSerializerBuilderContext context)
         {
             var exceptions = new List<Exception>();
 
             foreach (var @case in Cases)
             {
-                var result = @case.BuildExpression(value, value.Type, schema, context, registerExpression);
+                var result = @case.BuildExpression(value, value.Type, schema, context);
 
                 if (result.Expression != null)
                 {

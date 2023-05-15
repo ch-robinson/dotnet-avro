@@ -401,7 +401,6 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value.Seventh, deserialize(ref reader).Seventh);
         }
 
-
         [Fact]
         public void RecordWithMissingRecordArrayFields()
         {

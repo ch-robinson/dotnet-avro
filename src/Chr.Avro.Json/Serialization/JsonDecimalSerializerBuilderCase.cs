@@ -29,7 +29,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="type" /> cannot be converted to <see cref="decimal" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context, bool registerExpression)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
         {
             if (schema.LogicalType is DecimalLogicalType decimalLogicalType)
             {

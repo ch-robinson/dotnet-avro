@@ -53,7 +53,7 @@ namespace Chr.Avro.Serialization
         /// <see cref="RecordField" /> on <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context, bool registerExpression)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (schema is RecordSchema recordSchema)
             {
@@ -64,17 +64,9 @@ namespace Chr.Avro.Serialization
                     var parameter = Expression.Parameter(
                         Expression.GetDelegateType(type, context.Writer.Type, typeof(void)));
 
-                    ParameterExpression reference;
-                    if (registerExpression)
+                    if (!context.References.TryGetValue((recordSchema, type), out var reference))
                     {
-                        if (!context.References.TryGetValue((recordSchema, type), out reference))
-                        {
-                            context.References.Add((recordSchema, type), reference = parameter);
-                        }
-                    }
-                    else
-                    {
-                        reference = parameter;
+                        context.References.Add((recordSchema, type), reference = parameter);
                     }
 
                     // then build/set the delegate if it hasn’t been built yet:
@@ -93,22 +85,9 @@ namespace Chr.Avro.Serialization
                                 if (match == null)
                                 {
                                     // if the type could be dynamic, attempt to use a dynamic getter:
-
-                                    // Temporary hack: if this is not the typical case where value is a simple lambda parameter,
-                                    // do not attempt to do any dynamic getting from it, as it might be a expression referencing
-                                    // parameters, which would result in an incorrect lambda expression store in context.Assignments for that type
-                                    // That caters for the case where we end up here while iterating through an empty array of type[],
-                                    // I imagine there might be situations where this is not what we want to do
-                                    if ((typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type) || type == typeof(object)))
+                                    if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type) || type == typeof(object))
                                     {
-                                        if (value.NodeType == ExpressionType.Parameter)
-                                        {
-                                            inner = this.BuildDynamicGet(argument, field.Name);
-                                        }
-                                        else
-                                        {
-                                            inner = Expression.Constant(null);
-                                        }
+                                        inner = this.BuildDynamicGet(argument, field.Name);
                                     }
                                     else
                                     {
@@ -129,7 +108,7 @@ namespace Chr.Avro.Serialization
 
                                 try
                                 {
-                                    return SerializerBuilder.BuildExpression(inner, field.Type, context, registerExpression);
+                                    return SerializerBuilder.BuildExpression(inner, field.Type, context);
                                 }
                                 catch (Exception exception)
                                 {
@@ -149,10 +128,7 @@ namespace Chr.Avro.Serialization
                             $"{type.Name} to {recordSchema.Name} serializer",
                             new[] { argument, context.Writer });
 
-                        if (registerExpression)
-                        {
-                            context.Assignments.Add(reference, expression);
-                        }
+                        context.Assignments.Add(reference, expression);
                     }
 
                     return BinarySerializerBuilderCaseResult.FromExpression(

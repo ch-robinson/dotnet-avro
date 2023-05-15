@@ -24,13 +24,10 @@ namespace Chr.Avro.Serialization
         /// <param name="context">
         /// A serializer builder context.
         /// </param>
-        /// <param name="registerExpression">
-        /// Indicates whether to register the computed expression as the serializer for the type for future calls.
-        /// </param>
         /// <returns>
         /// An expression representing the serialization of <paramref name="value" /> based on
         /// <paramref name="schema" />.
         /// </returns>
-        Expression BuildExpression(Expression value, Schema schema, TContext context, bool registerExpression /*= true*/);
+        Expression BuildExpression(Expression value, Schema schema, TContext context);
     }
 }

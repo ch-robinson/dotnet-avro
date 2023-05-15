@@ -31,13 +31,10 @@ namespace Chr.Avro.Serialization
         /// <param name="context">
         /// A <typeparamref name="TContext" /> representing the state of the build operation.
         /// </param>
-        /// <param name="registerExpression">
-        /// Indicates whether to register the computed expression as the serializer for the type for future calls.
-        /// </param>
         /// <returns>
         /// A successful <typeparamref name="TResult" /> if the case can be applied;
         /// an unsuccessful <typeparamref name="TResult" /> otherwise.
         /// </returns>
-        TResult BuildExpression(Expression value, Type type, Schema schema, TContext context, bool registerExpression);
+        TResult BuildExpression(Expression value, Type type, Schema schema, TContext context);
     }
 }

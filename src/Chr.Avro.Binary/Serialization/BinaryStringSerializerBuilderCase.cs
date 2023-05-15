@@ -22,7 +22,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="type" /> cannot be converted to <see cref="string" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context, bool registerExpression)
+        public virtual BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (schema is StringSchema stringSchema)
             {

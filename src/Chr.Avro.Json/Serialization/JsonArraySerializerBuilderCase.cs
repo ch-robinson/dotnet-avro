@@ -41,7 +41,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when <paramref name="type" /> does not implement <see cref="IEnumerable{T}" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context, bool registerExpression)
+        public virtual JsonSerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, JsonSerializerBuilderContext context)
         {
             if (schema is ArraySchema arraySchema)
             {
@@ -70,7 +70,7 @@ namespace Chr.Avro.Serialization
                         .GetMethod(nameof(IEnumerator.MoveNext), Type.EmptyTypes);
 
                     var writeItem = SerializerBuilder
-                        .BuildExpression(Expression.Property(enumerator, getCurrent), arraySchema.Item, context, registerExpression);
+                        .BuildExpression(Expression.Property(enumerator, getCurrent), arraySchema.Item, context);
 
                     var writeEndArray = typeof(Utf8JsonWriter)
                         .GetMethod(nameof(Utf8JsonWriter.WriteEndArray), Type.EmptyTypes);

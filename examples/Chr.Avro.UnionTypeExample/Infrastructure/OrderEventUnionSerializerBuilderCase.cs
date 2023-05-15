@@ -1,4 +1,4 @@
-namespace Chr.Avro.UnionTypeExample.Infrastructure
+﻿namespace Chr.Avro.UnionTypeExample.Infrastructure
 {
     using System;
     using System.Linq.Expressions;
@@ -13,11 +13,11 @@ namespace Chr.Avro.UnionTypeExample.Infrastructure
         {
         }
 
-        public override BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context, bool registerExpression)
+        public override BinarySerializerBuilderCaseResult BuildExpression(Expression value, Type type, Schema schema, BinarySerializerBuilderContext context)
         {
             if (type == typeof(IOrderEvent))
             {
-                return base.BuildExpression(value, type, schema, context, registerExpression);
+                return base.BuildExpression(value, type, schema, context);
             }
             else
             {

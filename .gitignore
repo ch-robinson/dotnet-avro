@@ -22,3 +22,4 @@ msbuild.err
 msbuild.wrn
 tools/
 _NCrunch_*/
+.NCrunch_*/
