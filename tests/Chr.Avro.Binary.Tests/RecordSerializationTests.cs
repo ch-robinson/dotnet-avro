@@ -402,6 +402,105 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Fact]
+        public void RecordWithMissingRecordArrayFields()
+        {
+            var subRecord = new RecordSchema("SubRecord")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Id", new IntSchema()),
+                },
+            };
+            var subRecordArray = new ArraySchema(subRecord);
+
+            var defaultSubRecordArray = new ObjectDefaultValue<object[]>(Array.Empty<object>(), subRecordArray);
+            var schema = new RecordSchema("AllFields")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("SubRecordArray", subRecordArray) { Default = defaultSubRecordArray },
+                },
+            };
+
+            var serialize = serializerBuilder.BuildDelegate<SimpleRecord>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<RecordWithSubRecordArray>(schema);
+
+            var value = new SimpleRecord()
+            {
+                Name = "Bob",
+            };
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+            var deserialized = deserialize(ref reader);
+            Assert.Equal(value.Name, deserialized.Name);
+            Assert.Empty(deserialized.SubRecordArray);
+        }
+
+        [Fact]
+        public void RecordWithDynamicRecordArray()
+        {
+            var boolean = new BooleanSchema();
+            var array = new ArraySchema(boolean);
+            var map = new MapSchema(new IntSchema());
+            var @enum = new EnumSchema("Ordinal", new[] { "None", "First", "Second", "Third", "Fourth" });
+            var union = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                array,
+            });
+
+            var propertiesArray = new ArraySchema(new RecordSchema("PropertiesRecord", new[]
+            {
+                new RecordField("Id", new IntSchema()),
+                new RecordField("Address", new StringSchema()),
+            }));
+
+            var schema = new RecordSchema("AllFields")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                    new RecordField("Properties", propertiesArray),
+                },
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<RecordWithDynamicArray>(schema);
+            var serialize = serializerBuilder.BuildDelegate<RecordWithDynamicArray>(schema);
+
+            var value = new RecordWithDynamicArray()
+            {
+                Name = "Bob",
+                Age = 44,
+                Properties = new[]
+                {
+                    new { Id = 21312, Address = "London", Weigth = 33, },
+                },
+            };
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+            var deserialized = deserialize(ref reader);
+            Assert.Equal(value.Name, deserialized.Name);
+            Assert.Equal(value.Age, deserialized.Age);
+            Assert.Single(deserialized.Properties);
+
+            var properties = deserialized.Properties[0];
+            Assert.Equal(21312, properties.Id);
+            Assert.Equal("London", properties.Address);
+        }
+
+        [Fact]
         public void RecordWithParallelDependencies()
         {
             var node = new RecordSchema("Node");
@@ -495,6 +594,27 @@ namespace Chr.Avro.Serialization.Tests
             public IDictionary<string, int> Fifth { get; set; }
 
             public ImplicitEnum Seventh { get; set; }
+        }
+
+        public class SimpleRecord
+        {
+            public string Name { get; set; }
+        }
+
+        public class RecordWithSubRecordArray
+        {
+            public string Name { get; set; }
+
+            public WithoutEvenFields[] SubRecordArray { get; set; }
+        }
+
+        public class RecordWithDynamicArray
+        {
+            public string Name { get; set; }
+
+            public int Age { get; set; }
+
+            public dynamic[] Properties { get; set; }
         }
     }
 }
