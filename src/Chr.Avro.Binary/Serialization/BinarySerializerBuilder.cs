@@ -110,7 +110,7 @@ namespace Chr.Avro.Serialization
         /// Thrown when no case can map <typeparamref name="T" /> to <paramref name="schema" />.
         /// </exception>
         /// <inheritdoc />
-        public virtual Expression<BinarySerializer<T>> BuildDelegateExpression<T>(Schema schema, BinarySerializerBuilderContext? context)
+        public virtual Expression<BinarySerializer<T>> BuildDelegateExpression<T>(Schema schema, BinarySerializerBuilderContext? context = default)
         {
             context ??= new BinarySerializerBuilderContext();
             var value = Expression.Parameter(typeof(T));

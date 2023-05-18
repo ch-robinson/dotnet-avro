@@ -45,6 +45,7 @@ namespace Chr.Avro.Serialization
             if (schema is ArraySchema arraySchema)
             {
                 var enumerableType = GetEnumerableType(type);
+
                 if (enumerableType is not null || type == typeof(object))
                 {
                     // support dynamic mapping:
@@ -72,7 +73,8 @@ namespace Chr.Avro.Serialization
                     var writeInteger = typeof(BinaryWriter)
                         .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
 
-                    var writeItem = GetSerializer(context, arraySchema.Item, itemType);
+                    var writeItem = SerializerBuilder
+                        .BuildExpression(Expression.Property(enumerator, getCurrent), arraySchema.Item, context);
 
                     var dispose = typeof(IDisposable)
                         .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
@@ -101,7 +103,7 @@ namespace Chr.Avro.Serialization
                     //         {
                     //             if (enumerator.MoveNext())
                     //             {
-                    //                 writeItem(enumerator.Current);
+                    //                 ...
                     //             }
                     //             else
                     //             {
@@ -139,7 +141,7 @@ namespace Chr.Avro.Serialization
                                         Expression.Loop(
                                             Expression.IfThenElse(
                                                 Expression.Call(enumerator, moveNext),
-                                                Expression.Invoke(writeItem, Expression.Property(enumerator, getCurrent), context.Writer),
+                                                writeItem,
                                                 Expression.Break(loop)),
                                             loop),
                                         Expression.Call(enumerator, dispose)))),
@@ -150,52 +152,13 @@ namespace Chr.Avro.Serialization
                 }
                 else
                 {
-                    return BinarySerializerBuilderCaseResult.FromException(
-                        new UnsupportedSchemaException(schema, $"{nameof(BinaryArraySerializerBuilderCase)} can only be applied to {nameof(ArraySchema)}s."));
+                    return BinarySerializerBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(BinaryArraySerializerBuilderCase)} can only be applied to enumerable types."));
                 }
             }
             else
             {
-                // The input type is not compatible with that schema
-                var exception = new UnsupportedTypeException(type, $"{nameof(BinaryArraySerializerBuilderCase)} can only be applied to enumerable types.");
-                return BinarySerializerBuilderCaseResult.FromException(exception);
+                return BinarySerializerBuilderCaseResult.FromException(new UnsupportedSchemaException(schema, $"{nameof(BinaryArraySerializerBuilderCase)} can only be applied to {nameof(ArraySchema)}s."));
             }
-        }
-
-        private ParameterExpression GetSerializer(BinarySerializerBuilderContext context, Schema schema, Type type)
-        {
-            // See if there is already a serializer for this schema/type
-            var referenceKey = (schema, type);
-            if (context.References.TryGetValue(referenceKey, out var writeItem))
-            {
-                return writeItem;
-            }
-
-            // If not, build a new one
-
-            // Note: SerializerBuilder.BuildExpression should be given a expression of type Variable of the
-            // type to deserialize, because it might cause other serializers to be registered in the context.
-            // In particular that means it can't be given an expression that references local variables (like
-            // the enumerator from the method above)
-            var argument = Expression.Variable(type);
-            var writeItemExpression = SerializerBuilder.BuildExpression(argument, schema, context);
-
-            if (!context.References.TryGetValue(referenceKey, out writeItem))
-            {
-                writeItem = Expression.Parameter(
-                    Expression.GetDelegateType(type, context.Writer.Type, typeof(void)));
-                context.References[referenceKey] = writeItem;
-
-                var itemExpression = Expression.Lambda(
-                    writeItem.Type,
-                    writeItemExpression,
-                    $"{type.Name} to {schema} serializer",
-                    new[] { argument, context.Writer });
-
-                context.Assignments.Add(writeItem, itemExpression);
-            }
-
-            return writeItem;
         }
     }
 }
