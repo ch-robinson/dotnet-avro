@@ -418,23 +418,17 @@ namespace Chr.Avro.Serialization.Tests
             {
                 Fields = new[]
                 {
+                    new RecordField("Name", new StringSchema()),
                     new RecordField("SubRecordArray", subRecordArray) { Default = defaultSubRecordArray },
                 },
             };
 
-            var deserialize = deserializerBuilder.BuildDelegate<WithoutEvenFields>(schema);
-            var serialize = serializerBuilder.BuildDelegate<WithEvenFields>(schema);
+            var serialize = serializerBuilder.BuildDelegate<SimpleRecord>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<RecordWithSubRecordArray>(schema);
 
-            var value = new WithEvenFields()
+            var value = new SimpleRecord()
             {
-                First = new List<bool>() { false },
-                Second = new List<bool>() { false, false },
-                Third = new List<bool>() { false, false, false },
-                Fourth = new List<bool>() { false },
-                Fifth = new Dictionary<string, int>() { { "first", 1 } },
-                Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
-                Seventh = ImplicitEnum.First,
-                Eighth = ImplicitEnum.None,
+                Name = "Bob",
             };
 
             using (stream)
@@ -444,8 +438,8 @@ namespace Chr.Avro.Serialization.Tests
 
             var reader = new BinaryReader(stream.ToArray());
             var deserialized = deserialize(ref reader);
-            Assert.Null(deserialized.First);
-            Assert.Equal(ImplicitEnum.None, deserialized.Seventh);
+            Assert.Equal(value.Name, deserialized.Name);
+            Assert.Empty(deserialized.SubRecordArray);
         }
 
         [Fact]
@@ -496,6 +490,14 @@ namespace Chr.Avro.Serialization.Tests
             }
 
             var reader = new BinaryReader(stream.ToArray());
+            var deserialized = deserialize(ref reader);
+            Assert.Equal(value.Name, deserialized.Name);
+            Assert.Equal(value.Age, deserialized.Age);
+            Assert.Single(deserialized.Properties);
+
+            var properties = deserialized.Properties[0];
+            Assert.Equal(21312, properties.Id);
+            Assert.Equal("London", properties.Address);
         }
 
         [Fact]
@@ -592,6 +594,18 @@ namespace Chr.Avro.Serialization.Tests
             public IDictionary<string, int> Fifth { get; set; }
 
             public ImplicitEnum Seventh { get; set; }
+        }
+
+        public class SimpleRecord
+        {
+            public string Name { get; set; }
+        }
+
+        public class RecordWithSubRecordArray
+        {
+            public string Name { get; set; }
+
+            public WithoutEvenFields[] SubRecordArray { get; set; }
         }
 
         public class RecordWithDynamicArray
