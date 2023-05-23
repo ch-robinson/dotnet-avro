@@ -96,9 +96,9 @@ public class OrderLineItem
 }
 ```
 
-Out of the box, Chr.Avro won’t be able to figure out this mapping. When building a serializer, it will try to map `IEvent` to each schema in the union and fail because there are multiple matches. When building a deserializer, it will fail because `IEvent` is not a concrete type.
+Out of the box, Chr.Avro won’t be able to figure out this mapping. When building a serializer, it will try to map `IOrderEvent` to each schema in the union and fail because there are multiple matches. When building a deserializer, it will fail because `IOrderEvent` is not a concrete type.
 
-To support this type of advanced mapping, applications can provide custom cases for the serializer and deserializer builders. The cases will match the union schema and the `IEvent` interface and choose the appropriate concrete class:
+To support this type of advanced mapping, applications can provide custom cases for the serializer and deserializer builders. The cases will match the union schema and the `IOrderEvent` interface and choose the appropriate concrete class:
 
 ```csharp
 using System;
