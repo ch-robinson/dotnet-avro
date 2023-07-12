@@ -102,7 +102,7 @@ namespace Chr.Avro.Serialization
                                 // if the type could be dynamic, attempt to use a dynamic getter:
                                 if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type) || type == typeof(object))
                                 {
-                                    inner = this.BuildDynamicGet(value, field.Name);
+                                    inner = this.BuildDynamicGet(argument, field.Name);
                                 }
                                 else
                                 {
@@ -137,7 +137,7 @@ namespace Chr.Avro.Serialization
                         var expression = Expression.Lambda(
                             parameter.Type,
                             Expression.Block(writes),
-                            $"{recordSchema.Name} serializer",
+                            $"{type.Name} to {recordSchema.Name} serializer",
                             new[] { argument, context.Writer });
 
                         context.Assignments.Add(reference, expression);
