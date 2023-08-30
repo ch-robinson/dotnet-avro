@@ -53,6 +53,18 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
+        /// Reads variable-length binary data from the current position and advances the reader.
+        /// </summary>
+        /// <returns>
+        /// An span of <see cref="byte" />s with length specified by the integer at the current
+        /// position.
+        /// </returns>
+        public ReadOnlySpan<byte> ReadSpan()
+        {
+            return ReadFixedSpan((int)ReadInteger());
+        }
+
+        /// <summary>
         /// Reads a double-precision floating-point number from the current position and advances
         /// the reader.
         /// </summary>
@@ -82,10 +94,23 @@ namespace Chr.Avro.Serialization
         /// </returns>
         public byte[] ReadFixed(int length)
         {
+            return ReadFixedSpan(length).ToArray();
+        }
+
+        /// <summary>
+        /// Reads fixed-length binary data from the current position and advances the reader.
+        /// </summary>
+        /// <param name="length">
+        /// The number of bytes to read.
+        /// </param>
+        /// <returns>
+        /// An span of <see cref="byte" />s with length specified by <paramref name="length" />.
+        /// </returns>
+        public ReadOnlySpan<byte> ReadFixedSpan(int length)
+        {
             var slice = data.Slice(index, length);
             index += length;
-
-            return slice.ToArray();
+            return slice;
         }
 
         /// <summary>
