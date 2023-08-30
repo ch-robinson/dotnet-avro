@@ -59,7 +59,7 @@ namespace Chr.Avro.Serialization
         /// An span of <see cref="byte" />s with length specified by the integer at the current
         /// position.
         /// </returns>
-        public ReadOnlySpan<byte> ReadSpan()
+        public ReadOnlySpan<byte> ReadBytesSpan()
         {
             return ReadFixedSpan((int)ReadInteger());
         }
