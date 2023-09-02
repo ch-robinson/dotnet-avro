@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>Integration tools for the Confluent Kafka and Schema Registry clients</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
