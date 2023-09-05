@@ -54,6 +54,13 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { float.PositiveInfinity, new byte[] { 0x00, 0x00, 0x80, 0x7f } },
         };
 
+        public static IEnumerable<object[]> StringEncodings => new object[][]
+        {
+            new object[] { "test", new byte[] { 0x08, 0x74, 0x65, 0x73, 0x74 } },
+            new object[] { "𝄟", new byte[] { 0x08, 0xF0, 0x9D, 0x84, 0x9F } },
+        };
+
+
         [Theory]
         [MemberData(nameof(BooleanEncodings))]
         [InlineData(true, new byte[] { 0x02 })]
@@ -85,6 +92,14 @@ namespace Chr.Avro.Serialization.Tests
         {
             var reader = new BinaryReader(encoding);
             Assert.Equal(value, reader.ReadSingle());
+        }
+
+        [Theory]
+        [MemberData(nameof(StringEncodings))]
+        public void ReadString(string value, byte[] encoding)
+        {
+            var reader = new BinaryReader(encoding);
+            Assert.Equal(value, reader.ReadString());
         }
 
         [Theory]

@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+
 namespace Chr.Avro.Serialization
 {
     using System;
@@ -73,6 +75,10 @@ namespace Chr.Avro.Serialization
         /// </returns>
         public double ReadDouble()
         {
+#if NET6_0_OR_GREATER
+            return BinaryPrimitives.ReadDoubleLittleEndian(ReadFixedSpan(8));
+#else
+
             var bytes = ReadFixed(8);
 
             if (!BitConverter.IsLittleEndian)
@@ -81,6 +87,7 @@ namespace Chr.Avro.Serialization
             }
 
             return BitConverter.ToDouble(bytes, 0);
+#endif
         }
 
         /// <summary>
@@ -135,8 +142,7 @@ namespace Chr.Avro.Serialization
                 {
                     throw new InvalidEncodingException(index, "Unable to read a valid variable-length integer. This may indicate invalid encoding earlier in the stream.");
                 }
-            }
-            while (current > 0x7F);
+            } while (current > 0x7F);
 
             return (-(result & 0x01)) ^ ((result >> 0x01) & 0x7FFFFFFFFFFFFFFF);
         }
@@ -169,7 +175,11 @@ namespace Chr.Avro.Serialization
         /// </returns>
         public string ReadString()
         {
+#if NET6_0_OR_GREATER
+            return Encoding.UTF8.GetString(ReadBytesSpan());
+#else
             return Encoding.UTF8.GetString(ReadBytes());
+#endif
         }
     }
 }
