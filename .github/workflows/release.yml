@@ -15,9 +15,7 @@ jobs:
       - name: Use .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: |
-            3.1.x
-            7.0.100
+          global-json-file: global.json
       - name: Build packages
         uses: cake-build/cake-action@v1
         with:

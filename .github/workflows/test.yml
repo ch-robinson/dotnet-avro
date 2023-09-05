@@ -5,17 +5,25 @@ on: push
 jobs:
   test:
     name: Run library tests
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: net462
+            os: windows-latest
+          - target: net7.0
+    runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     steps:
       - name: Pull code
         uses: actions/checkout@v3
       - name: Use .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: |
-            3.1.x
-            7.0.100
+          global-json-file: global.json
       - name: Run unit tests
-        uses: cake-build/cake-action@v1
-        with:
-          target: Test
+        run: |
+          set -e
+          dotnet test --framework ${{ matrix.target }} tests\\Chr.Avro.Tests
+          dotnet test --framework ${{ matrix.target }} tests\\Chr.Avro.Binary.Tests
+          dotnet test --framework ${{ matrix.target }} tests\\Chr.Avro.Json.Tests
+          dotnet test --framework ${{ matrix.target }} tests\\Chr.Avro.Confluent.Tests
+        shell: bash
