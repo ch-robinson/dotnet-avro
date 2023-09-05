@@ -200,12 +200,12 @@ namespace Chr.Avro.Serialization.Tests
                 },
             });
 
-            var deserialize = deserializerBuilder.BuildDelegate<OrderCreatedEvent>(schema);
 
-            var serialize = new BinarySerializerBuilder(BinarySerializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
-                .BuildDelegate<OrderEvent>(schema);
+            var serializerCases = BinarySerializerBuilder.CreateDefaultCaseBuilders().ToList();
+            serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
+
+            var deserialize = deserializerBuilder.BuildDelegate<OrderCreatedEvent>(schema);
+            var serialize = new BinarySerializerBuilder(serializerCases).BuildDelegate<OrderEvent>(schema);
 
             var value = new OrderCreatedEvent
             {
@@ -260,15 +260,14 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            var deserialize = new BinaryDeserializerBuilder(BinaryDeserializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var deserializerCases = BinaryDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
+            deserializerCases.Insert(0, builder => new OrderDeserializerBuilderCase(builder));
 
-            var serialize = new BinarySerializerBuilder(BinarySerializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var serializerCases = BinarySerializerBuilder.CreateDefaultCaseBuilders().ToList();
+            serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
+
+            var deserialize = new BinaryDeserializerBuilder(deserializerCases).BuildDelegate<EventContainer>(schema);
+            var serialize = new BinarySerializerBuilder(serializerCases).BuildDelegate<EventContainer>(schema);
 
             var creation = new EventContainer
             {
@@ -342,15 +341,14 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            var deserialize = new BinaryDeserializerBuilder(BinaryDeserializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var deserializerCases = BinaryDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
+            deserializerCases.Insert(0, builder => new OrderDeserializerBuilderCase(builder));
 
-            var serialize = new BinarySerializerBuilder(BinarySerializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var serializerCases = BinarySerializerBuilder.CreateDefaultCaseBuilders().ToList();
+            serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
+
+            var deserialize = new BinaryDeserializerBuilder(deserializerCases).BuildDelegate<EventContainer>(schema);
+            var serialize = new BinarySerializerBuilder(serializerCases).BuildDelegate<EventContainer>(schema);
 
             var creation = new EventContainer
             {
@@ -424,15 +422,14 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            var deserialize = new BinaryDeserializerBuilder(BinaryDeserializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var deserializerCases = BinaryDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
+            deserializerCases.Insert(0, builder => new OrderDeserializerBuilderCase(builder));
 
-            var serialize = new BinarySerializerBuilder(BinarySerializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var serializerCases = BinarySerializerBuilder.CreateDefaultCaseBuilders().ToList();
+            serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
+
+            var deserialize = new BinaryDeserializerBuilder(deserializerCases).BuildDelegate<EventContainer>(schema);
+            var serialize = new BinarySerializerBuilder(serializerCases).BuildDelegate<EventContainer>(schema);
 
             var empty = new EventContainer
             {
