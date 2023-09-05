@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
-    <TargetFrameworks>net7.0</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1;net7.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,5 +15,7 @@
     <ProjectReference Include="..\..\src\Chr.Avro.Binary\Chr.Avro.Binary.csproj" />
     <ProjectReference Include="..\..\src\Chr.Avro.Fixtures\Chr.Avro.Fixtures.csproj" />
   </ItemGroup>
+
+
 
 </Project>

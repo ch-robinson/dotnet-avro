@@ -83,7 +83,7 @@ namespace Chr.Avro.Serialization.Tests
 
             using (stream)
             {
-                serialize(value, new BinaryWriter(stream));
+                serialize(new ArraySegment<long>(value), new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());

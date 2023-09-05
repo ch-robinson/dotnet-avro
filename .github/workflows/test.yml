@@ -12,7 +12,9 @@ jobs:
       - name: Use .NET
         uses: actions/setup-dotnet@v3
         with:
-          global-json-file: global.json
+          dotnet-version: |
+            3.1.x
+            7.0.100
       - name: Run unit tests
         uses: cake-build/cake-action@v1
         with:
