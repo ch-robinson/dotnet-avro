@@ -156,6 +156,9 @@ namespace Chr.Avro.Serialization
         /// </returns>
         public float ReadSingle()
         {
+#if NET6_0_OR_GREATER
+            return BinaryPrimitives.ReadSingleLittleEndian(ReadFixedSpan(4));
+#else
             var bytes = ReadFixed(4);
 
             if (!BitConverter.IsLittleEndian)
@@ -164,6 +167,7 @@ namespace Chr.Avro.Serialization
             }
 
             return BitConverter.ToSingle(bytes, 0);
+#endif
         }
 
         /// <summary>
