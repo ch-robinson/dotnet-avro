@@ -85,44 +85,59 @@ namespace Chr.Avro.Serialization
                         Expression.Constant(GetSchemaName(child)));
                 }).ToArray();
 
-                var value = Expression.Parameter(type);
+                Expression expression;
 
-                Expression expression = Expression.Block(
-                    new[] { value },
-                    Expression.IfThen(
-                        Expression.NotEqual(
-                            Expression.Property(context.Reader, tokenType),
-                            Expression.Constant(JsonTokenType.StartObject)),
-                        Expression.Throw(
-                            Expression.Call(
-                                null,
-                                getUnexpectedTokenException,
-                                context.Reader,
-                                Expression.Constant(new[] { JsonTokenType.StartObject })))),
-                    Expression.Call(context.Reader, read),
-                    Expression.Assign(
-                        value,
-                        Expression.Switch(
-                            Expression.Call(context.Reader, getString),
+                if (cases.Length > 0)
+                {
+                    var value = Expression.Parameter(type);
+
+                    expression = Expression.Block(
+                        new[] { value },
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.StartObject)),
                             Expression.Throw(
                                 Expression.Call(
                                     null,
-                                    getUnknownUnionMemberException,
-                                    context.Reader),
-                                type),
-                            cases)),
-                    Expression.Call(context.Reader, read),
-                    Expression.IfThen(
-                        Expression.NotEqual(
-                            Expression.Property(context.Reader, tokenType),
-                            Expression.Constant(JsonTokenType.EndObject)),
-                        Expression.Throw(
-                            Expression.Call(
-                                null,
-                                getUnexpectedTokenException,
-                                context.Reader,
-                                Expression.Constant(new[] { JsonTokenType.EndObject })))),
-                    value);
+                                    getUnexpectedTokenException,
+                                    context.Reader,
+                                    Expression.Constant(new[] { JsonTokenType.StartObject })))),
+                        Expression.Call(context.Reader, read),
+                        Expression.Assign(
+                            value,
+                            Expression.Switch(
+                                Expression.Call(context.Reader, getString),
+                                Expression.Throw(
+                                    Expression.Call(
+                                        null,
+                                        getUnknownUnionMemberException,
+                                        context.Reader),
+                                    type),
+                                cases)),
+                        Expression.Call(context.Reader, read),
+                        Expression.IfThen(
+                            Expression.NotEqual(
+                                Expression.Property(context.Reader, tokenType),
+                                Expression.Constant(JsonTokenType.EndObject)),
+                            Expression.Throw(
+                                Expression.Call(
+                                    null,
+                                    getUnexpectedTokenException,
+                                    context.Reader,
+                                    Expression.Constant(new[] { JsonTokenType.EndObject })))),
+                        value);
+                }
+                else
+                {
+                    expression = Expression.Throw(
+                        Expression.Call(
+                            null,
+                            getUnexpectedTokenException,
+                            context.Reader,
+                            Expression.Constant(new[] { JsonTokenType.Null })),
+                        type);
+                }
 
                 if (@null != null)
                 {

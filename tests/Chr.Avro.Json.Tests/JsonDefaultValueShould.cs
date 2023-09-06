@@ -9,7 +9,7 @@ namespace Chr.Avro.Abstract.Tests
         [Fact]
         public void ConvertValueToObject()
         {
-            var document = JsonSerializer.Deserialize<JsonDocument>("1");
+            using var document = JsonDocument.Parse("1");
             var element = document.RootElement;
 
             var schema = new IntSchema();
@@ -22,7 +22,7 @@ namespace Chr.Avro.Abstract.Tests
         [Fact]
         public void ThrowWhenConstructedWithNullSchema()
         {
-            var document = JsonSerializer.Deserialize<JsonDocument>("1");
+            using var document = JsonDocument.Parse("1");
             var element = document.RootElement;
 
             Assert.Throws<ArgumentNullException>(() => new JsonDefaultValue(element, null));
@@ -31,7 +31,7 @@ namespace Chr.Avro.Abstract.Tests
         [Fact]
         public void UseFirstChildOfUnionSchema()
         {
-            var document = JsonSerializer.Deserialize<JsonDocument>("1");
+            using var document = JsonDocument.Parse("1");
             var element = document.RootElement;
 
             var @int = new IntSchema();

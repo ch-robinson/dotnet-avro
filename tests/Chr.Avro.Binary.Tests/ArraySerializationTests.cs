@@ -72,6 +72,7 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserialize(ref reader));
         }
 
+#if NET6_0_OR_GREATER
         [Theory]
         [MemberData(nameof(ArrayData))]
         public void ArraySegmentValues(long[] value)
@@ -90,6 +91,7 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(value, deserialize(ref reader));
         }
+#endif
 
         [Theory]
         [MemberData(nameof(ArrayData))]

@@ -190,12 +190,11 @@ namespace Chr.Avro.Serialization.Tests
                 },
             });
 
-            var deserialize = deserializerBuilder.BuildDelegate<OrderCreatedEvent>(schema);
+            var serializerCases = JsonSerializerBuilder.CreateDefaultCaseBuilders().ToList();
+            serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
 
-            var serialize = new JsonSerializerBuilder(JsonSerializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
-                .BuildDelegate<OrderEvent>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<OrderCreatedEvent>(schema);
+            var serialize = new JsonSerializerBuilder(serializerCases).BuildDelegate<OrderEvent>(schema);
 
             var value = new OrderCreatedEvent
             {
@@ -250,15 +249,14 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            var deserialize = new JsonDeserializerBuilder(JsonDeserializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var deserializerCases = JsonDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
+            deserializerCases.Insert(0, builder => new OrderDeserializerBuilderCase(builder));
 
-            var serialize = new JsonSerializerBuilder(JsonSerializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var serializerCases = JsonSerializerBuilder.CreateDefaultCaseBuilders().ToList();
+            serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
+
+            var deserialize = new JsonDeserializerBuilder(deserializerCases).BuildDelegate<EventContainer>(schema);
+            var serialize = new JsonSerializerBuilder(serializerCases).BuildDelegate<EventContainer>(schema);
 
             var creation = new EventContainer
             {
@@ -332,15 +330,14 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            var deserialize = new JsonDeserializerBuilder(JsonDeserializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var deserializerCases = JsonDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
+            deserializerCases.Insert(0, builder => new OrderDeserializerBuilderCase(builder));
 
-            var serialize = new JsonSerializerBuilder(JsonSerializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var serializerCases = JsonSerializerBuilder.CreateDefaultCaseBuilders().ToList();
+            serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
+
+            var deserialize = new JsonDeserializerBuilder(deserializerCases).BuildDelegate<EventContainer>(schema);
+            var serialize = new JsonSerializerBuilder(serializerCases).BuildDelegate<EventContainer>(schema);
 
             var creation = new EventContainer
             {
@@ -414,15 +411,14 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            var deserialize = new JsonDeserializerBuilder(JsonDeserializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderDeserializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var deserializerCases = JsonDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
+            deserializerCases.Insert(0, builder => new OrderDeserializerBuilderCase(builder));
 
-            var serialize = new JsonSerializerBuilder(JsonSerializerBuilder
-                .CreateDefaultCaseBuilders()
-                .Prepend(builder => new OrderSerializerBuilderCase(builder)))
-                .BuildDelegate<EventContainer>(schema);
+            var serializerCases = JsonSerializerBuilder.CreateDefaultCaseBuilders().ToList();
+            serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
+
+            var deserialize = new JsonDeserializerBuilder(deserializerCases).BuildDelegate<EventContainer>(schema);
+            var serialize = new JsonSerializerBuilder(serializerCases).BuildDelegate<EventContainer>(schema);
 
             var empty = new EventContainer
             {
