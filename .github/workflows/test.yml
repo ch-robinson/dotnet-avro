@@ -21,7 +21,7 @@ jobs:
           global-json-file: global.json
       - name: Run unit tests
         run: |
-          set -e
+          set -xe
 
           test_directory=tests
           test_flags="--framework ${{ matrix.target }}"

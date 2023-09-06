@@ -18,7 +18,7 @@ jobs:
           global-json-file: global.json
       - name: Build packages
         run: |
-          set -e
+          set -xe
 
           source_directory=src
           release_directory=releases
@@ -37,6 +37,8 @@ jobs:
           script: |
             const fs = require('fs').promises;
 
+            const releaseDirectory = './releases';
+
             const release = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -49,9 +51,9 @@ jobs:
               draft: true
             });
 
-            await Promise.all((await fs.readdir('./releases')).map(async file => {
+            await Promise.all((await fs.readdir(releaseDirectory)).map(async file => {
               await github.rest.repos.uploadReleaseAsset({
-                data: await fs.readFile(`./releases/${file}`),
+                data: await fs.readFile(`${releaseDirectory}/${file}`),
                 name: file,
                 owner: context.repo.owner,
                 release_id: release.data.id,

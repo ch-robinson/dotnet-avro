@@ -1,0 +1,50 @@
+name: Publish
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  publish:
+    name: Publish NuGet packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull code
+        uses: actions/checkout@v3
+      - name: Use .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          global-json-file: global.json
+      - name: Fetch packages
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs').promises;
+
+            const releaseDirectory = './releases';
+            await fs.mkdir(releaseDirectory, { recursive: true });
+
+            await Promise.all(context.release.assets.map(async asset => {
+              const contents = await github.rest.repos.getReleaseAsset({
+                asset_id: asset.id,
+                headers: {
+                  accept: 'application/octet-stream'
+                },
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+
+              await fs.writeFile(`${releaseDirectory}/${asset.name}`, contents.data);
+            }));
+      - name: Push packages
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run:
+          set -xe
+
+          release_directory=releases
+          push_flags="--api-key '$NUGET_API_KEY' --skip-duplicate --source https://api.nuget.org/v3/index.json"
+
+          dotnet nuget push $push_flags "$release_directory/*.nupkg"
+          dotnet nuget push $push_flags "$release_directory/*.snupkg"
