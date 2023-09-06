@@ -156,26 +156,3 @@ For more complex examples, see the [examples directory](examples):
 ## Contributing
 
 Check out the [contribution guidelines](CONTRIBUTING.md) prior to opening an issue or creating a pull request. More information about the [benchmark applications](benchmarks) and [documentation site](docs) can be found in their respective directories.
-
-[Cake](https://cakebuild.net) handles all tasks related to building and publishing the Chr.Avro libraries and CLI. This repository doesn’t include bootstrapper scripts; installing and running Cake as a global tool is recommended:
-
-```shell
-$ dotnet tool install Cake.Tool --global
-You can invoke the tool using the following command: dotnet-cake
-Tool 'cake.tool' (version '0.35.0') was successfully installed.
-
-$ dotnet cake build.cake --target=Pack
-...
-```
-
-The following targets are supported:
-
-| Name          | Description                                                                                                                   |
-|---------------|-------------------------------------------------------------------------------------------------------------------------------|
-| **Analyze**   | runs [mdoc](http://docs.go-mono.com/index.aspx?link=man:mdoc(1)) on the library projects and writes the results to `docs/api` |
-| **Benchmark** | runs the [benchmark applications](benchmarks) and writes the results to `docs/benchmarks`                                     |
-| **Build**     | builds all projects                                                                                                           |
-| **Clean**     | removes all build, documentation, and release artifacts                                                                       |
-| **Pack**      | creates NuGet packages for the library projects                                                                               |
-| **Publish**   | pushes packages to NuGet                                                                                                      |
-| **Test**      | runs the test projects                                                                                                        |
