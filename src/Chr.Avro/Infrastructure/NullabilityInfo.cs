@@ -1,3 +1,4 @@
+#if !NET6_0_OR_GREATER
 namespace Chr.Avro.Infrastructure
 {
     using System;
@@ -70,3 +71,4 @@ namespace Chr.Avro.Infrastructure
         public NullabilityInfo[] GenericTypeArguments { get; }
     }
 }
+#endif
