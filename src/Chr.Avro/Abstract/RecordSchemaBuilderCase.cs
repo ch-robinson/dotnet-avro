@@ -9,10 +9,11 @@ namespace Chr.Avro.Abstract
     using System.Runtime.Serialization;
     using System.Text.RegularExpressions;
     using Chr.Avro.Infrastructure;
+    #if !NET6_0_OR_GREATER
     using NullabilityInfoContext = Chr.Avro.Infrastructure.NullabilityInfoContext;
     using NullabilityState = Chr.Avro.Infrastructure.NullabilityState;
     using NullabilityInfo = Chr.Avro.Infrastructure.NullabilityInfo;
-
+    #endif
 
     /// <summary>
     /// Implements a <see cref="SchemaBuilder" /> case that matches any non-array or non-primitive

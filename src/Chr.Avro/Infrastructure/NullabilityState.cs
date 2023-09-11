@@ -1,3 +1,4 @@
+#if !NET6_0_OR_GREATER
 namespace Chr.Avro.Infrastructure
 {
     /// <summary>
@@ -26,3 +27,4 @@ namespace Chr.Avro.Infrastructure
         Nullable,
     }
 }
+#endif
