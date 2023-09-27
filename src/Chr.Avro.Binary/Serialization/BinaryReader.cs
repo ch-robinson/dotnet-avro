@@ -1,8 +1,9 @@
-using System.Buffers.Binary;
-
 namespace Chr.Avro.Serialization
 {
     using System;
+#if NET6_0_OR_GREATER
+    using System.Buffers.Binary;
+#endif
     using System.Text;
 
     /// <summary>
@@ -78,7 +79,6 @@ namespace Chr.Avro.Serialization
 #if NET6_0_OR_GREATER
             return BinaryPrimitives.ReadDoubleLittleEndian(ReadFixedSpan(8));
 #else
-
             var bytes = ReadFixed(8);
 
             if (!BitConverter.IsLittleEndian)

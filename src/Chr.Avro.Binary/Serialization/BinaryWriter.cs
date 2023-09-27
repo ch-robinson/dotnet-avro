@@ -1,6 +1,9 @@
 namespace Chr.Avro.Serialization
 {
     using System;
+#if NET6_0_OR_GREATER
+    using System.Buffers.Binary;
+#endif
     using System.IO;
     using System.Text;
 
@@ -53,6 +56,20 @@ namespace Chr.Avro.Serialization
             WriteInteger(value.Length);
             WriteFixed(value);
         }
+#if NET6_0_OR_GREATER
+
+        /// <summary>
+        /// Writes fixed-length binary data to the current position and advances the writer.
+        /// </summary>
+        /// <param name="value">
+        /// An array of <see cref="byte" />s.
+        /// </param>
+        public void WriteBytes(ReadOnlySpan<byte> value)
+        {
+            WriteInteger(value.Length);
+            WriteFixed(value);
+        }
+#endif
 
         /// <summary>
         /// Writes a double-precision floating-point number to the current position and advances
@@ -63,12 +80,17 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteDouble(double value)
         {
+#if NET6_0_OR_GREATER
+            Span<byte> bytes = stackalloc byte[sizeof(double)];
+            BinaryPrimitives.WriteDoubleLittleEndian(bytes, value);
+#else
             var bytes = BitConverter.GetBytes(value);
 
             if (!BitConverter.IsLittleEndian)
             {
                 Array.Reverse(bytes);
             }
+#endif
 
             WriteFixed(bytes);
         }
@@ -83,6 +105,19 @@ namespace Chr.Avro.Serialization
         {
             stream.Write(value, 0, value.Length);
         }
+#if NET6_0_OR_GREATER
+
+        /// <summary>
+        /// Writes fixed-length binary data to the current position and advances the writer.
+        /// </summary>
+        /// <param name="value">
+        /// An array of <see cref="byte" />s.
+        /// </param>
+        public void WriteFixed(ReadOnlySpan<byte> value)
+        {
+            stream.Write(value);
+        }
+#endif
 
         /// <summary>
         /// Writes a variable-length integer to the current position and advances the writer.
@@ -143,12 +178,17 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteSingle(float value)
         {
+#if NET6_0_OR_GREATER
+            Span<byte> bytes = stackalloc byte[sizeof(float)];
+            BinaryPrimitives.WriteSingleLittleEndian(bytes, value);
+#else
             var bytes = BitConverter.GetBytes(value);
 
             if (!BitConverter.IsLittleEndian)
             {
                 Array.Reverse(bytes);
             }
+#endif
 
             WriteFixed(bytes);
         }
