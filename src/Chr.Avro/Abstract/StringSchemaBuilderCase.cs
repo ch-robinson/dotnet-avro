@@ -37,11 +37,9 @@ namespace Chr.Avro.Abstract
         {
             if (type == typeof(string))
             {
-                var stringSchema = new StringSchema();
+                Schema schema = new StringSchema();
 
-                Schema schema = stringSchema;
-
-                if (!type.IsValueType && NullableReferenceTypeBehavior == NullableReferenceTypeBehavior.All)
+                if (NullableReferenceTypeBehavior == NullableReferenceTypeBehavior.All)
                 {
                     if (!context.Schemas.TryGetValue(NullableType, out var nullSchema))
                     {

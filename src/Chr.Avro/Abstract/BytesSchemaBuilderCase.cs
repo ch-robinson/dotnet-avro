@@ -37,11 +37,9 @@ namespace Chr.Avro.Abstract
         {
             if (type == typeof(byte[]))
             {
-                var bytesSchema = new BytesSchema();
+                Schema schema = new BytesSchema();
 
-                Schema schema = bytesSchema;
-
-                if (!type.IsValueType && NullableReferenceTypeBehavior == NullableReferenceTypeBehavior.All)
+                if (NullableReferenceTypeBehavior == NullableReferenceTypeBehavior.All)
                 {
                     if (!context.Schemas.TryGetValue(NullableType, out var nullSchema))
                     {

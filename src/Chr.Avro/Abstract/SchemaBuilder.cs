@@ -114,7 +114,7 @@ namespace Chr.Avro.Abstract
                 // built-ins:
                 builder => new DurationSchemaBuilderCase(),
                 builder => new TimestampSchemaBuilderCase(temporalBehavior),
-                builder => new UriSchemaBuilderCase(),
+                builder => new UriSchemaBuilderCase(nullableReferenceTypeBehavior),
                 builder => new UuidSchemaBuilderCase(),
 
                 // classes and structs:

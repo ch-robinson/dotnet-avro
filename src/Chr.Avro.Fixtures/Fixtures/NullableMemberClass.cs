@@ -13,6 +13,8 @@ namespace Chr.Avro.Fixtures
 
         public string ObliviousStringProperty { get; set; }
 
+        public Uri ObliviousUriProperty { get; set; }
+
         public string[] ObliviousArrayOfStringsProperty { get; set; }
 
         public List<string> ObliviousListOfStringsProperty { get; set; }
@@ -27,6 +29,10 @@ namespace Chr.Avro.Fixtures
         public string StringProperty { get; set; }
 
         public string? NullableStringProperty { get; set; }
+
+        public Uri UriProperty { get; set; }
+
+        public Uri? NullableUriProperty { get; set; }
 
         public string[] ArrayOfStringsProperty { get; set; }
 

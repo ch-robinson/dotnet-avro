@@ -194,7 +194,8 @@ namespace Chr.Avro.Tests
                 type => Assert.Equal(typeof(object), type),
                 type => Assert.Equal(typeof(Guid), type),
                 type => Assert.Equal(typeof(List<string>), type),
-                type => Assert.Equal(typeof(Guid?), type));
+                type => Assert.Equal(typeof(Guid?), type),
+                type => Assert.Equal(typeof(Uri), type));
 
             Assert.Collection(
                 schema.Fields,
@@ -441,6 +442,22 @@ namespace Chr.Avro.Tests
                 },
                 field =>
                 {
+                    Assert.Equal(nameof(NullableMemberClass.NullableUriProperty), field.Name);
+
+                    var union = Assert.IsType<UnionSchema>(field.Type);
+                    Assert.Collection(
+                        union.Schemas,
+                        child =>
+                        {
+                            Assert.IsType<NullSchema>(child);
+                        },
+                        child =>
+                        {
+                            Assert.IsType<StringSchema>(child);
+                        });
+                },
+                field =>
+                {
                     Assert.Equal(nameof(NullableMemberClass.ObliviousArrayOfStringsProperty), field.Name);
 
                     var array = Assert.IsType<ArraySchema>(field.Type);
@@ -488,7 +505,17 @@ namespace Chr.Avro.Tests
                 },
                 field =>
                 {
+                    Assert.Equal(nameof(NullableMemberClass.ObliviousUriProperty), field.Name);
+                    Assert.IsType<StringSchema>(field.Type);
+                },
+                field =>
+                {
                     Assert.Equal(nameof(NullableMemberClass.StringProperty), field.Name);
+                    Assert.IsType<StringSchema>(field.Type);
+                },
+                field =>
+                {
+                    Assert.Equal(nameof(NullableMemberClass.UriProperty), field.Name);
                     Assert.IsType<StringSchema>(field.Type);
                 });
             Assert.Null(schema.LogicalType);
