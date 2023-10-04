@@ -10,9 +10,9 @@ namespace Chr.Avro.Abstract
     using System.Text.RegularExpressions;
     using Chr.Avro.Infrastructure;
     #if !NET6_0_OR_GREATER
+    using NullabilityInfo = Chr.Avro.Infrastructure.NullabilityInfo;
     using NullabilityInfoContext = Chr.Avro.Infrastructure.NullabilityInfoContext;
     using NullabilityState = Chr.Avro.Infrastructure.NullabilityState;
-    using NullabilityInfo = Chr.Avro.Infrastructure.NullabilityInfo;
     #endif
 
     /// <summary>

@@ -125,7 +125,7 @@ namespace Chr.Avro.Codegen
                 .GroupBy(s => s.Namespace)
                 .OrderBy(g => g.Key);
 
-            if (candidates.Count() < 1)
+            if (!candidates.Any())
             {
                 throw new UnsupportedSchemaException(schema, $"Code can only be generated for enums and records.");
             }
@@ -307,7 +307,7 @@ namespace Chr.Avro.Codegen
 
                     try
                     {
-                        return GetPropertyType(others.Single(), nulls.Count() > 0);
+                        return GetPropertyType(others.Single(), nulls.Any());
                     }
                     catch (InvalidOperationException exception)
                     {

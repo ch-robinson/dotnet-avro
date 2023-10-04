@@ -17,7 +17,7 @@ namespace Chr.Avro.Abstract
         /// <param name="schema">
         /// A <see cref="Schema" /> that can be used to read the value.
         /// </param>
-        public ObjectDefaultValue(TValue value, Schema schema)
+        public ObjectDefaultValue(TValue? value, Schema schema)
             : base(schema)
         {
             Value = value;
@@ -26,7 +26,7 @@ namespace Chr.Avro.Abstract
         /// <summary>
         /// Gets or sets the <see cref="object" /> representation of the value.
         /// </summary>
-        public TValue Value { get; set; }
+        public TValue? Value { get; set; }
 
         /// <inheritdoc />
         /// <exception cref="UnsupportedTypeException">

@@ -101,7 +101,7 @@ namespace Chr.Avro.Serialization
             var (keyType, valueType) = type.GetDictionaryTypes() ?? throw new ArgumentException($"{type} is not a dictionary type.");
 
             return type.GetConstructors()
-                .Where(constructor => constructor.GetParameters().Count() == 1)
+                .Where(constructor => constructor.GetParameters().Length == 1)
                 .FirstOrDefault(constructor => constructor.GetParameters().First().ParameterType
                     .IsAssignableFrom(typeof(IDictionary<,>).MakeGenericType(keyType, valueType)));
         }

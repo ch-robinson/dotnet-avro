@@ -42,12 +42,8 @@ namespace Chr.Avro.Serialization
                     ? fields
                         .Select(field =>
                         {
-                            var match = symbols.Find(symbol => IsMatch(symbol, field));
-
-                            if (match == null)
-                            {
-                                throw new UnsupportedTypeException(type, $"{type} has a field {field.Name} that cannot be serialized.");
-                            }
+                            var match = symbols.Find(symbol => IsMatch(symbol, field))
+                                ?? throw new UnsupportedTypeException(type, $"{type} has a field {field.Name} that cannot be serialized.");
 
                             if (symbols.FindLast(symbol => IsMatch(symbol, field)) != match)
                             {

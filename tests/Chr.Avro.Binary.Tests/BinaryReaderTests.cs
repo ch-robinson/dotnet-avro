@@ -60,7 +60,6 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { "𝄟", new byte[] { 0x08, 0xF0, 0x9D, 0x84, 0x9F } },
         };
 
-
         [Theory]
         [MemberData(nameof(BooleanEncodings))]
         [InlineData(true, new byte[] { 0x02 })]

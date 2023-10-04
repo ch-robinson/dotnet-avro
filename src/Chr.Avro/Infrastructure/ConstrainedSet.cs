@@ -17,6 +17,7 @@ namespace Chr.Avro.Infrastructure
     /// The type of the elements in the <see cref="ConstrainedSet{T}" />.
     /// </typeparam>
     internal class ConstrainedSet<T> : ICollection<T>, IReadOnlyCollection<T>
+        where T : notnull
     {
         private readonly IDictionary<T, LinkedListNode<T>> dictionary;
 

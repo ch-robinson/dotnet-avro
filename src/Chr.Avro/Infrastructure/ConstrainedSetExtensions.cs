@@ -29,6 +29,7 @@ namespace Chr.Avro.Infrastructure
         /// A new <see cref="ConstrainedSet{T}" /> instance.
         /// </returns>
         internal static ConstrainedSet<T> ToConstrainedSet<T>(this IEnumerable<T> enumerable, Func<T, ConstrainedSet<T>, bool>? predicate = null)
+            where T : notnull
         {
             if (enumerable == null)
             {

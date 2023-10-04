@@ -30,7 +30,7 @@ namespace Chr.Avro.Serialization
         /// <summary>
         /// Gets the current position of the reader.
         /// </summary>
-        public long Index => index;
+        public readonly long Index => index;
 
         /// <summary>
         /// Reads a Boolean value from the current position and advances the reader.
@@ -142,7 +142,8 @@ namespace Chr.Avro.Serialization
                 {
                     throw new InvalidEncodingException(index, "Unable to read a valid variable-length integer. This may indicate invalid encoding earlier in the stream.");
                 }
-            } while (current > 0x7F);
+            }
+            while (current > 0x7F);
 
             return (-(result & 0x01)) ^ ((result >> 0x01) & 0x7FFFFFFFFFFFFFFF);
         }

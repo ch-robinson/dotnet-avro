@@ -175,7 +175,7 @@ namespace Chr.Avro.Serialization
             var itemType = type.GetEnumerableType() ?? throw new ArgumentException($"{type} is not an enumerable type.");
 
             return type.GetConstructors()
-                .Where(constructor => constructor.GetParameters().Count() == 1)
+                .Where(constructor => constructor.GetParameters().Length == 1)
                 .FirstOrDefault(constructor => constructor.GetParameters().First().ParameterType
                     .IsAssignableFrom(typeof(IEnumerable<>).MakeGenericType(itemType)));
         }

@@ -200,7 +200,6 @@ namespace Chr.Avro.Serialization.Tests
                 },
             });
 
-
             var serializerCases = BinarySerializerBuilder.CreateDefaultCaseBuilders().ToList();
             serializerCases.Insert(0, builder => new OrderSerializerBuilderCase(builder));
 

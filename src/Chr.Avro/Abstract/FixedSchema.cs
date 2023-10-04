@@ -51,7 +51,7 @@ namespace Chr.Avro.Abstract
             {
                 if (value < 0)
                 {
-                    throw new ArgumentOutOfRangeException("A fixed schema cannot have a negative size.");
+                    throw new ArgumentOutOfRangeException(nameof(value), "A fixed schema cannot have a negative size.");
                 }
 
                 size = value;

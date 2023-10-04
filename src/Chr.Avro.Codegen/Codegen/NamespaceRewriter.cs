@@ -80,7 +80,7 @@
             // VisitQualifiedName doesn’t hit these
             var children = node.ChildNodes().OfType<NameSyntax>();
 
-            if (children.Count() > 0)
+            if (children.Any())
             {
                 result = result.ReplaceNodes(children, (child, rewritten) => Reduce(child));
             }
