@@ -22,7 +22,7 @@ jobs:
 
           source_directory=src
           release_directory=releases
-          pack_flags="--configuration Release --output '$release_directory' /p:ContinuousIntegrationBuild=true"
+          pack_flags="--configuration Release --api-key '$NUGET_API_KEY' --output '$release_directory' /p:ContinuousIntegrationBuild=true"
 
           dotnet pack $pack_flags "$source_directory\\Chr.Avro"
           dotnet pack $pack_flags "$source_directory\\Chr.Avro.Binary"
