@@ -68,5 +68,19 @@ namespace Chr.Avro.Serialization
                 return JsonDeserializerBuilderCaseResult.FromException(new UnsupportedSchemaException(schema, $"{nameof(JsonStringDeserializerBuilderCase)} can only be applied to {nameof(StringSchema)}s."));
             }
         }
+
+        protected virtual Expression BuildConversion(Expression value, Type target)
+        {
+            var fromString = target
+                .GetMethod("FromString", new Type[] { typeof(string) });
+
+            if (fromString != null)
+            {
+                value = Expression.Call(null, fromString, value);
+            }
+
+            return base.BuildConversion(value, target);
+        }
+
     }
 }

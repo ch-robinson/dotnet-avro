@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Avro schema models</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="System.Collections.Immutable" Version="5.0.0" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Chr.Avro.Json\Chr.Avro.Json.csproj" />
+    <ProjectReference Include="..\Chr.Avro\Chr.Avro.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="EntityUnion\" />
+  </ItemGroup>
+
+
+</Project>

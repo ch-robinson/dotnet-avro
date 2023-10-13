@@ -25,6 +25,8 @@ namespace Chr.Avro.Abstract
 
         private readonly NullabilityInfoContext nullabilityContext;
 
+        public static Func<Type, MemberInfo, bool>? IgnoreField { get; set; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="RecordSchemaBuilderCase" /> class.
         /// </summary>
@@ -42,6 +44,11 @@ namespace Chr.Avro.Abstract
             NullableReferenceTypeBehavior nullableReferenceTypeBehavior,
             ISchemaBuilder schemaBuilder)
         {
+            if (IgnoreField == null)
+            {
+                throw new ApplicationException(
+                    "Our customized RecordSchemaBuilderCase needs the IgnoreField function set on it.");
+            }
             MemberVisibility = memberVisibility;
             NullableReferenceTypeBehavior = nullableReferenceTypeBehavior;
             SchemaBuilder = schemaBuilder ?? throw new ArgumentNullException(nameof(schemaBuilder), "Schema builder cannot be null.");
@@ -119,6 +126,12 @@ namespace Chr.Avro.Abstract
                         continue;
                     }
 
+
+                    if (IgnoreField(memberType, member))
+                    {
+                        continue;
+                    }
+
                     var field = new RecordField(GetFieldName(member), SchemaBuilder.BuildSchema(memberType, context))
                     {
                         Documentation = member.GetAttribute<DescriptionAttribute>()?.Description,
@@ -159,6 +172,8 @@ namespace Chr.Avro.Abstract
                 return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(RecordSchemaBuilderCase)} cannot be applied to array or primitive types."));
             }
         }
+
+
 
         /// <summary>
         /// Derives a field name from a <see cref="MemberInfo" />.
