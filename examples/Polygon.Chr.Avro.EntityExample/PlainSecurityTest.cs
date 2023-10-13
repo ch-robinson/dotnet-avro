@@ -18,6 +18,13 @@ namespace Polygon.Chr.Avro.EntityExample
 
         public static bool IgnoreField(Type memberType, MemberInfo member)
         {
+            if (member.MemberType == MemberTypes.Property)
+            {
+                var pi = member as PropertyInfo;
+                if (!pi.CanWrite)
+                    return true;
+
+            }
             if (memberType.GetInterfaces().Any(z => z.Name.StartsWith("IPlainEntity")))
                 return true;
 
@@ -29,8 +36,6 @@ namespace Polygon.Chr.Avro.EntityExample
             }
 
 
-            if (GetFieldName(member) == "Children")
-                return true;
             if (GetFieldName(member) == "Components")
                 return true;
             if (GetFieldName(member) == "Dependencies")
@@ -39,13 +44,8 @@ namespace Polygon.Chr.Avro.EntityExample
                 return true;
             if (GetFieldName(member) == "Changed")
                 return true;
-
-
-
-
             if (memberType == typeof(IEntity))
                 return true;
-            ;
             if (memberType == typeof(IEntityEdit))
                 return true;
             if (memberType == typeof(IEntitySetRead))
@@ -54,15 +54,14 @@ namespace Polygon.Chr.Avro.EntityExample
                 return true;
 
 
-            // need to handle these via a special Case
+            // need to handle these via a special Case top 10 
             if (memberType == typeof(NodaTime.LocalDate) || memberType == typeof(Nullable<NodaTime.LocalDate>))
                 return true;
-            ;
 
             if (memberType == typeof(NodaTime.LocalDateTime) || memberType == typeof(Nullable<NodaTime.LocalDateTime>))
                 return true;
 
-            NullableEntityId a;
+            
             return false;
         }
 
