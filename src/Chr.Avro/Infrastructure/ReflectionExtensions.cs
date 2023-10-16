@@ -4,6 +4,9 @@ namespace Chr.Avro.Infrastructure
     using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
+#if NET6_0_OR_GREATER
+    using System.Runtime.CompilerServices;
+#endif
     using System.Runtime.Serialization;
 
     /// <summary>
@@ -259,7 +262,11 @@ namespace Chr.Avro.Infrastructure
         public static T GetUninitializedInstance<T>()
             where T : notnull
         {
+#if NET6_0_OR_GREATER
+            return (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
+#else
             return (T)FormatterServices.GetUninitializedObject(typeof(T));
+#endif
         }
 
         /// <summary>
