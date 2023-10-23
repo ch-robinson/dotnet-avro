@@ -538,6 +538,27 @@ namespace Chr.Avro.Tests
             Assert.Equal(typeof(CircularClass).Name, schema.Name);
             Assert.Equal(typeof(CircularClass).Namespace, schema.Namespace);
         }
+#if NET6_0_OR_GREATER
+
+        [Theory]
+        [InlineData(typeof(DateOnly))]
+        public void BuildDatesAsIso8601Strings(Type type)
+        {
+            var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.Iso8601);
+            var schema = Assert.IsType<StringSchema>(builder.BuildSchema(type));
+            Assert.Null(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(DateOnly), TemporalBehavior.EpochMicroseconds)]
+        [InlineData(typeof(DateOnly), TemporalBehavior.EpochMilliseconds)]
+        public void BuildDatesAsDaysFromEpoch(Type type, TemporalBehavior temporalBehavior)
+        {
+            var builder = new SchemaBuilder(temporalBehavior: temporalBehavior);
+            var schema = Assert.IsType<IntSchema>(builder.BuildSchema(type));
+            Assert.IsType<DateLogicalType>(schema.LogicalType);
+        }
+#endif
 
         [Theory]
         [InlineData(typeof(decimal))]
@@ -794,6 +815,35 @@ namespace Chr.Avro.Tests
                 s => Assert.IsType<NullSchema>(s),
                 s => Assert.IsType(inner, s));
         }
+#if NET6_0_OR_GREATER
+
+        [Theory]
+        [InlineData(typeof(TimeOnly))]
+        public void BuildTimesAsIso8601Strings(Type type)
+        {
+            var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.Iso8601);
+            var schema = Assert.IsType<StringSchema>(builder.BuildSchema(type));
+            Assert.Null(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(TimeOnly))]
+        public void BuildTimesAsMicrosecondsFromMidnight(Type type)
+        {
+            var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.EpochMicroseconds);
+            var schema = Assert.IsType<LongSchema>(builder.BuildSchema(type));
+            Assert.IsType<MicrosecondTimeLogicalType>(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(TimeOnly))]
+        public void BuildTimesAsMillisecondsFromMidnight(Type type)
+        {
+            var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.EpochMilliseconds);
+            var schema = Assert.IsType<IntSchema>(builder.BuildSchema(type));
+            Assert.IsType<MillisecondTimeLogicalType>(schema.LogicalType);
+        }
+#endif
 
         [Theory]
         [InlineData(typeof(DateTime))]
