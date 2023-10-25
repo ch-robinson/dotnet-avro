@@ -26,7 +26,7 @@ jobs:
           set -xe
 
           test_directory=tests
-          test_flags="--framework ${{ matrix.target }} --api-key '$NUGET_API_KEY' --source tetragon-nuget"
+          test_flags="--framework ${{ matrix.target }}"
 
           dotnet test $test_flags "$test_directory\\Chr.Avro.Tests"
           dotnet test $test_flags "$test_directory\\Chr.Avro.Binary.Tests"
