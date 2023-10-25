@@ -22,7 +22,7 @@ jobs:
           script: |
             const fs = require('fs').promises;
 
-            const releaseDirectory = './releases';
+            const releaseDirectory = 'releases';
             await fs.mkdir(releaseDirectory, { recursive: true });
 
             await Promise.all(context.release.assets.map(async asset => {
