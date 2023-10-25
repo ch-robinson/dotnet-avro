@@ -16,27 +16,27 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           global-json-file: global.json
-      - name: Fetch packages
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs').promises;
-
-            const releaseDirectory = 'releases';
-            await fs.mkdir(releaseDirectory, { recursive: true });
-
-            await Promise.all(context.release.assets.map(async asset => {
-              const contents = await github.rest.repos.getReleaseAsset({
-                asset_id: asset.id,
-                headers: {
-                  accept: 'application/octet-stream'
-                },
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              });
-
-              await fs.writeFile(`${releaseDirectory}/${asset.name}`, contents.data);
-            }));
+#      - name: Fetch packages
+#        uses: actions/github-script@v6
+#        with:
+#          script: |
+#            const fs = require('fs').promises;
+#
+#            const releaseDirectory = 'releases';
+#            await fs.mkdir(releaseDirectory, { recursive: true });
+#
+#            await Promise.all(context.release.assets.map(async asset => {
+#              const contents = await github.rest.repos.getReleaseAsset({
+#                asset_id: asset.id,
+#                headers: {
+#                  accept: 'application/octet-stream'
+#                },
+#                owner: context.repo.owner,
+#                repo: context.repo.repo
+#              });
+#
+#              await fs.writeFile(`${releaseDirectory}/${asset.name}`, contents.data);
+#            }));
       - name: Push packages
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
