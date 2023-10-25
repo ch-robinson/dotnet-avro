@@ -38,8 +38,8 @@ jobs:
         with:
           script: |
             const fs = require('fs').promises;
-
-            const releaseDirectory = './releases';
+            console.log(`Current working directory: ${process.cwd()}`);
+            const releaseDirectory = 'releases';
 
             const release = await github.rest.repos.createRelease({
               owner: context.repo.owner,
