@@ -21,24 +21,24 @@ jobs:
         run: pip install mkdocs=='1.4.2' mkdocs-material=='9.0.1'
       - name: Build site
         run: mkdocs build --site-dir "$RUNNER_TEMP/site"
-      - name: Set up GitHub Pages
-        uses: actions/configure-pages@v3
-      - name: Upload generated docs
-        uses: actions/upload-pages-artifact@v1
-        with:
-          path: ${{ runner.temp }}/site
-  deploy:
-    name: Deploy documentation site
-    environment:
-      name: GitHub Pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    if: github.ref == 'refs/heads/main'
-    needs: build
-    permissions:
-      id-token: write
-      pages: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v1
+#      - name: Set up GitHub Pages
+#        uses: actions/configure-pages@v3
+#      - name: Upload generated docs
+#        uses: actions/upload-pages-artifact@v1
+#        with:
+#          path: ${{ runner.temp }}/site
+#  deploy:
+#    name: Deploy documentation site
+#    environment:
+#      name: GitHub Pages
+#      url: ${{ steps.deployment.outputs.page_url }}
+#    if: github.ref == 'refs/heads/main'
+#    needs: build
+#    permissions:
+#      id-token: write
+#      pages: write
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Deploy to GitHub Pages
+#        id: deployment
+#        uses: actions/deploy-pages@v1
