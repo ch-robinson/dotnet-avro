@@ -1,64 +1,64 @@
-name: Release
-
-on:
-  push:
-    tags:
-      - '*'
-
-jobs:
-  build:
-    name: Create release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Pull code
-        uses: actions/checkout@v3
-      - name: Use .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          global-json-file: global.json
-      - name: Build packages
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: |
-          set -xe
-
-          source_directory=src
-          release_directory=releases
-          pack_flags="--configuration Release  --output releases /p:ContinuousIntegrationBuild=true"
-
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Binary"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Cli"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Codegen"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Confluent"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Json"
-        shell: bash
-      - name: Draft GitHub release
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs').promises;
-            console.log(`Current working directory: ${process.cwd()}`);
-            const releaseDirectory = 'releases';
-
-            const release = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-
-              // strip refs/tags/ prefix if present, otherwise release download links break:
-              tag_name: process.env.GITHUB_REF.replace(/^(?:.+\/)?([^\/]+)$/, '$1'),
-              target_commitish: context.sha,
-
-              // maintainer will add notes and publish:
-              draft: true
-            });
-
-            await Promise.all((await fs.readdir(releaseDirectory)).map(async file => {
-              await github.rest.repos.uploadReleaseAsset({
-                data: await fs.readFile(`${releaseDirectory}/${file}`),
-                name: file,
-                owner: context.repo.owner,
-                release_id: release.data.id,
-                repo: context.repo.repo
-              });
-            }));
+#name: Release
+#
+#on:
+#  push:
+#    tags:
+#      - '*'
+#
+#jobs:
+#  build:
+#    name: Create release
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Pull code
+#        uses: actions/checkout@v3
+#      - name: Use .NET
+#        uses: actions/setup-dotnet@v3
+#        with:
+#          global-json-file: global.json
+#      - name: Build packages
+#        env:
+#          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+#        run: |
+#          set -xe
+#
+#          source_directory=src
+#          release_directory=releases
+#          pack_flags="--configuration Release  --output releases /p:ContinuousIntegrationBuild=true"
+#
+#          dotnet pack $pack_flags "$source_directory\\Chr.Avro"
+#          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Binary"
+#          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Cli"
+#          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Codegen"
+#          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Confluent"
+#          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Json"
+#        shell: bash
+#      - name: Draft GitHub release
+#        uses: actions/github-script@v6
+#        with:
+#          script: |
+#            const fs = require('fs').promises;
+#            console.log(`Current working directory: ${process.cwd()}`);
+#            const releaseDirectory = 'releases';
+#
+#            const release = await github.rest.repos.createRelease({
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#
+#              // strip refs/tags/ prefix if present, otherwise release download links break:
+#              tag_name: process.env.GITHUB_REF.replace(/^(?:.+\/)?([^\/]+)$/, '$1'),
+#              target_commitish: context.sha,
+#
+#              // maintainer will add notes and publish:
+#              draft: true
+#            });
+#
+#            await Promise.all((await fs.readdir(releaseDirectory)).map(async file => {
+#              await github.rest.repos.uploadReleaseAsset({
+#                data: await fs.readFile(`${releaseDirectory}/${file}`),
+#                name: file,
+#                owner: context.repo.owner,
+#                release_id: release.data.id,
+#                repo: context.repo.repo
+#              });
+#            }));

@@ -16,35 +16,24 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           global-json-file: global.json
-#      - name: Fetch packages
-#        uses: actions/github-script@v6
-#        with:
-#          script: |
-#            const fs = require('fs').promises;
-#
-#            const releaseDirectory = 'releases';
-#            await fs.mkdir(releaseDirectory, { recursive: true });
-#
-#            await Promise.all(context.release.assets.map(async asset => {
-#              const contents = await github.rest.repos.getReleaseAsset({
-#                asset_id: asset.id,
-#                headers: {
-#                  accept: 'application/octet-stream'
-#                },
-#                owner: context.repo.owner,
-#                repo: context.repo.repo
-#              });
-#
-#              await fs.writeFile(`${releaseDirectory}/${asset.name}`, contents.data);
-#            }));
       - name: Push packages
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run:
           set -xe
 
+          source_directory=src
           release_directory=releases
-          push_flags="--api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget"
+          pack_flags="--configuration Release  --output releases /p:ContinuousIntegrationBuild=true"
 
-          dotnet nuget push $push_flags "$release_directory/*.nupkg"
-          dotnet nuget push $push_flags "$release_directory/*.snupkg"
+          dotnet pack $pack_flags "$source_directory\\Chr.Avro"
+          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Binary"
+          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Cli"
+          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Codegen"
+          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Confluent"
+          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Json"
+
+          push_flags_publish="--api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget"
+
+          dotnet nuget push push_flags_publish "$release_directory/*.nupkg"
+          dotnet nuget push push_flags_publish "$release_directory/*.snupkg"
