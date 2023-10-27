@@ -25,7 +25,7 @@ jobs:
           source_directory=src
           release_directory=releases
 
-          pack_flags="--configuration Release  --output '$release_directory' /p:ContinuousIntegrationBuild=true"
+          pack_flags="--configuration Release  --output releases /p:ContinuousIntegrationBuild=true"
 
           dotnet pack $pack_flags "$source_directory\\Chr.Avro"
           dotnet pack $pack_flags "$source_directory\\Chr.Avro.Binary"
@@ -36,6 +36,6 @@ jobs:
 
           push_flags_publish="--api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget"
 
-          dotnet nuget push push_flags_publish "$release_directory/*.nupkg"
-          dotnet nuget push push_flags_publish "$release_directory/*.snupkg"
+          dotnet nuget push $push_flags_publish "releases/*.nupkg"
+          dotnet nuget push $push_flags_publish "releases/*.snupkg"
         shell: bash
