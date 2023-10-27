@@ -22,17 +22,12 @@ jobs:
         run:
           set -xe
 
-          source_directory=src
-          release_directory=releases
-
-          pack_flags="--configuration Release  --output releases /p:ContinuousIntegrationBuild=true"
-
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Binary"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Cli"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Codegen"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Confluent"
-          dotnet pack $pack_flags "$source_directory\\Chr.Avro.Json"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Binary"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Cli"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Codegen"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Confluent"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Json"
 
           push_flags_publish="--api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget"
 
