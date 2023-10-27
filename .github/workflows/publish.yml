@@ -29,8 +29,6 @@ jobs:
           dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Confluent"
           dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Json"
 
-          push_flags_publish="--api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget"
-
-          dotnet nuget push $push_flags_publish "releases/*.nupkg"
-          dotnet nuget push $push_flags_publish "releases/*.snupkg"
+          dotnet nuget push --api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget "releases/*.nupkg"
+          dotnet nuget push --api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget "releases/*.snupkg"
         shell: bash
