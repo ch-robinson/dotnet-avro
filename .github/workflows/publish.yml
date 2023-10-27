@@ -12,23 +12,25 @@ jobs:
     steps:
       - name: Pull code
         uses: actions/checkout@v3
+
       - name: Use .NET
         uses: actions/setup-dotnet@v3
         with:
           global-json-file: global.json
+
       - name: Push packages
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run:
+        run: |
           set -xe
 
-          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro"
-          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Binary"
-          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Cli"
-          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Codegen"
-          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Confluent"
-          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src\\Chr.Avro.Json"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro.Binary"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro.Cli"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro.Codegen"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro.Confluent"
+          dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro.Json"
 
-          dotnet nuget push --api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget "releases/*.nupkg"
-          dotnet nuget push --api-key '$NUGET_API_KEY' --skip-duplicate --source tetragon-nuget "releases/*.snupkg"
+          dotnet nuget push --api-key "$NUGET_API_KEY" --skip-duplicate --source tetragon-nuget "releases/*.nupkg"
+          dotnet nuget push --api-key "$NUGET_API_KEY" --skip-duplicate --source tetragon-nuget "releases/*.snupkg"
         shell: bash
