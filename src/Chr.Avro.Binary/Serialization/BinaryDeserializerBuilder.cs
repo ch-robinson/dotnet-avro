@@ -67,8 +67,14 @@ namespace Chr.Avro.Serialization
             return new Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>[]
             {
                 // logical types:
+#if NET6_0_OR_GREATER
+                builder => new BinaryDateDeserializerBuilderCase(),
+#endif
                 builder => new BinaryDecimalDeserializerBuilderCase(),
                 builder => new BinaryDurationDeserializerBuilderCase(),
+#if NET6_0_OR_GREATER
+                builder => new BinaryTimeDeserializerBuilderCase(),
+#endif
                 builder => new BinaryTimestampDeserializerBuilderCase(),
 
                 // primitives:
