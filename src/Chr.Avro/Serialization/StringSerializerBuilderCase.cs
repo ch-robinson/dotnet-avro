@@ -27,6 +27,14 @@ namespace Chr.Avro.Serialization
 
                 var convertDateTimeOffset = typeof(DateTimeOffset)
                     .GetMethod(nameof(DateTimeOffset.ToString), new[] { typeof(string), typeof(IFormatProvider) });
+#if NET6_0_OR_GREATER
+
+                var convertDateOnly = typeof(DateOnly)
+                    .GetMethod(nameof(DateOnly.ToString), new[] { typeof(string), typeof(IFormatProvider) });
+
+                var convertTimeOnly = typeof(TimeOnly)
+                    .GetMethod(nameof(TimeOnly.ToString), new[] { typeof(string), typeof(IFormatProvider) });
+#endif
 
                 var convertEnum = typeof(ReflectionExtensions)
                     .GetMethod(nameof(ReflectionExtensions.GetEnumMemberName), new[] { typeof(Type), typeof(object) });
@@ -70,6 +78,26 @@ namespace Chr.Avro.Serialization
                                 convertDateTimeOffset,
                                 Expression.Constant("O"),
                                 Expression.Constant(CultureInfo.InvariantCulture)))),
+#if NET6_0_OR_GREATER
+                    Expression.IfThen(
+                        Expression.TypeIs(intermediate, typeof(DateOnly)),
+                        Expression.Return(
+                            result,
+                            Expression.Call(
+                                Expression.Convert(intermediate, typeof(DateOnly)),
+                                convertDateOnly,
+                                Expression.Constant("O"),
+                                Expression.Constant(CultureInfo.InvariantCulture)))),
+                    Expression.IfThen(
+                        Expression.TypeIs(intermediate, typeof(TimeOnly)),
+                        Expression.Return(
+                            result,
+                            Expression.Call(
+                                Expression.Convert(intermediate, typeof(TimeOnly)),
+                                convertTimeOnly,
+                                Expression.Constant("O"),
+                                Expression.Constant(CultureInfo.InvariantCulture)))),
+#endif
                     Expression.IfThen(
                         Expression.Property(Expression.Call(intermediate, getType), isEnum),
                         Expression.Return(
@@ -133,6 +161,30 @@ namespace Chr.Avro.Serialization
                         Expression.Constant("O"),
                         Expression.Constant(CultureInfo.InvariantCulture));
                 }
+#if NET6_0_OR_GREATER
+                else if (value.Type == typeof(DateOnly))
+                {
+                    var convertDateOnly = typeof(DateOnly)
+                        .GetMethod(nameof(DateOnly.ToString), new[] { typeof(string), typeof(IFormatProvider) });
+
+                    value = Expression.Call(
+                        value,
+                        convertDateOnly,
+                        Expression.Constant("O"),
+                        Expression.Constant(CultureInfo.InvariantCulture));
+                }
+                else if (value.Type == typeof(TimeOnly))
+                {
+                    var convertTimeOnly = typeof(TimeOnly)
+                        .GetMethod(nameof(TimeOnly.ToString), new[] { typeof(string), typeof(IFormatProvider) });
+
+                    value = Expression.Call(
+                        value,
+                        convertTimeOnly,
+                        Expression.Constant("O"),
+                        Expression.Constant(CultureInfo.InvariantCulture));
+                }
+#endif
                 else if (value.Type.IsEnum)
                 {
                     var cases = value.Type.GetEnumMembers()
