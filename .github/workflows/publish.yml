@@ -25,7 +25,13 @@ jobs:
             const releaseDirectory = './releases';
             await fs.mkdir(releaseDirectory, { recursive: true });
 
-            await Promise.all(context.release.assets.map(async asset => {
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: process.env.GITHUB_REF.replace(/^(?:.+\/)?([^\/]+)$/, '$1')
+            });
+
+            await Promise.all(release.assets.map(async asset => {
               const contents = await github.rest.repos.getReleaseAsset({
                 asset_id: asset.id,
                 headers: {
