@@ -55,7 +55,8 @@ namespace Chr.Avro.Infrastructure
             return type.GetMembers(attributes)
                 .Where(member => type.HasAttribute<DataContractAttribute>()
                     ? member.HasAttribute<DataMemberAttribute>()
-                    : !member.HasAttribute<NonSerializedAttribute>());
+                    : !(member.HasAttribute<IgnoreDataMemberAttribute>() ||
+                        member.HasAttribute<NonSerializedAttribute>()));
         }
 
         /// <summary>
@@ -130,7 +131,8 @@ namespace Chr.Avro.Infrastructure
             return type.GetMembers(BindingFlags.Public | BindingFlags.Static)
                 .Where(member => type.HasAttribute<DataContractAttribute>()
                     ? member.HasAttribute<EnumMemberAttribute>()
-                    : !member.HasAttribute<NonSerializedAttribute>());
+                    : !(member.HasAttribute<IgnoreDataMemberAttribute>() ||
+                        member.HasAttribute<NonSerializedAttribute>()));
         }
 
         /// <summary>

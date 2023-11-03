@@ -158,7 +158,7 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
-        public void BuildClassesWithNonSerializedMemberAttributes()
+        public void BuildClassesWithIgnoredAndNonSerializedMemberAttributes()
         {
             var schema = Assert.IsType<RecordSchema>(builder.BuildSchema<DataContractNonAnnotatedClass>());
             Assert.Collection(
@@ -677,7 +677,7 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
-        public void BuildEnumsWithNonSerializedSymbolAttributes()
+        public void BuildEnumsWithIgnoredAndNonSerializedSymbolAttributes()
         {
             var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<DataContractNonAnnotatedEnum>());
             Assert.Collection(
