@@ -16,7 +16,7 @@ namespace Chr.Avro.Serialization.Tests
 
         private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream stream;
+        private MemoryStream stream;
 
         public RecordSerializationTests()
         {
@@ -547,6 +547,76 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Empty(root.RelatedNodes);
         }
 
+        [Fact]
+        public void RecordWithNewFieldDeserializedIntoTypeWithDefaultConstructor()
+        {
+            // schema: int A, string B, double C = 0
+            // records: {A a, B b = null}, {A a}
+            // other: class Mapped {
+            //     Mapped(int a) { string B {get;set;} }
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                    new RecordField("Address", new StringSchema())
+                    {
+                        Default = new ObjectDefaultValue<string>(string.Empty, new StringSchema()),
+                    },
+                },
+            };
+
+            // The entity class has a default constructor and read/write properties
+            // but Address is missing
+            var person = new PersonWithDefaultConstructor() { Name = "Bob", Age = 30 };
+            var deserialized = SerializeAndDeserialize(person, schema);
+
+            Assert.Equivalent(person, deserialized);
+        }
+
+        [Fact]
+        public void RecordWithNewFieldDeserializedIntoTypeWithPartialMatchConstructor()
+        {
+            // schema: int A, string B, double C = 0
+            // records: {A a, B b = null}, {A a}
+            // other: class Mapped {
+            //     Mapped(int a) { string B {get;set;} }
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                    new RecordField("Address", new StringSchema())
+                    {
+                        Default = new ObjectDefaultValue<string>(string.Empty, new StringSchema()),
+                    },
+                },
+            };
+
+            // The entity doesn't have a default constructor, but takes the Name as
+            // a constructor parameter
+            var person = new PersonWithoutDefaultConstructor("Bob") { Age = 30 };
+            var deserialized = SerializeAndDeserialize(person, schema);
+
+            Assert.Equivalent(person, deserialized);
+        }
+
+        private T SerializeAndDeserialize<T>(T item, RecordSchema schema)
+        {
+            var deserialize = deserializerBuilder.BuildDelegate<T>(schema);
+            var serialize = serializerBuilder.BuildDelegate<T>(schema);
+
+            using var memoryStream = new MemoryStream();
+
+            serialize(item, new BinaryWriter(memoryStream));
+            var reader = new BinaryReader(memoryStream.ToArray());
+
+            var root = deserialize(ref reader);
+            return root;
+        }
+
         public class MappedNode
         {
             public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999, double? nullableValue = null)
@@ -629,6 +699,25 @@ namespace Chr.Avro.Serialization.Tests
             public int Age { get; set; }
 
             public dynamic[] Properties { get; set; }
+        }
+
+        public class PersonWithoutDefaultConstructor
+        {
+            public PersonWithoutDefaultConstructor(string name)
+            {
+                Name = name;
+            }
+
+            public string Name { get; }
+
+            public int Age { get; set; }
+        }
+
+        public class PersonWithDefaultConstructor
+        {
+            public string Name { get; set; }
+
+            public int Age { get; set; }
         }
     }
 }
