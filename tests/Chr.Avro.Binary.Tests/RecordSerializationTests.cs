@@ -3,6 +3,7 @@ namespace Chr.Avro.Serialization.Tests
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using Chr.Avro.Abstract;
     using Chr.Avro.Fixtures;
     using Xunit;
@@ -617,6 +618,61 @@ namespace Chr.Avro.Serialization.Tests
             return root;
         }
 
+        [Fact]
+        public void RecordWithCustomDeserialization()
+        {
+            var boolean = new BooleanSchema();
+            var array = new ArraySchema(boolean);
+            var map = new MapSchema(new IntSchema());
+            var @enum = new EnumSchema("Ordinal", new[] { "None", "First", "Second", "Third", "Fourth" });
+            var union = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                array,
+            });
+
+            var schema = new RecordSchema("AllFields")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Id", new IntSchema()),
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                },
+            };
+
+            // Use a deserializer that picks a particular constructor in the deserialized class
+            var builders = BinaryDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
+            builders.Insert(0, b => new CustomConstructorPickerRecordDeserializerCase(b));
+            var customDeserializerBuilder = new BinaryDeserializerBuilder(builders);
+
+            var deserialize = customDeserializerBuilder.BuildDelegate<MultipleConstructorsRecord>(schema);
+            var serialize = serializerBuilder.BuildDelegate<MultipleConstructorsRecord>(schema);
+
+            var value = new MultipleConstructorsRecord
+            {
+                Id = 123,
+                Name = "Alice",
+                Age = 24,
+            };
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            var expected = new MultipleConstructorsRecord
+            {
+                Id = 42,
+                Name = "ALICE",
+                Age = 22,
+            };
+
+            Assert.Equivalent(expected, deserialize(ref reader));
+        }
+
         public class MappedNode
         {
             public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999, double? nullableValue = null)
@@ -718,6 +774,37 @@ namespace Chr.Avro.Serialization.Tests
             public string Name { get; set; }
 
             public int Age { get; set; }
+        }
+
+        public class MultipleConstructorsRecord
+        {
+            public MultipleConstructorsRecord()
+            {
+            }
+
+            public MultipleConstructorsRecord(int id, string name, int age, string city = "Paris")
+            {
+                Id = id;
+                Name = name?.ToUpperInvariant();
+                Age = age;
+                City = city;
+            }
+
+            [ChrPreferredConstructor]
+            public MultipleConstructorsRecord(int id, string name, int age)
+            {
+                Id = 42;
+                Name = name?.ToUpperInvariant();
+                Age = age - 2;
+            }
+
+            public int Id { get; set; }
+
+            public string Name { get; set; }
+
+            public int Age { get; set; }
+
+            public string City { get; set; }
         }
     }
 }
