@@ -1,6 +1,7 @@
 namespace Chr.Avro.Abstract
 {
     using System;
+    using System.ComponentModel;
     using System.Linq;
     using System.Reflection;
     using System.Runtime.Serialization;
@@ -67,6 +68,7 @@ namespace Chr.Avro.Abstract
                     var enumSchema = new EnumSchema(GetSchemaName(type))
                     {
                         Namespace = GetSchemaNamespace(type),
+                        Default = type.GetAttribute<DefaultValueAttribute>()?.Value?.ToString()
                     };
 
                     foreach (var member in type.GetEnumMembers()
