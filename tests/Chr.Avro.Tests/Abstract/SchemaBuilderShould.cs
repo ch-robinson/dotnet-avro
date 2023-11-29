@@ -708,6 +708,16 @@ namespace Chr.Avro.Tests
             Assert.Equal(nameof(DefaultValueEnum.DefaultValue), schema.Default);
         }
 
+        [Fact]
+        public void BuildEnumsWithAnAliasedDefault()
+        {
+            var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<DefaultValueDataContractEnum>());
+            Assert.Null(schema.LogicalType);
+            Assert.Equal(typeof(DefaultValueDataContractEnum).Name, schema.Name);
+            Assert.Equal(typeof(DefaultValueDataContractEnum).Namespace, schema.Namespace);
+            Assert.Equal("AliasedDefaultValue", schema.Default);
+        }
+
         [Theory]
         [InlineData(typeof(float))]
         public void BuildFloats(Type type)
