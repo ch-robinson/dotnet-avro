@@ -107,7 +107,7 @@ namespace Chr.Avro.Abstract
             if (enumDefaultValue is null)
                 return null;
             var matchedMember = enumMembers
-                .Single(member => member.Name == enumDefaultValue.ToString());
+                .Single(member => member.Name == Enum.GetName(type, enumDefaultValue));
             return GetSymbol(matchedMember);
         }
 
