@@ -31,7 +31,7 @@ jobs:
               tag: process.env.GITHUB_REF.replace(/^(?:.+\/)?([^\/]+)$/, '$1')
             });
 
-            await Promise.all(release.assets.map(async asset => {
+            await Promise.all(release.data.assets.map(async asset => {
               const contents = await github.rest.repos.getReleaseAsset({
                 asset_id: asset.id,
                 headers: {
