@@ -71,7 +71,8 @@ namespace Chr.Avro.Abstract
                     var enumSchema = new EnumSchema(GetSchemaName(type))
                     {
                         Namespace = GetSchemaNamespace(type),
-                        Default = GetDefaultValue(type, enumMembers)
+                        Default = GetDefaultValue(type, enumMembers),
+                        Documentation = type.GetAttribute<DescriptionAttribute>()?.Description
                     };
 
                     foreach (var member in enumMembers
