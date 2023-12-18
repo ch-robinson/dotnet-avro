@@ -180,6 +180,13 @@ namespace Chr.Avro.Tests
         }
 
         [Fact]
+        public void BuildEnumsWithDescriptionAttributes()
+        {
+            var schema = Assert.IsType<EnumSchema>(builder.BuildSchema<DescriptionAnnotatedEnum>());
+            Assert.NotNull(schema.Documentation);
+        }
+
+        [Fact]
         public void BuildClassesWithNullableProperties()
         {
             var context = new SchemaBuilderContext();
