@@ -20,6 +20,9 @@ namespace Chr.Avro.NodaTimeExample
         private const string SchemaRegistries = "http://localhost:8081";
         private const string Topic = "noda-time-example";
 
+        // The other variants of TemporalBehavior is also supported. Just change this const.
+        private const TemporalBehavior UseTemporalBehavior = TemporalBehavior.EpochMilliseconds;
+
         private static readonly TimeSpan AssignmentTimeout = TimeSpan.FromSeconds(15);
 
         public static async Task<int> Main()
@@ -27,7 +30,7 @@ namespace Chr.Avro.NodaTimeExample
             using var registryClient = CreateSchemaRegistryClient();
             using var admin = CreateAdmin();
             using var consumer = CreateConsumer(registryClient);
-            using var producer = await CreateProducer(registryClient, AutomaticRegistrationBehavior.Always, TemporalBehavior.EpochMilliseconds); // Can also be TemporalBehavior.Iso8601
+            using var producer = await CreateProducer(registryClient, AutomaticRegistrationBehavior.Always, UseTemporalBehavior);
 
             Console.WriteLine($"Creating {Topic}...");
             await EnsureTopicExists(admin);
@@ -48,7 +51,7 @@ namespace Chr.Avro.NodaTimeExample
                 await Task.Delay(TimeSpan.FromSeconds(1));
             }
 
-            var player1 = new Player
+            var publishedPlayer = new Player
             {
                 Id = Guid.NewGuid(),
                 Nickname = "Todd Bonzalez",
@@ -57,13 +60,14 @@ namespace Chr.Avro.NodaTimeExample
 
             await producer.ProduceAsync(Topic, new Message<Guid, Player>
             {
-                Key = player1.Id,
-                Value = player1,
+                Key = publishedPlayer.Id,
+                Value = publishedPlayer,
             });
 
             var result = consumer.Consume();
-            var playerOne = result.Message.Value;
-            Console.WriteLine($"Received update for {playerOne.Nickname} with last login {playerOne.LastLogin}.");
+            var consumedPlayer = result.Message.Value;
+
+            Console.WriteLine($"Received update for {consumedPlayer.Nickname} with last login {consumedPlayer.LastLogin}.");
 
             return 0;
         }

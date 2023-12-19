@@ -14,7 +14,7 @@ namespace Chr.Avro.NodaTimeExample.Infrastructure
 
         public SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
-            // Handle NodaTime.Instant exactly the same as the base class.
+            // Handle NodaTime.Instant like the TimestampSchemaBuilderCase
             if (type == typeof(NodaTime.Instant))
             {
                 Schema timestampSchema = TemporalBehavior switch
