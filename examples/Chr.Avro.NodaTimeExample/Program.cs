@@ -33,7 +33,6 @@ namespace Chr.Avro.NodaTimeExample
             Console.WriteLine($"Creating {Topic}...");
             await EnsureTopicExists(admin);
 
-            Console.WriteLine($"Subscribing {Topic}...");
             consumer.Subscribe(Topic);
 
             var producedPlayer = new Player
@@ -43,18 +42,16 @@ namespace Chr.Avro.NodaTimeExample
                 LastLogin = NodaTime.Instant.FromDateTimeOffset(DateTimeOffset.UtcNow),
             };
 
-            Console.WriteLine($"Producing player with LastLogin {producedPlayer.LastLogin}...");
+            Console.WriteLine($"Producing player with NodaTime Instant {producedPlayer.LastLogin}");
             await producer.ProduceAsync(Topic, new Message<Guid, Player>
             {
                 Key = producedPlayer.Id,
                 Value = producedPlayer,
             });
 
-            Console.WriteLine($"Consuming {Topic}...");
             var result = consumer.Consume();
-            var consumedPlayer = result.Message.Value;
 
-            Console.WriteLine($"Received player with LastLogin {consumedPlayer.LastLogin}.");
+            Console.WriteLine($"Consumed player with NodaTime Instant {result.Message.Value.LastLogin}");
 
             return 0;
         }
@@ -79,6 +76,7 @@ namespace Chr.Avro.NodaTimeExample
             return new ConsumerBuilder<Guid, Player>(
                 new ConsumerConfig
                 {
+                    AutoOffsetReset = AutoOffsetReset.Earliest,
                     BootstrapServers = BootstrapServers,
                     EnableAutoCommit = false,
                     GroupId = $"noda-time-example-{Guid.NewGuid()}",
