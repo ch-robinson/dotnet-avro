@@ -58,7 +58,8 @@ namespace Chr.Avro.Codegen
                                 SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
                                 SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-                                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+                                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))
+                            .AddAttributeLists(GetDescriptionAttribute(field.Documentation));
 
                         if (!string.IsNullOrEmpty(field.Documentation))
                         {
@@ -68,7 +69,8 @@ namespace Chr.Avro.Codegen
                         return child;
                     })
                     .Where(field => field != null)
-                    .ToArray());
+                    .ToArray())
+                    .AddAttributeLists(GetDescriptionAttribute(schema.Documentation)); ;
 
             if (!string.IsNullOrEmpty(schema.Documentation))
             {
@@ -76,6 +78,26 @@ namespace Chr.Avro.Codegen
             }
 
             return declaration;
+        }
+
+        // Generate Description attribute to round-trip the documentation.
+        // Generates a list to use in creation (Roslyn nodes are immutable)
+        private AttributeListSyntax[] GetDescriptionAttribute(string? documentation)
+        {
+            if (string.IsNullOrEmpty(documentation))
+            {
+                return Array.Empty<AttributeListSyntax>();
+            }
+
+            // https://stackoverflow.com/questions/35927427/how-to-create-an-attributesyntax-with-a-parameter
+            var name = SyntaxFactory.ParseName("System.ComponentModel.DescriptionAttribute");
+            var arguments = SyntaxFactory.ParseAttributeArgumentList("(\"" + documentation + "\")");
+            var attribute = SyntaxFactory.Attribute(name, arguments); // Generates: Description("documentation")
+
+            var attributeList = default(SeparatedSyntaxList<AttributeSyntax>);
+            attributeList = attributeList.Add(attribute);
+            var list = SyntaxFactory.AttributeList(attributeList);
+            return new AttributeListSyntax[1] { list };
         }
 
         /// <summary>
@@ -93,7 +115,8 @@ namespace Chr.Avro.Codegen
                 .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                 .AddMembers(schema.Symbols
                     .Select(symbol => SyntaxFactory.EnumMemberDeclaration(symbol))
-                    .ToArray());
+                    .ToArray())
+                .AddAttributeLists(GetDescriptionAttribute(schema.Documentation));
 
             if (!string.IsNullOrEmpty(schema.Documentation))
             {
