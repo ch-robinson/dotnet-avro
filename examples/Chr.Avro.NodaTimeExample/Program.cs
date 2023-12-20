@@ -23,8 +23,6 @@ namespace Chr.Avro.NodaTimeExample
         // The other variants of TemporalBehavior is also supported. Just change this const.
         private const TemporalBehavior UseTemporalBehavior = TemporalBehavior.EpochMilliseconds;
 
-        private static readonly TimeSpan AssignmentTimeout = TimeSpan.FromSeconds(15);
-
         public static async Task<int> Main()
         {
             using var registryClient = CreateSchemaRegistryClient();
@@ -35,39 +33,28 @@ namespace Chr.Avro.NodaTimeExample
             Console.WriteLine($"Creating {Topic}...");
             await EnsureTopicExists(admin);
 
+            Console.WriteLine($"Subscribing {Topic}...");
             consumer.Subscribe(Topic);
-            var assignmentSignal = new CancellationTokenSource(AssignmentTimeout);
 
-            Console.WriteLine($"Subscribing to {Topic}...");
-
-            while (consumer.Assignment.Count < 1)
-            {
-                if (assignmentSignal.IsCancellationRequested)
-                {
-                    Console.Error.WriteLine($"Failed to receive partition assigment for {Topic} within {AssignmentTimeout.TotalSeconds} seconds.");
-                    return 1;
-                }
-
-                await Task.Delay(TimeSpan.FromSeconds(1));
-            }
-
-            var publishedPlayer = new Player
+            var producedPlayer = new Player
             {
                 Id = Guid.NewGuid(),
                 Nickname = "Todd Bonzalez",
                 LastLogin = NodaTime.Instant.FromDateTimeOffset(DateTimeOffset.UtcNow),
             };
 
+            Console.WriteLine($"Producing player with LastLogin {producedPlayer.LastLogin}...");
             await producer.ProduceAsync(Topic, new Message<Guid, Player>
             {
-                Key = publishedPlayer.Id,
-                Value = publishedPlayer,
+                Key = producedPlayer.Id,
+                Value = producedPlayer,
             });
 
+            Console.WriteLine($"Consuming {Topic}...");
             var result = consumer.Consume();
             var consumedPlayer = result.Message.Value;
 
-            Console.WriteLine($"Received update for {consumedPlayer.Nickname} with last login {consumedPlayer.LastLogin}.");
+            Console.WriteLine($"Received player with LastLogin {consumedPlayer.LastLogin}.");
 
             return 0;
         }
