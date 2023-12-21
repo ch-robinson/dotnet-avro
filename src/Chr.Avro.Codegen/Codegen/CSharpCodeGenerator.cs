@@ -17,6 +17,7 @@ namespace Chr.Avro.Codegen
     public class CSharpCodeGenerator : ICodeGenerator
     {
         private readonly bool enableNullableReferenceTypes;
+        private readonly bool enableDescriptionAttributeForDocumentation;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CSharpCodeGenerator" /> class.
@@ -25,9 +26,14 @@ namespace Chr.Avro.Codegen
         /// Whether reference types selected for nullable record fields should be annotated as
         /// nullable.
         /// </param>
-        public CSharpCodeGenerator(bool enableNullableReferenceTypes = true)
+        /// <param name="enableDescriptionAttributeForDocumentation">
+        /// Whether schema documentation nodes should generate a System.ComponentModel.DescriptionAttribute on types and members.
+        /// nullable.
+        /// </param>
+        public CSharpCodeGenerator(bool enableNullableReferenceTypes = true, bool enableDescriptionAttributeForDocumentation = false)
         {
             this.enableNullableReferenceTypes = enableNullableReferenceTypes;
+            this.enableDescriptionAttributeForDocumentation = enableDescriptionAttributeForDocumentation;
         }
 
         /// <summary>
@@ -78,26 +84,6 @@ namespace Chr.Avro.Codegen
             }
 
             return declaration;
-        }
-
-        // Generate Description attribute to round-trip the documentation.
-        // Generates a list to use in creation (Roslyn nodes are immutable)
-        private AttributeListSyntax[] GetDescriptionAttribute(string? documentation)
-        {
-            if (string.IsNullOrEmpty(documentation))
-            {
-                return Array.Empty<AttributeListSyntax>();
-            }
-
-            // https://stackoverflow.com/questions/35927427/how-to-create-an-attributesyntax-with-a-parameter
-            var name = SyntaxFactory.ParseName("System.ComponentModel.DescriptionAttribute");
-            var arguments = SyntaxFactory.ParseAttributeArgumentList("(\"" + documentation + "\")");
-            var attribute = SyntaxFactory.Attribute(name, arguments); // Generates: Description("documentation")
-
-            var attributeList = default(SeparatedSyntaxList<AttributeSyntax>);
-            attributeList = attributeList.Add(attribute);
-            var list = SyntaxFactory.AttributeList(attributeList);
-            return new AttributeListSyntax[1] { list };
         }
 
         /// <summary>
@@ -401,6 +387,25 @@ namespace Chr.Avro.Codegen
             }
 
             return seen.OfType<NamedSchema>();
+        }
+
+        private AttributeListSyntax[] GetDescriptionAttribute(string? documentation)
+        {
+            if (string.IsNullOrEmpty(documentation) || !enableDescriptionAttributeForDocumentation)
+            {
+                return Array.Empty<AttributeListSyntax>();
+            }
+
+            // Generates: [Description("documentation")]
+            // https://stackoverflow.com/questions/35927427/how-to-create-an-attributesyntax-with-a-parameter
+            var name = SyntaxFactory.ParseName("System.ComponentModel.DescriptionAttribute");
+            var arguments = SyntaxFactory.ParseAttributeArgumentList("(\"" + documentation + "\")");
+            var attribute = SyntaxFactory.Attribute(name, arguments);
+
+            var attributeList = default(SeparatedSyntaxList<AttributeSyntax>);
+            attributeList = attributeList.Add(attribute);
+            var list = SyntaxFactory.AttributeList(attributeList);
+            return new AttributeListSyntax[1] { list };
         }
     }
 }
