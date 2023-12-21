@@ -86,26 +86,6 @@ namespace Chr.Avro.Codegen
             return declaration;
         }
 
-        // Generate Description attribute to round-trip the documentation.
-        // Generates a list to use in creation (Roslyn nodes are immutable)
-        private AttributeListSyntax[] GetDescriptionAttribute(string? documentation)
-        {
-            if (string.IsNullOrEmpty(documentation))
-            {
-                return Array.Empty<AttributeListSyntax>();
-            }
-
-            // https://stackoverflow.com/questions/35927427/how-to-create-an-attributesyntax-with-a-parameter
-            var name = SyntaxFactory.ParseName("System.ComponentModel.DescriptionAttribute");
-            var arguments = SyntaxFactory.ParseAttributeArgumentList("(\"" + documentation + "\")");
-            var attribute = SyntaxFactory.Attribute(name, arguments); // Generates: Description("documentation")
-
-            var attributeList = default(SeparatedSyntaxList<AttributeSyntax>);
-            attributeList = attributeList.Add(attribute);
-            var list = SyntaxFactory.AttributeList(attributeList);
-            return new AttributeListSyntax[1] { list };
-        }
-
         /// <summary>
         /// Generates an enum declaration for an enum schema.
         /// </summary>
