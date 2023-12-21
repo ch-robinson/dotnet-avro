@@ -2,7 +2,7 @@ namespace Chr.Avro.Fixtures
 {
     using System.ComponentModel;
 
-    [Description("Test")]
+    [Description("Enum Description")]
     public enum DescriptionAnnotatedEnum
     {
         First,
