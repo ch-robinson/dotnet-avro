@@ -27,8 +27,8 @@ namespace Chr.Avro.Codegen
         /// nullable.
         /// </param>
         /// <param name="enableDescriptionAttributeForDocumentation">
-        /// Whether schema documentation nodes should generate a System.ComponentModel.DescriptionAttribute on types and members.
-        /// nullable.
+        /// Whether enum and record schema documentation should be reflected in
+        /// <see cref="System.ComponentModel.DescriptionAttribute" />s on types and members.
         /// </param>
         public CSharpCodeGenerator(bool enableNullableReferenceTypes = true, bool enableDescriptionAttributeForDocumentation = false)
         {
