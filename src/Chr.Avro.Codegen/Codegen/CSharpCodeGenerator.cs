@@ -76,7 +76,7 @@ namespace Chr.Avro.Codegen
                     })
                     .Where(field => field != null)
                     .ToArray())
-                    .AddAttributeLists(GetDescriptionAttribute(schema.Documentation)); ;
+                .AddAttributeLists(GetDescriptionAttribute(schema.Documentation));
 
             if (!string.IsNullOrEmpty(schema.Documentation))
             {
