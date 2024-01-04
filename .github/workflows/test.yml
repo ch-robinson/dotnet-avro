@@ -30,4 +30,5 @@ jobs:
           dotnet test $test_flags "$test_directory\\Chr.Avro.Binary.Tests"
           dotnet test $test_flags "$test_directory\\Chr.Avro.Json.Tests"
           dotnet test $test_flags "$test_directory\\Chr.Avro.Confluent.Tests"
+          dotnet test $test_flags "$test_directory\\Chr.Avro.Codegen.Tests"
         shell: bash
