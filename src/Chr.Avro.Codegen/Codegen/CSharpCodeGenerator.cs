@@ -391,7 +391,7 @@ namespace Chr.Avro.Codegen
 
         private AttributeListSyntax[] GetDescriptionAttribute(string? documentation)
         {
-            if (string.IsNullOrEmpty(documentation) || !enableDescriptionAttributeForDocumentation)
+            if (documentation == null || string.IsNullOrEmpty(documentation) || !enableDescriptionAttributeForDocumentation)
             {
                 return Array.Empty<AttributeListSyntax>();
             }
@@ -399,7 +399,13 @@ namespace Chr.Avro.Codegen
             // Generates: [Description("documentation")]
             // https://stackoverflow.com/questions/35927427/how-to-create-an-attributesyntax-with-a-parameter
             var name = SyntaxFactory.ParseName("System.ComponentModel.DescriptionAttribute");
-            var arguments = SyntaxFactory.ParseAttributeArgumentList("(\"" + documentation + "\")");
+            var arguments = SyntaxFactory.AttributeArgumentList(
+                                SyntaxFactory.SingletonSeparatedList(
+                                    SyntaxFactory.AttributeArgument(
+                                        SyntaxFactory.LiteralExpression(
+                                            SyntaxKind.StringLiteralExpression,
+                                            SyntaxFactory.Literal(documentation)))));
+
             var attribute = SyntaxFactory.Attribute(name, arguments);
 
             var attributeList = default(SeparatedSyntaxList<AttributeSyntax>);
