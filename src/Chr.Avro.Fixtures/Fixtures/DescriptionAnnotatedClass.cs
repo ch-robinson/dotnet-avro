@@ -14,5 +14,8 @@ namespace Chr.Avro.Fixtures
 
         [Description("Property Description")]
         public string DescriptionProperty;
+
+        [Description("Property \"Description\" with double quotes")]
+        public string DescriptionPropertyWithDoubleQuotes;
     }
 }

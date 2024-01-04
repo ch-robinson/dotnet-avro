@@ -6,7 +6,6 @@ namespace Chr.Avro.Codegen.Tests
     using System.IO;
     using System.Linq;
     using System.Reflection;
-    using System.Runtime.Loader;
     using System.Text;
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
@@ -61,7 +60,10 @@ namespace Chr.Avro.Codegen.Tests
                 else
                 {
                     ms.Seek(0, SeekOrigin.Begin);
-                    return AssemblyLoadContext.Default.LoadFromStream(ms);
+
+                    // Just load the assembly bytes, since System.Runtime.Loader is not available in net462
+                    // https://github.com/dotnet/runtime/issues/22732
+                    return Assembly.Load(ms.ToArray());
                 }
             }
         }

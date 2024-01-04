@@ -22,6 +22,9 @@ namespace Chr.Avro.Codegen.Tests.Codegen
 
             var propertyAttribute = generatedClass.GetProperty(nameof(DescriptionAnnotatedClass.DescriptionProperty)).GetCustomAttribute<DescriptionAttribute>();
             Assert.Equal("Property Description", propertyAttribute?.Description);
+
+            var propertyAttributeWithDoubleQuotes = generatedClass.GetProperty(nameof(DescriptionAnnotatedClass.DescriptionPropertyWithDoubleQuotes)).GetCustomAttribute<DescriptionAttribute>();
+            Assert.Equal("Property \"Description\" with double quotes", propertyAttributeWithDoubleQuotes?.Description);
         }
 
         [Fact]
