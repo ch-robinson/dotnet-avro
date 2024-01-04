@@ -17,6 +17,7 @@ namespace Chr.Avro.Codegen
     public class CSharpCodeGenerator : ICodeGenerator
     {
         private readonly bool enableNullableReferenceTypes;
+        private readonly bool enableDescriptionAttributeForDocumentation;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CSharpCodeGenerator" /> class.
@@ -25,9 +26,14 @@ namespace Chr.Avro.Codegen
         /// Whether reference types selected for nullable record fields should be annotated as
         /// nullable.
         /// </param>
-        public CSharpCodeGenerator(bool enableNullableReferenceTypes = true)
+        /// <param name="enableDescriptionAttributeForDocumentation">
+        /// Whether enum and record schema documentation should be reflected in
+        /// <see cref="System.ComponentModel.DescriptionAttribute" />s on types and members.
+        /// </param>
+        public CSharpCodeGenerator(bool enableNullableReferenceTypes = true, bool enableDescriptionAttributeForDocumentation = false)
         {
             this.enableNullableReferenceTypes = enableNullableReferenceTypes;
+            this.enableDescriptionAttributeForDocumentation = enableDescriptionAttributeForDocumentation;
         }
 
         /// <summary>
@@ -58,7 +64,8 @@ namespace Chr.Avro.Codegen
                                 SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
                                 SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-                                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+                                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))
+                            .AddAttributeLists(GetDescriptionAttribute(field.Documentation));
 
                         if (!string.IsNullOrEmpty(field.Documentation))
                         {
@@ -68,7 +75,8 @@ namespace Chr.Avro.Codegen
                         return child;
                     })
                     .Where(field => field != null)
-                    .ToArray());
+                    .ToArray())
+                .AddAttributeLists(GetDescriptionAttribute(schema.Documentation));
 
             if (!string.IsNullOrEmpty(schema.Documentation))
             {
@@ -93,7 +101,8 @@ namespace Chr.Avro.Codegen
                 .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                 .AddMembers(schema.Symbols
                     .Select(symbol => SyntaxFactory.EnumMemberDeclaration(symbol))
-                    .ToArray());
+                    .ToArray())
+                .AddAttributeLists(GetDescriptionAttribute(schema.Documentation));
 
             if (!string.IsNullOrEmpty(schema.Documentation))
             {
@@ -378,6 +387,31 @@ namespace Chr.Avro.Codegen
             }
 
             return seen.OfType<NamedSchema>();
+        }
+
+        private AttributeListSyntax[] GetDescriptionAttribute(string? documentation)
+        {
+            if (documentation == null || string.IsNullOrEmpty(documentation) || !enableDescriptionAttributeForDocumentation)
+            {
+                return Array.Empty<AttributeListSyntax>();
+            }
+
+            // Generates: [Description("documentation")]
+            // https://stackoverflow.com/questions/35927427/how-to-create-an-attributesyntax-with-a-parameter
+            var name = SyntaxFactory.ParseName("System.ComponentModel.DescriptionAttribute");
+            var arguments = SyntaxFactory.AttributeArgumentList(
+                                SyntaxFactory.SingletonSeparatedList(
+                                    SyntaxFactory.AttributeArgument(
+                                        SyntaxFactory.LiteralExpression(
+                                            SyntaxKind.StringLiteralExpression,
+                                            SyntaxFactory.Literal(documentation)))));
+
+            var attribute = SyntaxFactory.Attribute(name, arguments);
+
+            var attributeList = default(SeparatedSyntaxList<AttributeSyntax>);
+            attributeList = attributeList.Add(attribute);
+            var list = SyntaxFactory.AttributeList(attributeList);
+            return new AttributeListSyntax[1] { list };
         }
     }
 }
