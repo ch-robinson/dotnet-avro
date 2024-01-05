@@ -41,7 +41,7 @@ jobs:
                 repo: context.repo.repo
               });
 
-              await fs.writeFile(`${releaseDirectory}/${asset.name}`, contents.data);
+              await fs.writeFile(`${releaseDirectory}/${asset.name}`, Buffer.from(contents.data));
             }));
       - name: Push packages
         env:
