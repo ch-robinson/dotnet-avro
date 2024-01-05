@@ -46,6 +46,9 @@ namespace Chr.Avro.Cli
         [Option('s', "subject", SetName = BySubjectSet, HelpText = "If an ID is not specified, the subject of the schema.")]
         public string SchemaSubject { get; set; }
 
+        [Option("component-model-annotations", HelpText = "Whether to emit component model annotations for record and enum descriptions.")]
+        public bool ComponentModelAnnotations { get; set; }
+
         [Option("nullable-references", HelpText = "Whether reference types selected for nullable record fields should be annotated as nullable.")]
         public bool NullableReferences { get; set; }
 
@@ -55,6 +58,7 @@ namespace Chr.Avro.Cli
         protected override async Task Run()
         {
             var generator = new CSharpCodeGenerator(
+                enableDescriptionAttributeForDocumentation: ComponentModelAnnotations,
                 enableNullableReferenceTypes: NullableReferences);
             var reader = new JsonSchemaReader();
             var schema = reader.Read(await ((ISchemaResolutionOptions)this).ResolveSchema());
