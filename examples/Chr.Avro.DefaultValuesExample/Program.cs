@@ -2,7 +2,6 @@ namespace Chr.Avro.DefaultValuesExample
 {
     using System;
     using System.Linq;
-    using System.Threading;
     using System.Threading.Tasks;
     using Chr.Avro.Abstract;
     using Chr.Avro.Confluent;
@@ -20,8 +19,6 @@ namespace Chr.Avro.DefaultValuesExample
         private const string SchemaRegistries = "http://localhost:8081";
         private const string Topic = "default-values-example";
 
-        private static readonly TimeSpan AssignmentTimeout = TimeSpan.FromSeconds(15);
-
         public static async Task<int> Main()
         {
             using var registryClient = new CachedSchemaRegistryClient(
@@ -38,20 +35,6 @@ namespace Chr.Avro.DefaultValuesExample
             await EnsureTopicExists(admin);
 
             consumer.Subscribe(Topic);
-            var assignmentSignal = new CancellationTokenSource(AssignmentTimeout);
-
-            Console.WriteLine($"Subscribing to {Topic}...");
-
-            while (consumer.Assignment.Count < 1)
-            {
-                if (assignmentSignal.IsCancellationRequested)
-                {
-                    Console.Error.WriteLine($"Failed to receive partition assigment for {Topic} within {AssignmentTimeout.TotalSeconds} seconds.");
-                    return 1;
-                }
-
-                await Task.Delay(TimeSpan.FromSeconds(1));
-            }
 
             var playerV2 = new PlayerV2
             {
@@ -88,6 +71,7 @@ namespace Chr.Avro.DefaultValuesExample
             return new ConsumerBuilder<Guid, PlayerV1>(
                 new ConsumerConfig
                 {
+                    AutoOffsetReset = AutoOffsetReset.Earliest,
                     BootstrapServers = BootstrapServers,
                     EnableAutoCommit = false,
                     GroupId = $"union-type-example-{Guid.NewGuid()}",

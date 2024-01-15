@@ -1,9 +1,9 @@
 namespace Chr.Avro.Tests
 {
     using System;
-    using System.Runtime.Serialization;
     using Chr.Avro.Abstract;
     using Chr.Avro.Fixtures;
+    using Chr.Avro.Infrastructure;
     using Xunit;
 
     public class EnumSchemaShould
@@ -63,7 +63,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void ThrowWhenSymbolCollectionIsNeverSet()
         {
-            var schema = (EnumSchema)FormatterServices.GetUninitializedObject(typeof(EnumSchema));
+            var schema = ReflectionExtensions.GetUninitializedInstance<EnumSchema>();
             Assert.Throws<InvalidOperationException>(() => schema.Symbols);
         }
 

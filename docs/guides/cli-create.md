@@ -8,7 +8,7 @@ If you haven’t already, install the Chr.Avro CLI:
 
 ```
 $ dotnet tool install Chr.Avro.Cli --global
-Tool 'chr.avro.cli' (version '9.6.0') was successfully installed.
+Tool 'chr.avro.cli' (version '10.2.0') was successfully installed.
 ```
 
 After the CLI tool has been installed, you can invoke it using `dotnet avro`. If the install command fails, make sure you have the latest version of the [.NET Core SDK](https://dotnet.microsoft.com/download) installed.

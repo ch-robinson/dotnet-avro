@@ -5,7 +5,7 @@ Chr.Avro ships with first-class support for [Confluent’s Kafka clients](https:
 First, add a reference to the Chr.Avro.Confluent package:
 
 ```
-$ dotnet add package Chr.Avro.Confluent --version 9.6.0
+$ dotnet add package Chr.Avro.Confluent --version 10.2.0
 ```
 
 Chr.Avro.Confluent depends on [Confluent.Kafka](https://www.nuget.org/packages/Confluent.Kafka), which contains [producer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ProducerBuilder-2.html) and [consumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerBuilder-2.html) builders. To build a [Schema Registry](https://www.confluent.io/confluent-schema-registry/)-integrated producer, use the producer builder in tandem with Chr.Avro.Confluent’s Avro extension methods:

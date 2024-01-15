@@ -48,6 +48,34 @@ namespace Chr.Avro.Serialization
                         Expression.Constant(DateTimeStyles.RoundtripKind)),
                     target);
             }
+#if NET6_0_OR_GREATER
+            else if (target == typeof(DateOnly) || target == typeof(DateOnly?))
+            {
+                var parseDateOnly = typeof(DateOnly)
+                    .GetMethod(nameof(DateOnly.Parse), new[] { value.Type, typeof(IFormatProvider) });
+
+                value = Expression.ConvertChecked(
+                    Expression.Call(
+                        null,
+                        parseDateOnly,
+                        value,
+                        Expression.Constant(CultureInfo.InvariantCulture)),
+                    target);
+            }
+            else if (target == typeof(TimeOnly) || target == typeof(TimeOnly?))
+            {
+                var parseTimeOnly = typeof(TimeOnly)
+                    .GetMethod(nameof(TimeOnly.Parse), new[] { value.Type, typeof(IFormatProvider) });
+
+                value = Expression.ConvertChecked(
+                    Expression.Call(
+                        null,
+                        parseTimeOnly,
+                        value,
+                        Expression.Constant(CultureInfo.InvariantCulture)),
+                    target);
+            }
+#endif
             else if (target.IsEnum)
             {
                 var cases = target.GetEnumMembers()

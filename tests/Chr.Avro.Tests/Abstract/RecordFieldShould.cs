@@ -1,9 +1,9 @@
 namespace Chr.Avro.Tests
 {
     using System;
-    using System.Runtime.Serialization;
     using Chr.Avro.Abstract;
     using Chr.Avro.Fixtures;
+    using Chr.Avro.Infrastructure;
     using Xunit;
 
     public class RecordFieldShould
@@ -66,7 +66,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void ThrowWhenNameIsNeverSet()
         {
-            var field = (RecordField)FormatterServices.GetUninitializedObject(typeof(RecordField));
+            var field = ReflectionExtensions.GetUninitializedInstance<RecordField>();
             Assert.Throws<InvalidOperationException>(() => field.Name);
         }
 
@@ -81,7 +81,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void ThrowWhenTypeIsNeverSet()
         {
-            var field = (RecordField)FormatterServices.GetUninitializedObject(typeof(RecordField));
+            var field = ReflectionExtensions.GetUninitializedInstance<RecordField>();
             Assert.Throws<InvalidOperationException>(() => field.Type);
         }
 

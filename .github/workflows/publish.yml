@@ -17,7 +17,33 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           global-json-file: global.json
+      - name: Fetch packages
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs').promises;
 
+            const releaseDirectory = './releases';
+            await fs.mkdir(releaseDirectory, { recursive: true });
+
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: process.env.GITHUB_REF.replace(/^(?:.+\/)?([^\/]+)$/, '$1')
+            });
+
+            await Promise.all(release.data.assets.map(async asset => {
+              const contents = await github.rest.repos.getReleaseAsset({
+                asset_id: asset.id,
+                headers: {
+                  accept: 'application/octet-stream'
+                },
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+
+              await fs.writeFile(`${releaseDirectory}/${asset.name}`, Buffer.from(contents.data));
+            }));
       - name: Push packages
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
@@ -30,7 +56,6 @@ jobs:
           dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro.Codegen"
           dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro.Confluent"
           dotnet pack --configuration Release  --output releases /p:ContinuousIntegrationBuild=true "src/Chr.Avro.Json"
-
           dotnet nuget push --api-key "$NUGET_API_KEY" --skip-duplicate --source tetragon-nuget "releases/*.nupkg"
           dotnet nuget push --api-key "$NUGET_API_KEY" --skip-duplicate --source tetragon-nuget "releases/*.snupkg"
         shell: bash

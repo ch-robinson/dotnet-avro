@@ -33,6 +33,19 @@ namespace Chr.Avro.Serialization
                     .GetMethod("ToArray", Type.EmptyTypes);
 
                 value = Expression.Call(value, toArray);
+#if !NET6_0_OR_GREATER
+
+                // no implicit conversion from T[] to ArraySegment<T> exists on .NET Framework, so
+                // generate a constructor explicitly:
+                if (!target.IsArray && target == typeof(ArraySegment<>).MakeGenericType(target.GenericTypeArguments))
+                {
+                    var arraySegmentConstructor = typeof(ArraySegment<>)
+                        .MakeGenericType(target.GenericTypeArguments)
+                        .GetConstructor(new[] { target.GenericTypeArguments[0].MakeArrayType() });
+
+                    value = Expression.New(arraySegmentConstructor, value);
+                }
+#endif
             }
             else if (target.Assembly == typeof(ImmutableInterlocked).Assembly)
             {

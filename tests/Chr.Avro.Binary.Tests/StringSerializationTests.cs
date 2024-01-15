@@ -24,6 +24,15 @@ namespace Chr.Avro.Serialization.Tests
             serializerBuilder = new BinarySerializerBuilder();
             stream = new MemoryStream();
         }
+#if NET6_0_OR_GREATER
+
+        public static IEnumerable<object[]> DateOnlys => new List<object[]>
+        {
+            new object[] { DateOnly.MinValue },
+            new object[] { new DateOnly(1970, 01, 01) },
+            new object[] { DateOnly.MaxValue },
+        };
+#endif
 
         public static IEnumerable<object[]> DateTimes => new List<object[]>
         {
@@ -57,6 +66,14 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { "wizard" },
             new object[] { "🧙" },
         };
+#if NET6_0_OR_GREATER
+
+        public static IEnumerable<object[]> TimeOnlys => new List<object[]>
+        {
+            new object[] { TimeOnly.MinValue },
+            new object[] { TimeOnly.MaxValue },
+        };
+#endif
 
         public static IEnumerable<object[]> TimeSpans => new List<object[]>
         {
@@ -74,6 +91,27 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { new Uri("https://host/path") },
             new object[] { new Uri("https://host/path?a=query") },
         };
+#if NET6_0_OR_GREATER
+
+        [Theory]
+        [MemberData(nameof(DateOnlys))]
+        public void DynamicDateOnlyValues(dynamic value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value.ToString("O"), deserialize(ref reader));
+        }
+#endif
 
         [Theory]
         [MemberData(nameof(DateTimes))]
@@ -114,6 +152,27 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(value.ToString(), deserialize(ref reader));
         }
+#if NET6_0_OR_GREATER
+
+        [Theory]
+        [MemberData(nameof(TimeOnlys))]
+        public void DynamicTimeOnlyValues(dynamic value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
+            var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value.ToString("O"), deserialize(ref reader));
+        }
+#endif
 
         [Theory]
         [MemberData(nameof(TimeSpans))]
@@ -133,6 +192,46 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(XmlConvert.ToString(value), deserialize(ref reader));
         }
+#if NET6_0_OR_GREATER
+
+        [Theory]
+        [MemberData(nameof(DateOnlys))]
+        public void DateOnlyValues(DateOnly value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<DateOnly>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateOnly>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(DateOnlys))]
+        public void NullableDateOnlyValues(DateOnly value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<DateOnly?>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateOnly>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+#endif
 
         [Theory]
         [MemberData(nameof(DateTimes))]
@@ -291,6 +390,46 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(value, deserialize(ref reader));
         }
+#if NET6_0_OR_GREATER
+
+        [Theory]
+        [MemberData(nameof(TimeOnlys))]
+        public void TimeOnlyValues(TimeOnly value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<TimeOnly>(schema);
+            var serialize = serializerBuilder.BuildDelegate<TimeOnly>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(TimeOnlys))]
+        public void NullableTimeOnlyValues(TimeOnly value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<TimeOnly?>(schema);
+            var serialize = serializerBuilder.BuildDelegate<TimeOnly>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+#endif
 
         [Theory]
         [MemberData(nameof(TimeSpans))]

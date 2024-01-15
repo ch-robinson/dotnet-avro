@@ -68,8 +68,14 @@ namespace Chr.Avro.Serialization
             return new Func<IJsonSerializerBuilder, IJsonSerializerBuilderCase>[]
             {
                 // logical types:
+#if NET6_0_OR_GREATER
+                builder => new JsonDateSerializerBuilderCase(),
+#endif
                 builder => new JsonDecimalSerializerBuilderCase(),
                 builder => new JsonDurationSerializerBuilderCase(),
+#if NET6_0_OR_GREATER
+                builder => new JsonTimeSerializerBuilderCase(),
+#endif
                 builder => new JsonTimestampSerializerBuilderCase(),
 
                 // primitives:

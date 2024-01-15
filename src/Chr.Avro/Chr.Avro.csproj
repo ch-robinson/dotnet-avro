@@ -13,4 +13,8 @@
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Chr.Avro.Tests" Key="0024000004800000940000000602000000240000525341310004000001000100238910fed8277c88058770564771171e72a9af870b4841f066283117de2b6ba41d9c9d04f7cffb6be69e449489bcb3febff98127ad0bdcd1fd3c725bc6060998c3e4e025ce37cd0e7dbcdbeae84bc1fcdacffed91082169370d56aee8b713df6fbe548963fc94f4a7bbd76ac47c3c747f883e4f0d249daeee8bb347d78aa3b8e" />
+  </ItemGroup>
+
 </Project>

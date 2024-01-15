@@ -3,9 +3,9 @@
 namespace Chr.Avro.Tests
 {
     using System;
-    using System.Runtime.Serialization;
     using Chr.Avro.Abstract;
     using Chr.Avro.Fixtures;
+    using Chr.Avro.Infrastructure;
     using Xunit;
 
     public class NamedSchemaShould
@@ -107,7 +107,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void ThrowWhenAliasCollectionIsNeverSet()
         {
-            var schema = (ConcreteNamedSchema)FormatterServices.GetUninitializedObject(typeof(ConcreteNamedSchema));
+            var schema = ReflectionExtensions.GetUninitializedInstance<ConcreteNamedSchema>();
             Assert.Throws<InvalidOperationException>(() => schema.Aliases);
         }
 
@@ -139,7 +139,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void ThrowWhenNameIsNeverSet()
         {
-            var schema = (ConcreteNamedSchema)FormatterServices.GetUninitializedObject(typeof(ConcreteNamedSchema));
+            var schema = ReflectionExtensions.GetUninitializedInstance<ConcreteNamedSchema>();
             Assert.Throws<InvalidOperationException>(() => schema.FullName);
             Assert.Throws<InvalidOperationException>(() => schema.Name);
             Assert.Throws<InvalidOperationException>(() => schema.Namespace);

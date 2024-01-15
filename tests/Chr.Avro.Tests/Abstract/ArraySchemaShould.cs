@@ -1,8 +1,8 @@
 namespace Chr.Avro.Tests
 {
     using System;
-    using System.Runtime.Serialization;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Infrastructure;
     using Xunit;
 
     public class ArraySchemaShould
@@ -26,7 +26,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void ThrowWhenItemSchemaIsNeverSet()
         {
-            var schema = (ArraySchema)FormatterServices.GetUninitializedObject(typeof(ArraySchema));
+            var schema = ReflectionExtensions.GetUninitializedInstance<ArraySchema>();
             Assert.Throws<InvalidOperationException>(() => schema.Item);
         }
 

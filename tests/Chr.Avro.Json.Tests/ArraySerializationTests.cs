@@ -70,7 +70,6 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equal(value, deserialize(ref reader));
         }
 
-#if NET6_0_OR_GREATER
         [Theory]
         [MemberData(nameof(ArrayData))]
         public void ArraySegmentValues(long[] value)
@@ -82,14 +81,13 @@ namespace Chr.Avro.Serialization.Tests
 
             using (stream)
             {
-                serialize(value, new Utf8JsonWriter(stream));
+                serialize(new ArraySegment<long>(value), new Utf8JsonWriter(stream));
             }
 
             var reader = new Utf8JsonReader(stream.ToArray());
 
             Assert.Equal(value, deserialize(ref reader));
         }
-#endif
 
         [Theory]
         [MemberData(nameof(ArrayData))]
