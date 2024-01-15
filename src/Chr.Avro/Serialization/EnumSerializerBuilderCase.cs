@@ -85,7 +85,8 @@ namespace Chr.Avro.Serialization
             }
             else
             {
-                return !member.HasAttribute<NonSerializedAttribute>() && IsMatch(symbol, member.Name);
+                return !(member.HasAttribute<IgnoreDataMemberAttribute>() || member.HasAttribute<NonSerializedAttribute>())
+                    && IsMatch(symbol, member.Name);
             }
         }
 

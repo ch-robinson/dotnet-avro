@@ -1,8 +1,8 @@
 namespace Chr.Avro.Tests
 {
     using System;
-    using System.Runtime.Serialization;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Infrastructure;
     using Xunit;
 
     public class RecordSchemaShould
@@ -51,7 +51,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void ThrowsWhenFieldCollectionIsNeverSet()
         {
-            var schema = (RecordSchema)FormatterServices.GetUninitializedObject(typeof(RecordSchema));
+            var schema = ReflectionExtensions.GetUninitializedInstance<RecordSchema>();
             Assert.Throws<InvalidOperationException>(() => schema.Fields);
         }
 

@@ -56,6 +56,9 @@ namespace Example.Models
 `-r`, `--registry-url`
 :   The URL of the schema registry.
 
+`--component-model-annotations`
+:   Whether to emit component model annotations for record and enum descriptions.
+
 `--nullable-references`
 :   Whether reference types selected for nullable record fields should be annotated as nullable.
 

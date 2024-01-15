@@ -16,8 +16,11 @@ namespace Chr.Avro.Fixtures
         [EnumMember(Value = "Different")]
         Custom = 2,
 
-        [NonSerialized]
+        [IgnoreDataMember]
         Ignored,
+
+        [NonSerialized]
+        NonSerialized,
 
         [EnumMember]
         [NonSerialized]

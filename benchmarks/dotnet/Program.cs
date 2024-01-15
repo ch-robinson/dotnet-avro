@@ -74,7 +74,7 @@ namespace Chr.Avro.Benchmarks
                 {
                     yield return new Result()
                     {
-                        Runtime = "net7.0",
+                        Runtime = "net8.0",
                         Library = runner.Library,
                         Suite = runner.Suite,
                         Iterations = runner.Iterations,

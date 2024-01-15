@@ -4,12 +4,18 @@ namespace Chr.Avro.Fixtures
 {
     using System.ComponentModel;
 
-    [Description("Test")]
+    [Description("Class Description")]
     public class DescriptionAnnotatedClass
     {
         public int UnannotatedField;
 
-        [Description("Test")]
+        [Description("Field Description")]
         public string DescriptionField;
+
+        [Description("Property Description")]
+        public string DescriptionProperty;
+
+        [Description("Property \"Description\" with double quotes")]
+        public string DescriptionPropertyWithDoubleQuotes;
     }
 }

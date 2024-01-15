@@ -1,8 +1,8 @@
 namespace Chr.Avro.Tests
 {
     using System;
-    using System.Runtime.Serialization;
     using Chr.Avro.Abstract;
+    using Chr.Avro.Infrastructure;
     using Xunit;
 
     public class MapSchemaShould
@@ -26,7 +26,7 @@ namespace Chr.Avro.Tests
         [Fact]
         public void ThrowWhenValueSchemaIsNeverSet()
         {
-            var schema = (MapSchema)FormatterServices.GetUninitializedObject(typeof(MapSchema));
+            var schema = ReflectionExtensions.GetUninitializedInstance<MapSchema>();
             Assert.Throws<InvalidOperationException>(() => schema.Value);
         }
 

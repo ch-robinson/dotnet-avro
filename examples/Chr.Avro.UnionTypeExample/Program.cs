@@ -34,20 +34,6 @@ namespace Chr.Avro.UnionTypeExample
             await EnsureTopicExists(admin);
 
             consumer.Subscribe(Topic);
-            var assignmentSignal = new CancellationTokenSource(AssignmentTimeout);
-
-            Console.WriteLine($"Subscribing to {Topic}...");
-
-            while (consumer.Assignment.Count < 1)
-            {
-                if (assignmentSignal.IsCancellationRequested)
-                {
-                    Console.Error.WriteLine($"Failed to receive partition assigment for {Topic} within {AssignmentTimeout.TotalSeconds} seconds.");
-                    return 1;
-                }
-
-                await Task.Delay(TimeSpan.FromSeconds(1));
-            }
 
             foreach (var message in GetEventSequence())
             {
@@ -80,6 +66,7 @@ namespace Chr.Avro.UnionTypeExample
             return new ConsumerBuilder<OrderKey, OrderEventRecord>(
                 new ConsumerConfig
                 {
+                    AutoOffsetReset = AutoOffsetReset.Earliest,
                     BootstrapServers = BootstrapServers,
                     EnableAutoCommit = false,
                     GroupId = $"union-type-example-{Guid.NewGuid()}",

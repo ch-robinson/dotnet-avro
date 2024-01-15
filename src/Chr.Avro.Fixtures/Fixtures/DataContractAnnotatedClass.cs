@@ -16,8 +16,11 @@ namespace Chr.Avro.Fixtures
         [DataMember(Name = "DifferentField", Order = 5)]
         public int AnnotatedCustomField;
 
-        [NonSerialized]
+        [IgnoreDataMember]
         public int IgnoredField;
+
+        [NonSerialized]
+        public int NonSerializedField;
 
         [DataMember]
         [NonSerialized]
@@ -30,5 +33,8 @@ namespace Chr.Avro.Fixtures
 
         [DataMember(Name = "DifferentProperty", Order = 1)]
         public int AnnotatedCustomProperty { get; set; }
+
+        [IgnoreDataMember]
+        public int IgnoredProperty { get; set; }
     }
 }

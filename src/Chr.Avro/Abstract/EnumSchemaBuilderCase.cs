@@ -1,6 +1,9 @@
+using System.Collections.Generic;
+
 namespace Chr.Avro.Abstract
 {
     using System;
+    using System.ComponentModel;
     using System.Linq;
     using System.Reflection;
     using System.Runtime.Serialization;
@@ -64,12 +67,15 @@ namespace Chr.Avro.Abstract
                 }
                 else
                 {
+                    var enumMembers = type.GetEnumMembers().ToList();
                     var enumSchema = new EnumSchema(GetSchemaName(type))
                     {
                         Namespace = GetSchemaNamespace(type),
+                        Default = GetDefaultValue(type, enumMembers),
+                        Documentation = type.GetAttribute<DescriptionAttribute>()?.Description
                     };
 
-                    foreach (var member in type.GetEnumMembers()
+                    foreach (var member in enumMembers
                         .OrderBy(field => Enum.Parse(type, field.Name))
                         .ThenBy(field => field.Name))
                     {
@@ -94,6 +100,16 @@ namespace Chr.Avro.Abstract
             {
                 return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(EnumSchemaBuilderCase)} can only be applied to {typeof(Enum)} types."));
             }
+        }
+
+        private string? GetDefaultValue(Type type, IEnumerable<MemberInfo> enumMembers)
+        {
+            var enumDefaultValue = type.GetAttribute<DefaultValueAttribute>()?.Value;
+            if (enumDefaultValue is null)
+                return null;
+            var matchedMember = enumMembers
+                .Single(member => member.Name == Enum.GetName(type, enumDefaultValue));
+            return GetSymbol(matchedMember);
         }
 
         /// <summary>
