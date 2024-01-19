@@ -251,6 +251,13 @@ namespace Chr.Avro.Codegen
                     value = true;
                     break;
 
+#if NET6_0_OR_GREATER
+                case IntSchema i when l.LogicalType is DateLogicalType t:
+                    type = SyntaxFactory.ParseTypeName("global::System.DateOnly");
+                    value = true;
+                    break;
+#endif
+
                 case StringSchema s when s.LogicalType is UuidLogicalType:
                     type = SyntaxFactory.ParseTypeName("global::System.Guid");
                     value = true;
