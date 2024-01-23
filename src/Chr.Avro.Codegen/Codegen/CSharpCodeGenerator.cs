@@ -252,12 +252,22 @@ namespace Chr.Avro.Codegen
                     break;
 
 #if NET6_0_OR_GREATER
-                case IntSchema i when l.LogicalType is DateLogicalType t:
+                case IntSchema i when i.LogicalType is DateLogicalType t:
                     type = SyntaxFactory.ParseTypeName("global::System.DateOnly");
                     value = true;
                     break;
-#endif
 
+                case IntSchema i when i.LogicalType is MillisecondTimeLogicalType t:
+                    type = SyntaxFactory.ParseTypeName("global::System.TimeOnly");
+                    value = true;
+                    break;
+
+                case LongSchema l when l.LogicalType is MicrosecondTimeLogicalType t:
+                    type = SyntaxFactory.ParseTypeName("global::System.TimeOnly");
+                    value = true;
+                    break;
+
+#endif
                 case StringSchema s when s.LogicalType is UuidLogicalType:
                     type = SyntaxFactory.ParseTypeName("global::System.Guid");
                     value = true;
