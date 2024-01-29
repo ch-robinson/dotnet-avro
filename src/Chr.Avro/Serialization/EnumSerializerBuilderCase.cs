@@ -65,6 +65,11 @@ namespace Chr.Avro.Serialization
         /// </returns>
         protected virtual bool IsMatch(string symbol, MemberInfo member)
         {
+            if (member.MemberType != MemberTypes.Field)
+            {
+                return false;
+            }
+
             if (member.DeclaringType.HasAttribute<DataContractAttribute>())
             {
                 if (member.GetAttribute<EnumMemberAttribute>() is EnumMemberAttribute memberAttribute)

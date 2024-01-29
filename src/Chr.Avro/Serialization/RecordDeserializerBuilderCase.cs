@@ -106,6 +106,11 @@ namespace Chr.Avro.Serialization
         /// </returns>
         protected virtual bool IsMatch(RecordField field, MemberInfo member)
         {
+            if (member.MemberType != MemberTypes.Field && member.MemberType != MemberTypes.Property)
+            {
+                return false;
+            }
+
             if (member.DeclaringType.HasAttribute<DataContractAttribute>())
             {
                 if (member.GetAttribute<DataMemberAttribute>() is DataMemberAttribute memberAttribute)
