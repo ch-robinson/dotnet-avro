@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Collections.Generic;
     using System.Dynamic;
-    using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
     using System.Text.Json;
@@ -74,8 +73,6 @@ namespace Chr.Avro.Serialization
                     // then build/set the delegate if it hasn’t been built yet:
                     if (parameter == reference)
                     {
-                        var members = type.GetMembers(MemberVisibility);
-
                         var writeStartObject = typeof(Utf8JsonWriter)
                             .GetMethod(nameof(Utf8JsonWriter.WriteStartObject), Type.EmptyTypes);
 
@@ -93,7 +90,7 @@ namespace Chr.Avro.Serialization
 
                         foreach (var field in recordSchema.Fields)
                         {
-                            var match = members.SingleOrDefault(member => IsMatch(field, member));
+                            var match = GetMatch(field, type, MemberVisibility);
 
                             Expression inner;
 

@@ -72,13 +72,11 @@ namespace Chr.Avro.Serialization
                     // then build/set the delegate if it hasn’t been built yet:
                     if (parameter == reference)
                     {
-                        var members = type.GetMembers(MemberVisibility);
-
                         var argument = Expression.Variable(type);
                         var writes = recordSchema.Fields
                             .Select(field =>
                             {
-                                var match = members.SingleOrDefault(member => IsMatch(field, member));
+                                var match = GetMatch(field, type, MemberVisibility);
 
                                 Expression inner;
 

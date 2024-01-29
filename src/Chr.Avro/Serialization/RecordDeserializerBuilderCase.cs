@@ -59,6 +59,40 @@ namespace Chr.Avro.Serialization
         }
 
         /// <summary>
+        /// Finds at most one type member that matches a <see cref="RecordField" />.
+        /// </summary>
+        /// <param name="field">
+        /// A record field.
+        /// </param>
+        /// <param name="type">
+        /// The type to inspect.
+        /// </param>
+        /// <param name="memberVisibility">
+        /// The binding flags used to select fields and properties.
+        /// </param>
+        /// <returns>
+        /// A match if <see cref="IsMatch(RecordField, MemberInfo)" /> returns <c>true</c> for at
+        /// most one type member; <c>null</c> otherwise.
+        /// </returns>
+        /// <exception cref="UnsupportedTypeException">
+        /// Thrown when <paramref name="type" /> has multiple members that match
+        /// <paramref name="field" />.
+        /// </exception>
+        protected virtual MemberInfo? GetMatch(RecordField field, Type type, BindingFlags memberVisibility)
+        {
+            var matches = type.GetMembers(memberVisibility)
+                .Where(member => IsMatch(field, member))
+                .ToList();
+
+            if (matches.Count > 1)
+            {
+                throw new UnsupportedTypeException(type, $"Multiple members ({string.Join(", ", matches.Select(m => m.Name))}) on {type} match the {field.Name} field.");
+            }
+
+            return matches.FirstOrDefault();
+        }
+
+        /// <summary>
         /// Determines whether a <see cref="RecordField" /> is a match for a type member.
         /// </summary>
         /// <param name="field">
