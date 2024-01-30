@@ -15,7 +15,7 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <SignAssembly>true</SignAssembly>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Version>10.2.0</Version>
+    <Version>10.2.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
