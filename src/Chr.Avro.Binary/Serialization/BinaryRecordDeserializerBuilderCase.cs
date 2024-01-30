@@ -113,8 +113,6 @@ namespace Chr.Avro.Serialization
                         }
                         else
                         {
-                            var members = underlying.GetMembers(MemberVisibility);
-
                             // support dynamic deserialization:
                             var value = Expression.Parameter(
                                 underlying.IsAssignableFrom(typeof(ExpandoObject))
@@ -126,7 +124,7 @@ namespace Chr.Avro.Serialization
                                 new[] { (Expression)Expression.Assign(value, Expression.New(value.Type)) }
                                     .Concat(recordSchema.Fields.Select(field =>
                                     {
-                                        var match = members.SingleOrDefault(member => IsMatch(field, member));
+                                        var match = GetMatch(field, underlying, MemberVisibility);
 
                                         Expression expression;
 

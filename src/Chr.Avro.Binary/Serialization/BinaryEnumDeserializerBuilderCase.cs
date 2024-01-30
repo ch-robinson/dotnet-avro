@@ -39,18 +39,15 @@ namespace Chr.Avro.Serialization
 
                 var underlying = Nullable.GetUnderlyingType(type) ?? type;
 
-                // enum fields will always be public static, so no need to expose binding flags:
-                var fields = underlying.GetFields(BindingFlags.Public | BindingFlags.Static);
-
                 var cases = underlying.IsEnum
                     ? enumSchema.Symbols
                         .Select((symbol, index) =>
                         {
-                            var match = fields.SingleOrDefault(field => IsMatch(symbol, field));
+                            var match = GetMatch(symbol, underlying);
 
                             if (enumSchema.Default != null)
                             {
-                                match ??= fields.SingleOrDefault(field => IsMatch(enumSchema.Default, field));
+                                match ??= GetMatch(enumSchema.Default, underlying);
                             }
 
                             if (match == null)
