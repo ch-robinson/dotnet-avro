@@ -46,11 +46,10 @@ jobs:
       - name: Push packages
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run:
+        run: |
           set -xe
 
-          release_directory=releases
-          push_flags="--api-key $NUGET_API_KEY --skip-duplicate --source https://api.nuget.org/v3/index.json"
-
-          dotnet nuget push $push_flags "$release_directory/*.nupkg"
-          dotnet nuget push $push_flags "$release_directory/*.snupkg"
+          dotnet nuget push "releases/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate \
+            --source https://api.nuget.org/v3/index.json
