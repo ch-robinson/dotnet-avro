@@ -106,7 +106,7 @@ namespace Chr.Avro.UnionTypeExample
 
             await producerBuilder.SetAvroValueSerializer(
                 serializerBuilder,
-                SubjectNameStrategy.Topic.ConstructKeySubjectName(Topic),
+                SubjectNameStrategy.Topic.ConstructValueSubjectName(Topic),
                 automaticRegistrationBehavior);
 
             return producerBuilder.Build();
