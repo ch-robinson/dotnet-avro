@@ -52,27 +52,39 @@ namespace Chr.Avro.Serialization
             else if (target == typeof(DateOnly) || target == typeof(DateOnly?))
             {
                 var parseDateOnly = typeof(DateOnly)
-                    .GetMethod(nameof(DateOnly.Parse), new[] { value.Type, typeof(IFormatProvider) });
+                    .GetMethod(nameof(DateOnly.Parse), new[]
+                    {
+                        value.Type,
+                        typeof(IFormatProvider),
+                        typeof(DateTimeStyles)
+                    });
 
                 value = Expression.ConvertChecked(
                     Expression.Call(
                         null,
                         parseDateOnly,
                         value,
-                        Expression.Constant(CultureInfo.InvariantCulture)),
+                        Expression.Constant(CultureInfo.InvariantCulture),
+                        Expression.Constant(DateTimeStyles.None)),
                     target);
             }
             else if (target == typeof(TimeOnly) || target == typeof(TimeOnly?))
             {
                 var parseTimeOnly = typeof(TimeOnly)
-                    .GetMethod(nameof(TimeOnly.Parse), new[] { value.Type, typeof(IFormatProvider) });
+                    .GetMethod(nameof(TimeOnly.Parse), new[]
+                    {
+                        value.Type,
+                        typeof(IFormatProvider),
+                        typeof(DateTimeStyles)
+                    });
 
                 value = Expression.ConvertChecked(
                     Expression.Call(
                         null,
                         parseTimeOnly,
                         value,
-                        Expression.Constant(CultureInfo.InvariantCulture)),
+                        Expression.Constant(CultureInfo.InvariantCulture),
+                        Expression.Constant(DateTimeStyles.None)),
                     target);
             }
 #endif
