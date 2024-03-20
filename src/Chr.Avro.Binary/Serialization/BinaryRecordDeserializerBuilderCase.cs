@@ -63,7 +63,7 @@ namespace Chr.Avro.Serialization
                     // since record deserialization is potentially recursive, create a top-level
                     // reference:
                     var parameter = Expression.Parameter(
-                        Expression.GetDelegateType(context.Reader.Type.MakeByRefType(), underlying));
+                        Expression.GetDelegateType(context.Reader.Type.MakeByRefType(), type));
 
                     if (!context.References.TryGetValue((recordSchema, type), out var reference))
                     {
