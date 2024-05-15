@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Pull code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Use .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
       - name: Fetch packages
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs').promises;
