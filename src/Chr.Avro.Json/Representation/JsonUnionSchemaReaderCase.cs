@@ -45,7 +45,8 @@ namespace Chr.Avro.Representation
                     .Select(child => Reader.Read(child, context))
                     .ToArray();
 
-                var key = $"[{string.Join(",", children.Select(s => context.Schemas.Single(p => p.Value == s).Key))}]";
+                // use `First` rather than `Single` here to support aliases:
+                var key = $"[{string.Join(",", children.Select(s => context.Schemas.First(p => p.Value == s).Key))}]";
 
                 if (!context.Schemas.TryGetValue(key, out var schema))
                 {
