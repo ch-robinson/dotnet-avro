@@ -16,6 +16,15 @@ namespace Chr.Avro.Representation.Tests
             writer = new JsonSchemaWriter();
         }
 
+        public static IEnumerable<object[]> AliasedNamedSchemaRepresentations => new List<object[]>
+        {
+            new object[]
+            {
+                "{\"name\":\"lists.Node\",\"aliases\":[\"N\"],\"type\":\"record\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"},{\"name\":\"next\",\"type\":[\"null\",\"lists.Node\"]}]}",
+                "{\"name\":\"lists.Node\",\"aliases\":[\"N\"],\"type\":\"record\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"},{\"name\":\"next\",\"type\":[\"null\",\"N\"]}]}",
+            },
+        };
+
         public static IEnumerable<object[]> ArraySchemaRepresentations => new List<object[]>
         {
             new object[] { "{\"type\":\"array\",\"items\":\"null\"}" },
@@ -75,7 +84,6 @@ namespace Chr.Avro.Representation.Tests
         public static IEnumerable<object[]> RecordSchemaRepresentations => new List<object[]>
         {
             new object[] { "{\"name\":\"Empty\",\"type\":\"record\",\"fields\":[]}" },
-            new object[] { "{\"name\":\"Empty\",\"aliases\":[\"Empty\"],\"type\":\"record\",\"fields\":[]}" },
             new object[] { "{\"name\":\"cards.Card\",\"type\":\"record\",\"fields\":[{\"name\":\"suit\",\"type\":{\"name\":\"cards.Suit\",\"type\":\"enum\",\"symbols\":[\"CLUBS\",\"DIAMONDS\",\"HEARTS\",\"SPADES\"]}},{\"name\":\"number\",\"type\":\"int\"}]}" },
             new object[] { "{\"name\":\"lists.Node\",\"type\":\"record\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"},{\"name\":\"next\",\"type\":[\"null\",\"lists.Node\"]}]}" },
             new object[] { "{\"name\":\"lists.Node\",\"type\":\"record\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"},{\"name\":\"next\",\"default\":null,\"type\":[\"null\",\"lists.Node\"]}]}" },
@@ -108,6 +116,7 @@ namespace Chr.Avro.Representation.Tests
         };
 
         [Theory]
+        [MemberData(nameof(AliasedNamedSchemaRepresentations))]
         [MemberData(nameof(PrimitiveSchemaRepresentations))]
         public void AsymmetricRepresentations(string @out, string @in)
         {
