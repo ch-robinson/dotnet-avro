@@ -35,10 +35,10 @@ namespace Chr.Avro.Serialization
             // TODO: Can we handle dynamic deserialisation better?
             // Instead of skipping the regular handling, maybe we can incorporate dynamic setters
             // in the member handling in BinaryRecordDeserializerBuilderCase.BuildExpression (and the Json one)?
-            //if (type == typeof(object))
-            //{
-            //    return null;
-            //}
+            // if (type == typeof(object))
+            // {
+            //     return null;
+            // }
 
             // Find the constructor that matches the record's fields the best, ie:
             //  - all the constructor parameters match a field, or has a default value if not

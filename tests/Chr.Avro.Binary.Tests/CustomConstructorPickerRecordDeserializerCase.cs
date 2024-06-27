@@ -27,7 +27,3 @@ internal class CustomConstructorPickerRecordDeserializerCase : BinaryRecordDeser
         return base.GetRecordConstructor(type, schema);
     }
 }
-
-internal class ChrPreferredConstructorAttribute : Attribute
-{
-}

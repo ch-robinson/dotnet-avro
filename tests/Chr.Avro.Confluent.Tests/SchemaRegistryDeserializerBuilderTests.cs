@@ -1,6 +1,5 @@
 namespace Chr.Avro.Confluent.Tests
 {
-    using System.Dynamic;
     using System.Threading.Tasks;
     using global::Confluent.Kafka;
     using global::Confluent.SchemaRegistry;
@@ -47,9 +46,8 @@ namespace Chr.Avro.Confluent.Tests
 
             using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
 
-            await Assert.ThrowsAsync<UnsupportedTypeException>(() => builder.Build<MyExpandoObject>(id));
+            await Assert.ThrowsAsync<UnsupportedTypeException>(() => builder.Build<NoDefaultConstructor>(id));
         }
-
 
         [Fact]
         public async Task CanBuildsDeserializerForDynamicObjectIfCompatibleConstructorIsFound()
@@ -65,21 +63,9 @@ namespace Chr.Avro.Confluent.Tests
             var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x54 };
             using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
 
-            var deserializer = await builder.Build<MyExpandoObject>(id);
+            var deserializer = await builder.Build<NoDefaultConstructor>(id);
             var deserialized = deserializer.Deserialize(data, false, context);
             Assert.Equal(42, deserialized.Id);
-        }
-
-        public class MyExpandoObject
-        {
-            public MyExpandoObject(int id)
-            {
-                Id = id;
-            }
-
-            public int Id { get; }
-
-            public string Field { get; set; } = string.Empty;
         }
 
         [Fact]
@@ -275,6 +261,18 @@ namespace Chr.Avro.Confluent.Tests
 
             Assert.Throws<InvalidEncodingException>(() =>
                 deserializer.Deserialize(encoding, false, context));
+        }
+
+        public class NoDefaultConstructor
+        {
+            public NoDefaultConstructor(int id)
+            {
+                Id = id;
+            }
+
+            public int Id { get; }
+
+            public string Field { get; set; } = string.Empty;
         }
     }
 }
