@@ -18,7 +18,7 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class JsonRecordDeserializerBuilderCase : RecordDeserializerBuilderCase, IJsonDeserializerBuilderCase
     {
-        private static readonly ReflectionMembers _knownReflectionMembers = new();
+        private static readonly ReflectionMembers KnownReflectionMembers = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="JsonRecordDeserializerBuilderCase" /> class.
@@ -99,28 +99,28 @@ namespace Chr.Avro.Serialization
                                 Expression.Assign(value, Expression.New(value.Type)),
                                 Expression.IfThen(
                                     Expression.NotEqual(
-                                        Expression.Property(context.Reader, _knownReflectionMembers.Utf8JsonReader.TokenType),
+                                        Expression.Property(context.Reader, KnownReflectionMembers.Utf8JsonReader.TokenType),
                                         Expression.Constant(JsonTokenType.StartObject)),
                                     Expression.Throw(
                                         Expression.Call(
                                             null,
-                                            _knownReflectionMembers.JsonExceptionHelper.GetUnexpectedTokenException,
+                                            KnownReflectionMembers.JsonExceptionHelper.GetUnexpectedTokenException,
                                             context.Reader,
                                             Expression.Constant(new[] { JsonTokenType.StartObject })))),
                                 Expression.Loop(
                                     Expression.Block(
-                                        Expression.Call(context.Reader, _knownReflectionMembers.Utf8JsonReader.Read),
+                                        Expression.Call(context.Reader, KnownReflectionMembers.Utf8JsonReader.Read),
                                         Expression.IfThen(
                                             Expression.Equal(
-                                                Expression.Property(context.Reader, _knownReflectionMembers.Utf8JsonReader.TokenType),
+                                                Expression.Property(context.Reader, KnownReflectionMembers.Utf8JsonReader.TokenType),
                                                 Expression.Constant(JsonTokenType.EndObject)),
                                             Expression.Break(loop)),
                                         Expression.Switch(
-                                            Expression.Call(context.Reader, _knownReflectionMembers.Utf8JsonReader.GetString),
+                                            Expression.Call(context.Reader, KnownReflectionMembers.Utf8JsonReader.GetString),
                                             Expression.Throw(
                                                 Expression.Call(
                                                     null,
-                                                    _knownReflectionMembers.JsonExceptionHelper.GetUnknownRecordFieldException,
+                                                    KnownReflectionMembers.JsonExceptionHelper.GetUnknownRecordFieldException,
                                                     context.Reader)),
                                             recordSchema.Fields
                                                 .Select(field =>
@@ -171,7 +171,7 @@ namespace Chr.Avro.Serialization
 
                                                     return Expression.SwitchCase(
                                                         Expression.Block(
-                                                            Expression.Call(context.Reader, _knownReflectionMembers.Utf8JsonReader.Read),
+                                                            Expression.Call(context.Reader, KnownReflectionMembers.Utf8JsonReader.Read),
                                                             expression,
                                                             Expression.Empty()),
                                                         Expression.Constant(field.Name));
@@ -264,7 +264,7 @@ namespace Chr.Avro.Serialization
                                 ConstructorParameter: (ParameterInfo?)null,
                                 Member: (MemberInfo?)memberMatch.member,
                                 Assignment: (Expression)Expression.Block(
-                                            Expression.Call(context.Reader, _knownReflectionMembers.Utf8JsonReader.Read),
+                                            Expression.Call(context.Reader, KnownReflectionMembers.Utf8JsonReader.Read),
                                             Expression.Assign(
                                                 variable,
                                                 DeserializerBuilder.BuildExpression(memberType, field.Type, context))));
@@ -277,7 +277,7 @@ namespace Chr.Avro.Serialization
                             ConstructorParameter: null,
                             Member: null,
                             Assignment: Expression.Block(
-                                Expression.Call(context.Reader, _knownReflectionMembers.Utf8JsonReader.Read),
+                                Expression.Call(context.Reader, KnownReflectionMembers.Utf8JsonReader.Read),
                                 DeserializerBuilder.BuildExpression(typeof(object), field.Type, context)));
                     }
 
@@ -288,7 +288,7 @@ namespace Chr.Avro.Serialization
                         ConstructorParameter: constructorParameter,
                         Member: null,
                         Assignment: Expression.Block(
-                            Expression.Call(context.Reader, _knownReflectionMembers.Utf8JsonReader.Read),
+                            Expression.Call(context.Reader, KnownReflectionMembers.Utf8JsonReader.Read),
                             Expression.Assign(
                                 parameter,
                                 DeserializerBuilder.BuildExpression(constructorParameter.ParameterType, field.Type, context))));
@@ -326,28 +326,28 @@ namespace Chr.Avro.Serialization
                     .Concat(new[] { value })!,
                 Expression.IfThen(
                     Expression.NotEqual(
-                        Expression.Property(context.Reader, _knownReflectionMembers.Utf8JsonReader.TokenType),
+                        Expression.Property(context.Reader, KnownReflectionMembers.Utf8JsonReader.TokenType),
                         Expression.Constant(JsonTokenType.StartObject)),
                     Expression.Throw(
                         Expression.Call(
                             null,
-                            _knownReflectionMembers.JsonExceptionHelper.GetUnexpectedTokenException,
+                            KnownReflectionMembers.JsonExceptionHelper.GetUnexpectedTokenException,
                             context.Reader,
                             Expression.Constant(new[] { JsonTokenType.StartObject })))),
                 Expression.Loop(
                     Expression.Block(
-                        Expression.Call(context.Reader, _knownReflectionMembers.Utf8JsonReader.Read),
+                        Expression.Call(context.Reader, KnownReflectionMembers.Utf8JsonReader.Read),
                         Expression.IfThen(
                             Expression.Equal(
-                                Expression.Property(context.Reader, _knownReflectionMembers.Utf8JsonReader.TokenType),
+                                Expression.Property(context.Reader, KnownReflectionMembers.Utf8JsonReader.TokenType),
                                 Expression.Constant(JsonTokenType.EndObject)),
                             Expression.Break(loop)),
                         Expression.Switch(
-                            Expression.Call(context.Reader, _knownReflectionMembers.Utf8JsonReader.GetString),
+                            Expression.Call(context.Reader, KnownReflectionMembers.Utf8JsonReader.GetString),
                             Expression.Throw(
                                 Expression.Call(
                                     null,
-                                    _knownReflectionMembers.JsonExceptionHelper.GetUnknownRecordFieldException,
+                                    KnownReflectionMembers.JsonExceptionHelper.GetUnknownRecordFieldException,
                                     context.Reader)),
                             mappings
                                 .Select(m =>

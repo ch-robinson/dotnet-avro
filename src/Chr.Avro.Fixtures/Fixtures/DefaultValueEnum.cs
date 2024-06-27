@@ -1,7 +1,7 @@
-using System.ComponentModel;
-
 namespace Chr.Avro.Fixtures
 {
+    using System.ComponentModel;
+
     [DefaultValue(DefaultValue)]
     public enum DefaultValueEnum
     {

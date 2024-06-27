@@ -59,9 +59,9 @@ namespace Chr.Avro.Serialization
                     Expression.Call(
                         context.Writer,
                         writeNumber,
-                            Expression.Subtract(
-                                Expression.Property(expression, dayNumber),
-                                Expression.Constant(Epoch.DayNumber))));
+                        Expression.Subtract(
+                            Expression.Property(expression, dayNumber),
+                            Expression.Constant(Epoch.DayNumber))));
             }
             else
             {

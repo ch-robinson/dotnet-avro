@@ -604,20 +604,6 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equivalent(person, deserialized);
         }
 
-        private T SerializeAndDeserialize<T>(T item, RecordSchema schema)
-        {
-            var deserialize = deserializerBuilder.BuildDelegate<T>(schema);
-            var serialize = serializerBuilder.BuildDelegate<T>(schema);
-
-            using var memoryStream = new MemoryStream();
-
-            serialize(item, new BinaryWriter(memoryStream));
-            var reader = new BinaryReader(memoryStream.ToArray());
-
-            var root = deserialize(ref reader);
-            return root;
-        }
-
         [Fact]
         public void RecordWithCustomDeserialization()
         {
@@ -671,6 +657,20 @@ namespace Chr.Avro.Serialization.Tests
             };
 
             Assert.Equivalent(expected, deserialize(ref reader));
+        }
+
+        private T SerializeAndDeserialize<T>(T item, RecordSchema schema)
+        {
+            var deserialize = deserializerBuilder.BuildDelegate<T>(schema);
+            var serialize = serializerBuilder.BuildDelegate<T>(schema);
+
+            using var memoryStream = new MemoryStream();
+
+            serialize(item, new BinaryWriter(memoryStream));
+            var reader = new BinaryReader(memoryStream.ToArray());
+
+            var root = deserialize(ref reader);
+            return root;
         }
 
         public class MappedNode
