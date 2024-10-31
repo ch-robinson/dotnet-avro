@@ -40,6 +40,7 @@ namespace Chr.Avro.Representation.Tests
         public static IEnumerable<object[]> DecimalLogicalTypeRepresentations => new List<object[]>
         {
             new object[] { "{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":10,\"scale\":6}" },
+            new object[] { "{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":29}", "{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":29,\"scale\":0}" },
             new object[] { "{\"name\":\"temperatures.Celcius\",\"type\":\"fixed\",\"logicalType\":\"decimal\",\"precision\":4,\"scale\":3,\"size\":4}" },
         };
 
@@ -152,9 +153,9 @@ namespace Chr.Avro.Representation.Tests
         [MemberData(nameof(TimestampLogicalTypeRepresentations))]
         [MemberData(nameof(UnionSchemaRepresentations))]
         [MemberData(nameof(UuidLogicalTypeRepresentations))]
-        public void SymmetricRepresentations(string schema)
+        public void SymmetricRepresentations(string schema, string expectedOverride = null)
         {
-            Assert.Equal(schema, writer.Write(reader.Read(schema)));
+            Assert.Equal(expectedOverride ?? schema, writer.Write(reader.Read(schema)));
         }
     }
 }

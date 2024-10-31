@@ -44,13 +44,13 @@ namespace Chr.Avro.Representation
 
                 if (type.ValueEquals(JsonSchemaToken.Bytes))
                 {
-                    var key = $"{JsonSchemaToken.Bytes}!{JsonSchemaToken.Decimal}!{precision.GetInt32()}!{(scale.Equals(default) ? 0 : scale.GetInt32())}";
+                    var key = $"{JsonSchemaToken.Bytes}!{JsonSchemaToken.Decimal}!{precision.GetInt32()}!{(scale.ValueKind == JsonValueKind.Undefined ? 0 : scale.GetInt32())}";
 
                     if (!context.Schemas.TryGetValue(key, out var schema))
                     {
                         schema = new BytesSchema()
                         {
-                            LogicalType = new DecimalLogicalType(precision.GetInt32(), scale.Equals(default) ? 0 : scale.GetInt32()),
+                            LogicalType = new DecimalLogicalType(precision.GetInt32(), scale.ValueKind == JsonValueKind.Undefined ? 0 : scale.GetInt32()),
                         };
 
                         context.Schemas.Add(key, schema);
@@ -76,7 +76,7 @@ namespace Chr.Avro.Representation
 
                     var schema = new FixedSchema(QualifyName(name.GetString(), scope), size.GetInt32())
                     {
-                        LogicalType = new DecimalLogicalType(precision.GetInt32(), scale.Equals(default) ? 0 : scale.GetInt32()),
+                        LogicalType = new DecimalLogicalType(precision.GetInt32(), scale.ValueKind == JsonValueKind.Undefined ? 0 : scale.GetInt32()),
                     };
 
                     if (element.TryGetProperty(JsonAttributeToken.Aliases, out var aliases))
