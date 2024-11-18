@@ -82,7 +82,7 @@ namespace Chr.Avro.Confluent.Tests
             var subject = "test-subject";
             var version = 4;
 
-            registryMock.Setup(r => r.GetRegisteredSchemaAsync(subject, version))
+            registryMock.Setup(r => r.GetRegisteredSchemaAsync(subject, version, true))
                 .ReturnsAsync(new RegisteredSchema(subject, version, id, json, SchemaType.Avro, null))
                 .Verifiable();
 
