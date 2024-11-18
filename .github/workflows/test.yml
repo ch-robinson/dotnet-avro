@@ -11,6 +11,7 @@ jobs:
           - target: net462
             os: windows-latest
           - target: net8.0
+          - target: net9.0
     runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     steps:
       - name: Pull code
