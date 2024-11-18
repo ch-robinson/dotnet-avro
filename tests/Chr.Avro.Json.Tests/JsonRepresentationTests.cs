@@ -69,6 +69,11 @@ namespace Chr.Avro.Representation.Tests
             new object[] { "{\"type\":\"map\",\"values\":[\"null\",\"double\",\"int\"]}" },
         };
 
+        public static IEnumerable<object[]> OptionalFieldRepresentations => new List<object[]>
+        {
+            new object[] { "{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":29,\"scale\":0}", "{\"type\":\"bytes\",\"logicalType\":\"decimal\",\"precision\":29}" },
+        };
+
         public static IEnumerable<object[]> PrimitiveSchemaRepresentations => new List<object[]>
         {
             new object[] { "\"boolean\"", "{\"type\":\"boolean\"}" },
@@ -117,6 +122,7 @@ namespace Chr.Avro.Representation.Tests
 
         [Theory]
         [MemberData(nameof(AliasedNamedSchemaRepresentations))]
+        [MemberData(nameof(OptionalFieldRepresentations))]
         [MemberData(nameof(PrimitiveSchemaRepresentations))]
         public void AsymmetricRepresentations(string @out, string @in)
         {
@@ -152,9 +158,9 @@ namespace Chr.Avro.Representation.Tests
         [MemberData(nameof(TimestampLogicalTypeRepresentations))]
         [MemberData(nameof(UnionSchemaRepresentations))]
         [MemberData(nameof(UuidLogicalTypeRepresentations))]
-        public void SymmetricRepresentations(string schema)
+        public void SymmetricRepresentations(string schema, string expectedOverride = null)
         {
-            Assert.Equal(schema, writer.Write(reader.Read(schema)));
+            Assert.Equal(expectedOverride ?? schema, writer.Write(reader.Read(schema)));
         }
     }
 }
