@@ -4,7 +4,7 @@ namespace Chr.Avro.Abstract
     /// Represents an Avro logical type defining an instant in time in milliseconds from the Unix epoch.
     /// </summary>
     /// <remarks>
-    /// See the <a href="https://avro.apache.org/docs/current/spec.html#Timestamp+(millisecond+precision)">Avro spec</a>
+    /// See the <a href="https://avro.apache.org/docs/1.12.0/specification/#timestamps">Avro spec</a>
     /// for details.
     /// </remarks>
     public class MillisecondTimestampLogicalType : TimestampLogicalType

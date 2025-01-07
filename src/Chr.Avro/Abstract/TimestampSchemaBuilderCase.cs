@@ -52,6 +52,10 @@ namespace Chr.Avro.Abstract
                     {
                         LogicalType = new MillisecondTimestampLogicalType(),
                     },
+                    TemporalBehavior.EpochNanoseconds => new LongSchema()
+                    {
+                        LogicalType = new NanosecondTimestampLogicalType(),
+                    },
                     TemporalBehavior.Iso8601 => new StringSchema(),
                     _ => throw new ArgumentOutOfRangeException(nameof(TemporalBehavior)),
                 };

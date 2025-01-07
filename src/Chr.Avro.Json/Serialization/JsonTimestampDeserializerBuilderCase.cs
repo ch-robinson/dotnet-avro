@@ -21,8 +21,8 @@ namespace Chr.Avro.Serialization
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when <paramref name="schema" /> is not a <see cref="LongSchema" /> or when
-        /// <paramref name="schema" /> does not have a <see cref="MicrosecondTimestampLogicalType" />
-        /// or a <see cref="MillisecondTimestampLogicalType" />.
+        /// <paramref name="schema" /> does not have a <see cref="MicrosecondTimestampLogicalType" />,
+        /// <see cref="MillisecondTimestampLogicalType" />, or <see cref="NanosecondTimestampLogicalType" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="DateTime" /> cannot be converted to <paramref name="type" />.
@@ -37,37 +37,23 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema);
                 }
 
-                Expression epoch = Expression.Constant(Epoch);
-                Expression factor;
-
-                if (schema.LogicalType is MicrosecondTimestampLogicalType)
-                {
-                    factor = Expression.Constant(TimeSpan.TicksPerMillisecond / 1000);
-                }
-                else if (schema.LogicalType is MillisecondTimestampLogicalType)
-                {
-                    factor = Expression.Constant(TimeSpan.TicksPerMillisecond);
-                }
-                else
-                {
-                    throw new UnsupportedSchemaException(schema);
-                }
-
                 var getInt64 = typeof(Utf8JsonReader)
                     .GetMethod(nameof(Utf8JsonReader.GetInt64), Type.EmptyTypes);
 
-                Expression expression = Expression.Call(context.Reader, getInt64);
-
                 var addTicks = typeof(DateTime)
-                    .GetMethod(nameof(DateTime.AddTicks));
+                    .GetMethod(nameof(DateTime.AddTicks), new[] { typeof(long) })!;
+
+                Expression expression = Expression.Call(
+                    Expression.Constant(Epoch),
+                    addTicks,
+                    BuildTimestampToTicks(
+                        Expression.Call(context.Reader, getInt64),
+                        schema));
 
                 try
                 {
-                    // return Epoch.AddTicks(value * factor);
                     return JsonDeserializerBuilderCaseResult.FromExpression(
-                        BuildConversion(
-                            Expression.Call(epoch, addTicks, Expression.Multiply(expression, factor)),
-                            type));
+                        BuildConversion(expression, type));
                 }
                 catch (InvalidOperationException exception)
                 {

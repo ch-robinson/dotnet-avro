@@ -62,6 +62,25 @@ namespace Chr.Avro.Serialization.Tests
             },
         };
 
+        public static IEnumerable<object[]> NanosecondDateTimeEncodings => new List<object[]>
+        {
+            new object[]
+            {
+                new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                new byte[] { 0x00 },
+            },
+            new object[]
+            {
+                new DateTime(1969, 12, 31, 23, 59, 59, 999, DateTimeKind.Utc),
+                new byte[] { 0xff, 0x88, 0x7a },
+            },
+            new object[]
+            {
+                new DateTime(1970, 1, 1, 0, 0, 0, 1, DateTimeKind.Utc),
+                new byte[] { 0x80, 0x89, 0x7a },
+            },
+        };
+
         [Theory]
         [MemberData(nameof(MicrosecondDateTimeEncodings))]
         public void MicrosecondTimestampLogicalTypeToDateTimeType(DateTime value, byte[] encoding)
@@ -141,6 +160,54 @@ namespace Chr.Avro.Serialization.Tests
             var schema = new LongSchema()
             {
                 LogicalType = new MillisecondTimestampLogicalType(),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var encoded = stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(NanosecondDateTimeEncodings))]
+        public void NanosecondTimestampLogicalTypeToDateTimeType(DateTime value, byte[] encoding)
+        {
+            var schema = new LongSchema()
+            {
+                LogicalType = new NanosecondTimestampLogicalType(),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<DateTime>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTime>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var encoded = stream.ToArray();
+            var reader = new BinaryReader(encoded);
+
+            Assert.Equal(encoding, encoded);
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(NanosecondDateTimeEncodings))]
+        public void NanosecondTimestampLogicalTypeToDateTimeOffsetType(DateTimeOffset value, byte[] encoding)
+        {
+            var schema = new LongSchema()
+            {
+                LogicalType = new NanosecondTimestampLogicalType(),
             };
 
             var deserialize = deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);

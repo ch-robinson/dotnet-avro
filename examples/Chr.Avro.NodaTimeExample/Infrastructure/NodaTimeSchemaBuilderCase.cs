@@ -2,6 +2,7 @@ namespace Chr.Avro.NodaTimeExample.Infrastructure
 {
     using System;
     using Chr.Avro.Abstract;
+    using NodaTime;
 
     public class NodaTimeSchemaBuilderCase : SchemaBuilderCase, ISchemaBuilderCase
     {
@@ -15,7 +16,7 @@ namespace Chr.Avro.NodaTimeExample.Infrastructure
         public SchemaBuilderCaseResult BuildSchema(Type type, SchemaBuilderContext context)
         {
             // Handle NodaTime.Instant like the TimestampSchemaBuilderCase
-            if (type == typeof(NodaTime.Instant))
+            if (type == typeof(Instant))
             {
                 Schema timestampSchema = TemporalBehavior switch
                 {
@@ -26,6 +27,10 @@ namespace Chr.Avro.NodaTimeExample.Infrastructure
                     TemporalBehavior.EpochMilliseconds => new LongSchema()
                     {
                         LogicalType = new MillisecondTimestampLogicalType(),
+                    },
+                    TemporalBehavior.EpochNanoseconds => new LongSchema()
+                    {
+                        LogicalType = new NanosecondTimestampLogicalType(),
                     },
                     TemporalBehavior.Iso8601 => new StringSchema(),
                     _ => throw new ArgumentOutOfRangeException(nameof(TemporalBehavior)),
@@ -45,7 +50,7 @@ namespace Chr.Avro.NodaTimeExample.Infrastructure
             }
             else
             {
-                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(TimestampSchemaBuilderCase)} can only be applied to the {nameof(NodaTime.Instant)} type."));
+                return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(TimestampSchemaBuilderCase)} can only be applied to the {nameof(Instant)} type."));
             }
         }
     }

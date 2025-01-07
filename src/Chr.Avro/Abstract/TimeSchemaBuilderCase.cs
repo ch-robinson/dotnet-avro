@@ -44,7 +44,10 @@ namespace Chr.Avro.Abstract
             {
                 Schema timeSchema = TemporalBehavior switch
                 {
-                    TemporalBehavior.EpochMicroseconds => new LongSchema()
+                    // there is no time logical type for nanoseconds, so use the highest precision
+                    // available
+                    TemporalBehavior.EpochMicroseconds or
+                    TemporalBehavior.EpochNanoseconds => new LongSchema()
                     {
                         LogicalType = new MicrosecondTimeLogicalType(),
                     },

@@ -8,7 +8,7 @@ namespace Chr.Avro.Abstract
     /// See the <a href="https://avro.apache.org/docs/1.12.0/specification/#timestamps">Avro spec</a>
     /// for details.
     /// </remarks>
-    public class MicrosecondTimestampLogicalType : TimestampLogicalType
+    public class NanosecondTimestampLogicalType : TimestampLogicalType
     {
     }
 }

@@ -5,32 +5,39 @@ namespace Chr.Avro.NodaTimeExample.Infrastructure
     using Chr.Avro.Abstract;
     using Chr.Avro.Serialization;
     using NodaTime;
+    using NodaTime.Text;
 
     public class NodaTimeDeserializerBuilderCase : BinaryTimestampDeserializerBuilderCase
     {
-        private readonly BinaryStringDeserializerBuilderCase stringDeserializer = new();
-
         public override BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {
+            if (type != typeof(Instant))
+            {
+                return BinaryDeserializerBuilderCaseResult.FromException(
+                    new UnsupportedTypeException(type, $"{nameof(NodaTimeDeserializerBuilderCase)} can only be applied to {nameof(Instant)}."));
+            }
+
             if (schema is StringSchema)
             {
-                // Fallback to default implementation if not NodaTime
-                if (!(type == typeof(NodaTime.Instant) || type == typeof(NodaTime.Instant?)))
-                {
-                    return base.BuildExpression(type, schema, context);
-                }
+                var readString = typeof(BinaryReader)
+                    .GetMethod(nameof(BinaryReader.ReadString), Type.EmptyTypes)!;
 
-                // Use default conversion from string to DateTimeOffset
-                var dateTimeOffset = stringDeserializer.BuildExpression(typeof(DateTimeOffset), schema, context).Expression;
+                var parse = typeof(IPattern<Instant>)
+                    .GetMethod(nameof(IPattern<Instant>.Parse), new[] { typeof(string) })!;
 
-                var instantFromDateTimeOffset = typeof(Instant).GetMethod(nameof(Instant.FromDateTimeOffset), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public, new[] { typeof(DateTimeOffset) });
+                var getValueOrThrow = typeof(ParseResult<Instant>)
+                    .GetMethod(nameof(ParseResult<Instant>.GetValueOrThrow), Type.EmptyTypes)!;
 
                 try
                 {
-                    // Code: NodaTime.Instant.FromDateTimeOffset(dateTimeOffset);
                     return BinaryDeserializerBuilderCaseResult.FromExpression(
                         BuildConversion(
-                            Expression.Call(instantFromDateTimeOffset!, dateTimeOffset!),
+                            Expression.Call(
+                                Expression.Call(
+                                    Expression.Constant(InstantPattern.ExtendedIso),
+                                    parse,
+                                    Expression.Call(context.Reader, readString)),
+                                getValueOrThrow),
                             type));
                 }
                 catch (InvalidOperationException exception)
@@ -45,41 +52,31 @@ namespace Chr.Avro.NodaTimeExample.Infrastructure
                     throw new UnsupportedSchemaException(schema, $"{nameof(TimestampLogicalType)} deserializers can only be built for {nameof(LongSchema)}s.");
                 }
 
-                // Fallback to default implementation if not NodaTime
-                if (!(type == typeof(Instant) || type == typeof(Instant?)))
-                {
-                    return base.BuildExpression(type, schema, context);
-                }
-
-                var factor = schema.LogicalType switch
-                {
-                    MicrosecondTimestampLogicalType => TimeSpan.TicksPerMillisecond / 1000,
-                    MillisecondTimestampLogicalType => TimeSpan.TicksPerMillisecond,
-                    _ => throw new UnsupportedSchemaException(schema, $"{schema.LogicalType} is not a supported {nameof(TimestampLogicalType)}."),
-                };
-
                 var readInteger = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
+                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes)!;
 
-                Expression expression = Expression.Call(context.Reader, readInteger!);
+                var plusNanoseconds = typeof(Instant)
+                    .GetMethod(nameof(Instant.PlusNanoseconds), new[] { typeof(long) })!;
 
-                var addTicks = typeof(DateTime)
-                    .GetMethod(nameof(DateTime.AddTicks), new[] { typeof(long) });
+                var plusTicks = typeof(Instant)
+                    .GetMethod(nameof(Instant.PlusTicks), new[] { typeof(long) })!;
 
-                var fromDateTimeUtc = typeof(NodaTime.Instant).GetMethod(nameof(NodaTime.Instant.FromDateTimeUtc), new[] { typeof(DateTime) });
+                Expression epoch = Expression.Constant(Instant.FromDateTimeOffset(Epoch));
+                Expression expression = Expression.Call(context.Reader, readInteger);
+
+                // avoid losing nanosecond precision
+                expression = schema.LogicalType switch
+                {
+                    NanosecondTimestampLogicalType =>
+                        Expression.Call(epoch, plusNanoseconds, expression),
+                    _ =>
+                        Expression.Call(epoch, plusTicks, BuildTimestampToTicks(expression, schema)),
+                };
 
                 try
                 {
-                    // Code: return NodaTime.Instant.FromDateTimeUtc( Epoch.AddTicks(value * factor) );
                     return BinaryDeserializerBuilderCaseResult.FromExpression(
-                        BuildConversion(
-                            Expression.Call(
-                                fromDateTimeUtc!,
-                                Expression.Call(
-                                    Expression.Constant(Epoch),
-                                    addTicks!,
-                                    Expression.Multiply(expression, Expression.Constant(factor)))),
-                            type));
+                        BuildConversion(expression, type));
                 }
                 catch (InvalidOperationException exception)
                 {
@@ -88,7 +85,8 @@ namespace Chr.Avro.NodaTimeExample.Infrastructure
             }
             else
             {
-                return BinaryDeserializerBuilderCaseResult.FromException(new UnsupportedSchemaException(schema, $"{nameof(NodaTimeDeserializerBuilderCase)} can only be applied to schemas with a {nameof(TimestampLogicalType)} and NodaTime properties."));
+                return BinaryDeserializerBuilderCaseResult.FromException(
+                    new UnsupportedSchemaException(schema, $"{nameof(NodaTimeDeserializerBuilderCase)} can only be applied to {nameof(StringSchema)}s or schemas with a {nameof(TimestampLogicalType)}."));
             }
         }
     }

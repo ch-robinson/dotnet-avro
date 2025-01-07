@@ -116,5 +116,49 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(value, deserialize(ref reader));
         }
+
+        [Theory]
+        [MemberData(nameof(DateTimes))]
+        public void NanosecondTimestampLogicalTypeToDateTimeType(DateTime value)
+        {
+            var schema = new LongSchema()
+            {
+                LogicalType = new NanosecondTimestampLogicalType(),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<DateTime>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTime>(schema);
+
+            using (stream)
+            {
+                serialize(value, new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
+        [MemberData(nameof(DateTimes))]
+        public void NanosecondTimestampLogicalTypeToDateTimeOffsetType(DateTimeOffset value)
+        {
+            var schema = new LongSchema()
+            {
+                LogicalType = new NanosecondTimestampLogicalType(),
+            };
+
+            var deserialize = deserializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTimeOffset>(schema);
+
+            using (stream)
+            {
+                serialize(value, new Utf8JsonWriter(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
     }
 }

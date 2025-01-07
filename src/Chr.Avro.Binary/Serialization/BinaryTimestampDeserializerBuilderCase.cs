@@ -20,8 +20,8 @@ namespace Chr.Avro.Serialization
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when <paramref name="schema" /> is not a <see cref="LongSchema" /> or when
-        /// <paramref name="schema" /> does not have a <see cref="MicrosecondTimestampLogicalType" />
-        /// or a <see cref="MillisecondTimestampLogicalType" />.
+        /// <paramref name="schema" /> does not have a <see cref="MicrosecondTimestampLogicalType" />,
+        /// <see cref="MillisecondTimestampLogicalType" />, or <see cref="NanosecondTimestampLogicalType" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <see cref="DateTime" /> cannot be converted to <paramref name="type" />.
@@ -36,31 +36,23 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedSchemaException(schema, $"{nameof(TimestampLogicalType)} deserializers can only be built for {nameof(LongSchema)}s.");
                 }
 
-                var factor = schema.LogicalType switch
-                {
-                    MicrosecondTimestampLogicalType => TimeSpan.TicksPerMillisecond / 1000,
-                    MillisecondTimestampLogicalType => TimeSpan.TicksPerMillisecond,
-                    _ => throw new UnsupportedSchemaException(schema, $"{schema.LogicalType} is not a supported {nameof(TimestampLogicalType)}."),
-                };
-
                 var readInteger = typeof(BinaryReader)
-                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes);
-
-                Expression expression = Expression.Call(context.Reader, readInteger);
+                    .GetMethod(nameof(BinaryReader.ReadInteger), Type.EmptyTypes)!;
 
                 var addTicks = typeof(DateTime)
-                    .GetMethod(nameof(DateTime.AddTicks), new[] { typeof(long) });
+                    .GetMethod(nameof(DateTime.AddTicks), new[] { typeof(long) })!;
+
+                Expression expression = Expression.Call(
+                    Expression.Constant(Epoch),
+                    addTicks,
+                    BuildTimestampToTicks(
+                        Expression.Call(context.Reader, readInteger),
+                        schema));
 
                 try
                 {
-                    // return Epoch.AddTicks(value * factor);
                     return BinaryDeserializerBuilderCaseResult.FromExpression(
-                        BuildConversion(
-                            Expression.Call(
-                                Expression.Constant(Epoch),
-                                addTicks,
-                                Expression.Multiply(expression, Expression.Constant(factor))),
-                            type));
+                        BuildConversion(expression, type));
                 }
                 catch (InvalidOperationException exception)
                 {

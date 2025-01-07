@@ -11,13 +11,18 @@ namespace Chr.Avro.Abstract
         Iso8601,
 
         /// <summary>
-        /// Prefer to represent temporal types as microseconds since epoch (1970-01-01 00:00:00 UTC).
+        /// Prefer to represent temporal types as microseconds since epoch (1970-01-01 00:00:00.000000 UTC).
         /// </summary>
         EpochMicroseconds,
 
         /// <summary>
-        /// Prefer to represent temporal types as milliseconds since epoch (1970-01-01 00:00:00 UTC).
+        /// Prefer to represent temporal types as milliseconds since epoch (1970-01-01 00:00:00.000 UTC).
         /// </summary>
         EpochMilliseconds,
+
+        /// <summary>
+        /// Prefer to represent temporal types as nanoseconds since epoch (1970-01-01 00:00:00.000000000 UTC).
+        /// </summary>
+        EpochNanoseconds,
     }
 }

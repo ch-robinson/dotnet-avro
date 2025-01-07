@@ -37,4 +37,4 @@ dotnet avro create --assembly ./out/Example.Models.dll --type Example.Models.Exa
 :   Whether reference types selected for nullable record fields should be annotated as nullable.
 
 `--temporal-behavior`
-:   Whether timestamps should be represented with `"string"` schemas (ISO 8601) or `"long"` schemas (timestamp logical types). Options are `iso8601`, `epochmilliseconds`, and `epochmicroseconds`.
+:   Whether timestamps should be represented with `"string"` schemas (ISO 8601) or `"long"` schemas (timestamp logical types). Options are `iso8601`, `epochmilliseconds`, `epochmicroseconds`, and `epochnanoseconds`.

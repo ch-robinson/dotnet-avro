@@ -559,6 +559,7 @@ namespace Chr.Avro.Tests
         [Theory]
         [InlineData(typeof(DateOnly), TemporalBehavior.EpochMicroseconds)]
         [InlineData(typeof(DateOnly), TemporalBehavior.EpochMilliseconds)]
+        [InlineData(typeof(DateOnly), TemporalBehavior.EpochNanoseconds)]
         public void BuildDatesAsDaysFromEpoch(Type type, TemporalBehavior temporalBehavior)
         {
             var builder = new SchemaBuilder(temporalBehavior: temporalBehavior);
@@ -854,19 +855,20 @@ namespace Chr.Avro.Tests
         }
 
         [Theory]
-        [InlineData(typeof(TimeOnly))]
-        public void BuildTimesAsMicrosecondsFromMidnight(Type type)
+        [InlineData(typeof(TimeOnly), TemporalBehavior.EpochMicroseconds)]
+        [InlineData(typeof(TimeOnly), TemporalBehavior.EpochNanoseconds)]
+        public void BuildTimesAsMicrosecondsFromMidnight(Type type, TemporalBehavior temporalBehavior)
         {
-            var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.EpochMicroseconds);
+            var builder = new SchemaBuilder(temporalBehavior: temporalBehavior);
             var schema = Assert.IsType<LongSchema>(builder.BuildSchema(type));
             Assert.IsType<MicrosecondTimeLogicalType>(schema.LogicalType);
         }
 
         [Theory]
-        [InlineData(typeof(TimeOnly))]
-        public void BuildTimesAsMillisecondsFromMidnight(Type type)
+        [InlineData(typeof(TimeOnly), TemporalBehavior.EpochMilliseconds)]
+        public void BuildTimesAsMillisecondsFromMidnight(Type type, TemporalBehavior temporalBehavior)
         {
-            var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.EpochMilliseconds);
+            var builder = new SchemaBuilder(temporalBehavior: temporalBehavior);
             var schema = Assert.IsType<IntSchema>(builder.BuildSchema(type));
             Assert.IsType<MillisecondTimeLogicalType>(schema.LogicalType);
         }
@@ -900,6 +902,16 @@ namespace Chr.Avro.Tests
             var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.EpochMilliseconds);
             var schema = Assert.IsType<LongSchema>(builder.BuildSchema(type));
             Assert.IsType<MillisecondTimestampLogicalType>(schema.LogicalType);
+        }
+
+        [Theory]
+        [InlineData(typeof(DateTime))]
+        [InlineData(typeof(DateTimeOffset))]
+        public void BuildTimestampsAsNanosecondsFromEpoch(Type type)
+        {
+            var builder = new SchemaBuilder(temporalBehavior: TemporalBehavior.EpochNanoseconds);
+            var schema = Assert.IsType<LongSchema>(builder.BuildSchema(type));
+            Assert.IsType<NanosecondTimestampLogicalType>(schema.LogicalType);
         }
 
         [Theory]

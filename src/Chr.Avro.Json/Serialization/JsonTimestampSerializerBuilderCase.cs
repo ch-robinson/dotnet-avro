@@ -21,8 +21,8 @@ namespace Chr.Avro.Serialization
         /// </returns>
         /// <exception cref="UnsupportedSchemaException">
         /// Thrown when <paramref name="schema" /> is not a <see cref="LongSchema" /> or when
-        /// <paramref name="schema" /> does not have a <see cref="MicrosecondTimestampLogicalType" />
-        /// or a <see cref="MillisecondTimestampLogicalType" />.
+        /// <paramref name="schema" /> does not have a <see cref="MicrosecondTimestampLogicalType" />,
+        /// <see cref="MillisecondTimestampLogicalType" />, or <see cref="NanosecondTimestampLogicalType" />.
         /// </exception>
         /// <exception cref="UnsupportedTypeException">
         /// Thrown when <paramref name="type" /> cannot be converted to <see cref="DateTimeOffset" />.
@@ -48,29 +48,21 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedTypeException(type, $"Failed to map {schema} to {type}.", exception);
                 }
 
-                var factor = schema.LogicalType switch
-                {
-                    MicrosecondTimestampLogicalType => TimeSpan.TicksPerMillisecond / 1000,
-                    MillisecondTimestampLogicalType => TimeSpan.TicksPerMillisecond,
-                    _ => throw new UnsupportedSchemaException(schema, $"{schema.LogicalType} is not a supported {nameof(TimestampLogicalType)}."),
-                };
-
                 var utcTicks = typeof(DateTimeOffset)
-                    .GetProperty(nameof(DateTimeOffset.UtcTicks));
+                    .GetProperty(nameof(DateTimeOffset.UtcTicks))!;
 
                 var writeNumber = typeof(Utf8JsonWriter)
-                    .GetMethod(nameof(Utf8JsonWriter.WriteNumberValue), new[] { typeof(long) });
+                    .GetMethod(nameof(Utf8JsonWriter.WriteNumberValue), new[] { typeof(long) })!;
 
-                // return writer.WriteNumber((value.UtcTicks - epoch) / factor);
                 return JsonSerializerBuilderCaseResult.FromExpression(
                     Expression.Call(
                         context.Writer,
                         writeNumber,
-                        Expression.Divide(
+                        BuildTicksToTimestamp(
                             Expression.Subtract(
                                 Expression.Property(expression, utcTicks),
                                 Expression.Constant(Epoch.Ticks)),
-                            Expression.Constant(factor))));
+                            schema)));
             }
             else
             {

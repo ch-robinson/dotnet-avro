@@ -2,7 +2,6 @@ namespace Chr.Avro.NodaTimeExample
 {
     using System;
     using System.Linq;
-    using System.Threading;
     using System.Threading.Tasks;
     using Chr.Avro.Abstract;
     using Chr.Avro.Confluent;
@@ -102,8 +101,7 @@ namespace Chr.Avro.NodaTimeExample
                 schemaBuilder,
                 serializerBuilder: new BinarySerializerBuilder(
                     BinarySerializerBuilder.CreateDefaultCaseBuilders()
-                        .Prepend(builder => new NodaTimeAsStringSerializerBuilderCase())
-                        .Prepend(builder => new NodaTimeAsTimestampSerializerBuilderCase())));
+                        .Prepend(builder => new NodaTimeSerializerBuilderCase())));
 
             var producerBuilder = new ProducerBuilder<Guid, Player>(
                 new ProducerConfig

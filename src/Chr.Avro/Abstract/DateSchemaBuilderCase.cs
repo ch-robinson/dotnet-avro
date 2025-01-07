@@ -43,7 +43,9 @@ namespace Chr.Avro.Abstract
             {
                 Schema dateSchema = TemporalBehavior switch
                 {
-                    TemporalBehavior.EpochMicroseconds or TemporalBehavior.EpochMilliseconds => new IntSchema()
+                    TemporalBehavior.EpochMicroseconds or
+                    TemporalBehavior.EpochMilliseconds or
+                    TemporalBehavior.EpochNanoseconds => new IntSchema()
                     {
                         LogicalType = new DateLogicalType(),
                     },

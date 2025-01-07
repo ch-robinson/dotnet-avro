@@ -106,12 +106,12 @@ In addition to <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system
 
 ## Dates and times
 
-The Avro spec defines six logical types for temporal data:
+The Avro spec defines ten logical types for temporal data:
 
-*   calendar dates with no time or time zone (`"date"`)
-*   duration comprised of months, days, and milliseconds (`"duration"`)
-*   times of day with no date or time zone (`"time-millis"` and `"time-micros"`)
-*   instants in time (`"timestamp-millis"` and `"timestamp-micros"`)
+*   calendar dates (`"date"`)
+*   duration in months, days, and milliseconds (`"duration"`)
+*   times of day (`"time-millis"` and `"time-micros"`)
+*   instants in time (`"timestamp-millis"`, `"timestamp-micros"`, `"timestamp-nanos"`, `"local-timestamp-millis"`, `"local-timestamp-micros"`, and `"local-timestamp-nanos"`)
 
 In addition to the conversions described later in this section, these logical types can be treated as their underlying primitive types:
 
@@ -142,15 +142,16 @@ Serializing and deserializing `"duration"` values still work, though there are s
 
 .NET’s <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.timeonly">TimeOnly</a></code> struct represents a time of day with no time zone. To match other temporal types, Chr.Avro prefers to map <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.timeonly">TimeOnly</a></code>s to [ISO 8601 strings](https://en.wikipedia.org/wiki/ISO_8601#Times), avoiding `"time-millis"` and `"time-micros"` by default when building schemas. <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.formatexception">FormatException</a></code> is thrown when deserializing a value that cannot be parsed.
 
-Serializing and deserializing `"time-millis"` and `"time-micros"` values is supported. However, .NET date types are tick-precision, so serializing to `"time-millis"` or deserializing from `"time-micros"` may result in a loss of precision.
+Serializing and deserializing `"time-millis"` and `"time-micros"` values is supported. However, .NET date types are tick-precision, so serializing to `"time-millis"` or `"time-micros"` may incur a loss of precision.
 
 ### Timestamps
 
 Both <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.datetime">DateTime</a></code> and <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.datetimeoffset">DateTimeOffset</a></code> can be used to represent timestamps. Chr.Avro prefers to map those types to [ISO 8601 strings](https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations), avoiding `"timestamp-millis"` and `"timestamp-micros"` by default when building schemas. This behavior is consistent with how durations are handled, and it also means that <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.datetime">DateTime</a></code> kind and timezone are retained—the [round-trip (“O”, “o”) format specifier](https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings#Roundtrip) is used for serialization. <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.formatexception">FormatException</a></code> is thrown when a string cannot be parsed.
-Serializing and deserializing `"timestamp-millis"` and `"timestamp-micros"` values are supported as well, with a few caveats:
+
+Serializing and deserializing `"timestamp-millis"`, `"timestamp-micros"`, and `"timestamp-nanos"` values are supported as well, with a few caveats:
 
 *   All <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.datetime">DateTime</a></code>s are converted to UTC. Don’t use <code><a href="https://docs.microsoft.com/en-us/dotnet/api/system.datetime">DateTime</a></code>s with kind unspecified.
-*   .NET date types are tick-precision, so serializing to `"timestamp-millis"` or deserializing from `"timestamp-micros"` may result in a loss of precision.
+*   .NET date types are tick-precision, so serializing to `"timestamp-millis"` or `"timestamp-micros"` or deserializing from `"timestamp-nanos"` may incur a loss of precision.
 
 ## Enums
 
