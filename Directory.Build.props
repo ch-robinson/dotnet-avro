@@ -13,9 +13,10 @@
     <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <RootNamespace>Chr.Avro</RootNamespace>
     <SignAssembly>true</SignAssembly>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Version>10.5.0</Version>
+    <Version>10.6.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
