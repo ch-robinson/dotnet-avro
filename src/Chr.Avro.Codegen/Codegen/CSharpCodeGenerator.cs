@@ -18,6 +18,7 @@ namespace Chr.Avro.Codegen
     {
         private readonly bool enableNullableReferenceTypes;
         private readonly bool enableDescriptionAttributeForDocumentation;
+        private readonly RecordType recordType;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CSharpCodeGenerator" /> class.
@@ -30,10 +31,17 @@ namespace Chr.Avro.Codegen
         /// Whether enum and record schema documentation should be reflected in
         /// <see cref="System.ComponentModel.DescriptionAttribute" />s on types and members.
         /// </param>
-        public CSharpCodeGenerator(bool enableNullableReferenceTypes = true, bool enableDescriptionAttributeForDocumentation = false)
+        /// <param name="recordType">
+        /// Which kind of C# type to generate for records.
+        /// </param>
+        public CSharpCodeGenerator(
+            bool enableNullableReferenceTypes = true,
+            bool enableDescriptionAttributeForDocumentation = false,
+            RecordType recordType = RecordType.Class)
         {
             this.enableNullableReferenceTypes = enableNullableReferenceTypes;
             this.enableDescriptionAttributeForDocumentation = enableDescriptionAttributeForDocumentation;
+            this.recordType = recordType;
         }
 
         /// <summary>
@@ -113,6 +121,58 @@ namespace Chr.Avro.Codegen
         }
 
         /// <summary>
+        /// Generates a record declaration for a record schema.
+        /// </summary>
+        /// <param name="schema">
+        /// The schema to generate a record for.
+        /// </param>
+        /// <returns>
+        /// A record declaration with a property for each field of the record schema.
+        /// </returns>
+        /// <throws cref="UnsupportedSchemaException">
+        /// Thrown when a field schema is not recognized.
+        /// </throws>
+        public virtual RecordDeclarationSyntax GenerateRecord(RecordSchema schema)
+        {
+            var declaration = SyntaxFactory.RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), schema.Name)
+                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                .AddMembers(schema.Fields
+                    .Select(field =>
+                    {
+                        var child = SyntaxFactory
+                            .PropertyDeclaration(
+                                GetPropertyType(field.Type),
+                                field.Name)
+                            .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                            .AddAccessorListAccessors(
+                                SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                                SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))
+                            .AddAttributeLists(GetDescriptionAttribute(field.Documentation));
+
+                        if (!string.IsNullOrEmpty(field.Documentation))
+                        {
+                            child = AddSummaryComment(child, field.Documentation!);
+                        }
+
+                        return child;
+                    })
+                    .Where(field => field != null)
+                    .ToArray())
+                .AddAttributeLists(GetDescriptionAttribute(schema.Documentation))
+                .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
+                .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
+
+            if (!string.IsNullOrEmpty(schema.Documentation))
+            {
+                declaration = AddSummaryComment(declaration, schema.Documentation!);
+            }
+
+            return declaration;
+        }
+
+        /// <summary>
         /// Generates a compilation unit (essentially a single .cs file) that contains types that
         /// match the schema.
         /// </summary>
@@ -146,9 +206,14 @@ namespace Chr.Avro.Codegen
                 var members = group
                     .Select(candidate => candidate switch
                     {
-                        EnumSchema enumSchema => GenerateEnum(enumSchema) as MemberDeclarationSyntax,
-                        RecordSchema recordSchema => GenerateClass(recordSchema) as MemberDeclarationSyntax,
-                        _ => default,
+                        EnumSchema enumSchema => GenerateEnum(enumSchema),
+                        RecordSchema recordSchema => recordType switch
+                        {
+                            RecordType.Class => GenerateClass(recordSchema),
+                            RecordType.Record => GenerateRecord(recordSchema),
+                            _ => throw new ArgumentOutOfRangeException(nameof(recordType)),
+                        },
+                        _ => (MemberDeclarationSyntax?)default,
                     })
                     .OfType<MemberDeclarationSyntax>()
                     .ToArray();
