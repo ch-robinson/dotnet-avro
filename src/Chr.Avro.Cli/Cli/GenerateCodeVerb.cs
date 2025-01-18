@@ -1,3 +1,9 @@
+using System.IO;
+using System.Text;
+using Chr.Avro.Abstract;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Formatting;
+
 namespace Chr.Avro.Cli
 {
     using System;
@@ -65,12 +71,30 @@ namespace Chr.Avro.Cli
 
             try
             {
-                Console.WriteLine(generator.WriteCompilationUnit(schema));
+                Console.WriteLine(WriteCompilationUnit(schema, generator));
             }
             catch (Exception exception)
             {
                 throw new ProgramException(message: exception.Message, inner: exception);
             }
+        }
+
+        private string WriteCompilationUnit(Schema schema, CSharpCodeGenerator generator)
+        {
+            var stream = new MemoryStream();
+
+            using (stream)
+            {
+                using var workspace = new AdhocWorkspace();
+                using var writer = new StreamWriter(stream);
+
+                var unit = generator.GenerateCompilationUnit(schema) as SyntaxNode;
+                unit = Formatter.Format(unit, workspace);
+
+                unit.WriteTo(writer);
+            }
+
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
     }
 }

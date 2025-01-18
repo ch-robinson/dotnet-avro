@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference
+      Include="..\..\src\Chr.Avro.SourceGenerator\Chr.Avro.SourceGenerator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"/>
+    <ProjectReference
+      Include="..\..\src\Chr.Avro\Chr.Avro.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="true"/>
+    <ProjectReference
+      Include="..\..\src\Chr.Avro.Codegen\Chr.Avro.Codegen.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="true"/>
+    <ProjectReference
+      Include="..\..\src\Chr.Avro.Json\Chr.Avro.Json.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="true"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="*.avsc" />
+  </ItemGroup>
+
+</Project>

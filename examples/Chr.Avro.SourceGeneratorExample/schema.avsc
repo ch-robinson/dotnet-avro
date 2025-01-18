@@ -1,0 +1,35 @@
+{
+  "name": "something_created",
+  "namespace": "important.service.domain.contract",
+  "type": "record",
+  "fields": [
+    {
+      "name": "nullable_string",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "string_with_default",
+      "type": "string",
+      "default": "abc"
+    },
+    {
+      "name": "string_without_default",
+      "type": "string"
+    },
+    {
+      "name": "nullable_boolean",
+      "type": ["null", "boolean"],
+      "default": null
+    },
+    {
+      "name": "boolean_with_default",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "boolean_without_default",
+      "type": "boolean"
+    }
+  ]
+}

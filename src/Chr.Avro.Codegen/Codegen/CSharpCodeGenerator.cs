@@ -9,7 +9,6 @@ namespace Chr.Avro.Codegen
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.CSharp.Syntax;
-    using Microsoft.CodeAnalysis.Formatting;
 
     /// <summary>
     /// Generates C# classes and enums that match Avro schemas.
@@ -165,49 +164,6 @@ namespace Chr.Avro.Codegen
             }
 
             return NamespaceRewriter.Rewrite(unit);
-        }
-
-        /// <summary>
-        /// Writes a compilation unit (essentially a single .cs file) that contains types that
-        /// match the schema.
-        /// </summary>
-        /// <param name="schema">
-        /// The schema to generate code for.
-        /// </param>
-        /// <param name="stream">
-        /// A stream to write the resulting compilation unit to.
-        /// </param>
-        public void WriteCompilationUnit(Schema schema, Stream stream)
-        {
-            using var workspace = new AdhocWorkspace();
-            using var writer = new StreamWriter(stream);
-
-            var unit = GenerateCompilationUnit(schema) as SyntaxNode;
-            unit = Formatter.Format(unit, workspace);
-
-            unit.WriteTo(writer);
-        }
-
-        /// <summary>
-        /// Writes a compilation unit (essentially a single .cs file) that contains types that
-        /// match the schema.
-        /// </summary>
-        /// <param name="schema">
-        /// The schema to generate code for.
-        /// </param>
-        /// <returns>
-        /// The compilation unit as a string.
-        /// </returns>
-        public string WriteCompilationUnit(Schema schema)
-        {
-            var stream = new MemoryStream();
-
-            using (stream)
-            {
-                WriteCompilationUnit(schema, stream);
-            }
-
-            return Encoding.UTF8.GetString(stream.ToArray());
         }
 
         /// <summary>
