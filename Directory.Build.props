@@ -16,7 +16,7 @@
     <RootNamespace>Chr.Avro</RootNamespace>
     <SignAssembly>true</SignAssembly>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Version>10.6.0</Version>
+    <Version>10.7.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
