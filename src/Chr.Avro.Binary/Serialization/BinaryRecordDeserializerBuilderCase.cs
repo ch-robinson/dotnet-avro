@@ -87,7 +87,7 @@ namespace Chr.Avro.Serialization
                         }
                     }
 
-                    // then build/set the delegate if it hasn’t been built yet:
+                    // then build/set the delegate if it hasn't been built yet:
                     if (parameter == reference)
                     {
                         if (!underlying.IsAssignableFrom(typeof(ExpandoObject)) &&
@@ -155,15 +155,12 @@ namespace Chr.Avro.Serialization
             }
         }
 
-        private static Type GetMemberType(MemberInfo match)
+        private static Type GetMemberType(MemberInfo match) => match switch
         {
-            return match switch
-            {
-                FieldInfo fieldMatch => fieldMatch.FieldType,
-                PropertyInfo propertyMatch => propertyMatch.PropertyType,
-                MemberInfo unknown => throw new InvalidOperationException($"Record fields can only be mapped to fields and properties."),
-            };
-        }
+            FieldInfo fieldMatch => fieldMatch.FieldType,
+            PropertyInfo propertyMatch => propertyMatch.PropertyType,
+            _ => throw new InvalidOperationException("Record fields can only be mapped to fields and properties."),
+        };
 
         private IEnumerable<Expression> DeserializeToProperties(Type type, BinaryDeserializerBuilderContext context, ParameterExpression value, IEnumerable<RecordField> fields, RecordSchema recordSchema)
         {
@@ -220,7 +217,6 @@ namespace Chr.Avro.Serialization
             RecordSchema recordSchema,
             ConstructorInfo constructor)
         {
-            Expression expression;
             var ctorParameters = constructor.GetParameters();
 
             // Constructor is a match
@@ -277,7 +273,7 @@ namespace Chr.Avro.Serialization
                         Variable: parameter,
                         ConstructorParameter: constructorParameter,
                         Member: null,
-                        Assignment: (Expression)Expression.Assign(
+                        Assignment: Expression.Assign(
                             parameter,
                             DeserializerBuilder.BuildExpression(constructorParameter.ParameterType, field.Type, context)));
                 })
@@ -290,7 +286,7 @@ namespace Chr.Avro.Serialization
                     x => x.Variable ?? throw new InvalidOperationException($"Variable expected for deserialization of ctor parameter {x.ConstructorParameter!.Name}"));
 
             var memberMatches = mappings
-                .Where(x => x.Member != null)
+                .Where(x => x.Member is not null)
                 .Select(x => (
                     Member: x.Member!.Name,
                     Variable: x.Variable ?? throw new InvalidOperationException($"Variable expected for deserialization of {x.Member}")))
@@ -298,25 +294,25 @@ namespace Chr.Avro.Serialization
 
             var value = Expression.Parameter(type);
 
-            expression = Expression.Block(
+            var expression = Expression.Block(
                 mappings.Where(m => m.Variable != null).Select(m => m.Variable!)
                     .Concat(new[] { value }),
                 mappings.Select(d => d.Assignment)
-                .Concat(new[]
-                {
-                    Expression.Assign(
-                        value,
-                        Expression.New(
-                            constructor,
-                            ctorParameters
-                            .Select(parameter => ctorParameterMatches.TryGetValue(parameter.Name!, out var match) ? (Expression)match
-                            : Expression.Constant(parameter.DefaultValue, parameter.ParameterType)))),
-                })
-                .Concat(memberMatches.Select(m =>
-                    Expression.Assign(
-                        Expression.PropertyOrField(value, m.Member),
-                        m.Variable)))
-                .Concat(new[] { value }));
+                    .Concat(new[]
+                    {
+                        Expression.Assign(
+                            value,
+                            Expression.New(
+                                constructor,
+                                ctorParameters
+                                    .Select(parameter => ctorParameterMatches.TryGetValue(parameter.Name!, out var match) ? (Expression)match
+                                        : Expression.Constant(parameter.DefaultValue, parameter.ParameterType)))),
+                    })
+                    .Concat(memberMatches.Select(m =>
+                        Expression.Assign(
+                            Expression.PropertyOrField(value, m.Member),
+                            m.Variable)))
+                    .Concat(new[] { value }));
 
             return expression;
         }

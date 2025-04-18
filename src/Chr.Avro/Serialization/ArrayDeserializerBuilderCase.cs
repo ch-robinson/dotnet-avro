@@ -30,7 +30,7 @@ namespace Chr.Avro.Serialization
             else if (!value.Type.IsArray && (target.IsArray || target.IsAssignableFrom(typeof(ArraySegment<>).MakeGenericType(target.GenericTypeArguments))))
             {
                 var toArray = value.Type
-                    .GetMethod("ToArray", Type.EmptyTypes);
+                    .GetMethod("ToArray", Type.EmptyTypes)!;
 
                 value = Expression.Call(value, toArray);
 #if !NET6_0_OR_GREATER
@@ -52,7 +52,7 @@ namespace Chr.Avro.Serialization
                 if (target.IsAssignableFrom(typeof(ImmutableQueue<>).MakeGenericType(target.GenericTypeArguments)))
                 {
                     var createRange = typeof(ImmutableQueue)
-                        .GetMethod(nameof(ImmutableQueue.CreateRange))
+                        .GetMethod(nameof(ImmutableQueue.CreateRange))!
                         .MakeGenericMethod(target.GenericTypeArguments);
 
                     value = Expression.Call(null, createRange, value);
@@ -60,7 +60,7 @@ namespace Chr.Avro.Serialization
                 else if (target.IsAssignableFrom(typeof(ImmutableStack<>).MakeGenericType(target.GenericTypeArguments)))
                 {
                     var createRange = typeof(ImmutableStack)
-                        .GetMethod(nameof(ImmutableStack.CreateRange))
+                        .GetMethod(nameof(ImmutableStack.CreateRange))!
                         .MakeGenericMethod(target.GenericTypeArguments);
 
                     value = Expression.Call(null, createRange, value);
@@ -68,7 +68,7 @@ namespace Chr.Avro.Serialization
                 else
                 {
                     var toImmutable = value.Type
-                        .GetMethod("ToImmutable", Type.EmptyTypes);
+                        .GetMethod("ToImmutable", Type.EmptyTypes)!;
 
                     value = Expression.Call(value, toImmutable);
                 }
@@ -77,7 +77,7 @@ namespace Chr.Avro.Serialization
             {
                 var readOnlyCollectionConstructor = typeof(ReadOnlyCollection<>)
                     .MakeGenericType(target.GenericTypeArguments)
-                    .GetConstructor(new[] { typeof(List<>).MakeGenericType(target.GenericTypeArguments) });
+                    .GetConstructor(new[] { typeof(List<>).MakeGenericType(target.GenericTypeArguments) })!;
 
                 value = Expression.New(readOnlyCollectionConstructor, value);
             }
@@ -87,11 +87,11 @@ namespace Chr.Avro.Serialization
                     .MakeGenericType(target.GenericTypeArguments);
 
                 var observableCollectionConstructor = observableCollectionType
-                    .GetConstructor(new[] { typeof(List<>).MakeGenericType(target.GenericTypeArguments) });
+                    .GetConstructor(new[] { typeof(List<>).MakeGenericType(target.GenericTypeArguments) })!;
 
                 var readOnlyCollectionObservableConstructor = typeof(ReadOnlyObservableCollection<>)
                     .MakeGenericType(target.GenericTypeArguments)
-                    .GetConstructor(new[] { observableCollectionType });
+                    .GetConstructor(new[] { observableCollectionType })!;
 
                 value = Expression.New(
                     readOnlyCollectionObservableConstructor,
