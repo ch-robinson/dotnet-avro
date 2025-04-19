@@ -108,7 +108,7 @@ namespace Chr.Avro.Serialization
                                             parameters
                                                 .Select(parameter => mapping.ContainsKey(parameter)
                                                     ? (Expression)mapping[parameter].Parameter
-                                                    : Expression.Constant(parameter.DefaultValue))),
+                                                    : Expression.Constant(parameter.DefaultValue, parameter.ParameterType))),
                                     }));
                         }
                         else
