@@ -21,7 +21,3 @@ msbuild.log
 msbuild.err
 msbuild.wrn
 tools/
-.NCrunch_*/
-nCrunchTemp_*.csproj
-**/.idea/**/workspace.xml
-**/.idea/**/projectSettingsUpdater.xml
