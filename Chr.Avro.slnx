@@ -23,6 +23,7 @@
     <Project Path="tests/Chr.Avro.Codegen.Tests/Chr.Avro.Codegen.Tests.csproj" />
     <Project Path="tests/Chr.Avro.Confluent.Tests/Chr.Avro.Confluent.Tests.csproj" />
     <Project Path="tests/Chr.Avro.Json.Tests/Chr.Avro.Json.Tests.csproj" />
+    <Project Path="tests/Chr.Avro.RecordTests/Chr.Avro.RecordTests.csproj" />
     <Project Path="tests/Chr.Avro.Tests/Chr.Avro.Tests.csproj" />
   </Folder>
 </Solution>

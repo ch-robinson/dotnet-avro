@@ -605,6 +605,30 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Fact]
+        public void RecordWithNewFieldDeserializedWithDefaultNullableValue()
+        {
+            // schema: int A, string B, double C = 0
+            // records: {A a, B b = null}, {A a}
+            // other: class Mapped {
+            //     Mapped(int a) { string B {get;set;} }
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                },
+            };
+
+            // The entity doesn't have a default constructor, but takes the Name as
+            // a constructor parameter
+            var person = new PersonWithDefaultNullableValue("Bob");
+            var deserialized = SerializeAndDeserialize(person, schema);
+
+            Assert.Equivalent(person, deserialized);
+        }
+
+        // TODO: Add test where the class has multiple constructors; pick the one that matches more fields from the record
+        [Fact]
         public void RecordWithCustomDeserialization()
         {
             var boolean = new BooleanSchema();
@@ -657,6 +681,22 @@ namespace Chr.Avro.Serialization.Tests
             };
 
             Assert.Equivalent(expected, deserialize(ref reader));
+        }
+
+        [Fact]
+        public void RecordWithDefaultConstructor()
+        {
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                },
+            };
+            var person = new PersonWithDefaultConstructor() { Name = "Bob", Age = 30 };
+            var deserialized = SerializeAndDeserialize(person, schema);
+            Assert.Equivalent(person, deserialized);
         }
 
         private T SerializeAndDeserialize<T>(T item, RecordSchema schema)
@@ -805,6 +845,19 @@ namespace Chr.Avro.Serialization.Tests
             public int Age { get; set; }
 
             public string City { get; set; }
+        }
+
+        public record PersonWithDefaultNullableValue
+        {
+            public PersonWithDefaultNullableValue(string name, double? age = null)
+            {
+                Name = name;
+                Age = age;
+            }
+
+            public string Name { get; private set; }
+
+            public double? Age { get; private set; }
         }
     }
 }
