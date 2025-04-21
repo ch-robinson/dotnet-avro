@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="[2.9.0,2.10)" />
-    <PackageReference Include="Confluent.SchemaRegistry" Version="[2.9.0,2.10)" />
+    <PackageReference Include="Confluent.Kafka" Version="[2.10.0,2.11)" />
+    <PackageReference Include="Confluent.SchemaRegistry" Version="[2.10.0,2.11)" />
   </ItemGroup>
 
   <ItemGroup>
