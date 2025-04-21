@@ -1,12 +1,6 @@
-namespace Chr.Avro.RecordTests;
+namespace Chr.Avro.SerialisationTests;
 
-using System.IO;
-using Chr.Avro.Representation;
-using Chr.Avro.Serialization;
-using BinaryReader = Chr.Avro.Serialization.BinaryReader;
-using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
-
-public partial class RecordNewFeaturesTest
+public class RecordTypeSerialisationTests
 {
     [Fact]
     public void Record()
@@ -32,7 +26,7 @@ public partial class RecordNewFeaturesTest
     }
 
     [Fact]
-    public void Bug1_RecordWithNewProperty()
+    public void RecordWithNewProperty()
     {
         var schema = """
             {
@@ -54,7 +48,27 @@ public partial class RecordNewFeaturesTest
         Assert.Equal(player, deserialized);
     }
 
+    [Fact]
+    public void RecordWithNewPropertyRequiresDefaultValue()
+    {
+        var schema = """
+            {
+                "name": "MyRecord",
+                "type": "record",
+                "fields": [
+                    {"name":"name", "type":"string"},
+                    {"name":"age", "type":"int"}
+                ]
+            }
+            """;
+
+        var error = Assert.Throws<UnsupportedTypeException>(() => AvroSerialiser.Create<Player3>(schema)).Message;
+        Assert.Contains("doesn't have a default constructor, and no compatible constructor could be found", error);
+    }
+
     public record Player(string Name, int Age);
 
     public record Player2(string Name, int Age, double Score = 0);
+
+    public record Player3(string Name, int Age, double Score);
 }

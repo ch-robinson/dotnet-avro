@@ -8,6 +8,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <LangVersion>11.0</LangVersion>
+    <RootNamespace>Chr.Avro.SerialisationTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

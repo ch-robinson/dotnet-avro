@@ -1,9 +1,9 @@
-namespace Chr.Avro.RecordTests;
+namespace Chr.Avro.SerialisationTests;
 
-public class Bug1
+public class DefaultConstructorParameterTests
 {
     [Fact]
-    public void AddingConstructorParameterWithDefaultNullableValueFails_Record()
+    public void AddingConstructorParameterWithDefaultValue_WithRecordType()
     {
         var schema = """
             {
@@ -21,16 +21,16 @@ public class Bug1
         var player = new Player("Alice", 25);
         var bytes = serialiser.Serialise(player);
         var deserialized = serialiser.Deserialise(bytes);
-        Assert.Equal(player, deserialized);
+        Assert.Equivalent(player, deserialized);
 
-        // Adding a double parameter with default value 0 -> Ok
+        // Adding a double parameter with default value 0
         var serialiser2 = AvroSerialiser.Create<Player2>(schema);
         var player2 = new Player2("Alice", 25);
         bytes = serialiser2.Serialise(player2);
         var deserialized2 = serialiser2.Deserialise(bytes);
         Assert.Equal(player2, deserialized2);
 
-        // Adding a double? parameter with default value null -> Fail
+        // Adding a double? parameter with default value null
         var serialiser3 = AvroSerialiser.Create<Player3>(schema);
         var player3 = new Player3("Alice", 25);
         bytes = serialiser3.Serialise(player3);
@@ -39,7 +39,7 @@ public class Bug1
     }
 
     [Fact]
-    public void AddingConstructorParameterWithDefaultNullableValueFails_Class()
+    public void AddingConstructorParameterWithDefaultValue_WithClassType()
     {
         var schema = """
             {
@@ -75,7 +75,7 @@ public class Bug1
     }
 
     [Fact]
-    public void AddingConstructorParameterWithDefaultReferenceValueFails_Class()
+    public void AddingConstructorParameterWithDefaultReferenceValue()
     {
         var schema = """
             {

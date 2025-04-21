@@ -120,8 +120,8 @@ namespace Chr.Avro.Serialization
                             expression = Expression.Block(
                                 new[] { value },
                                 new[] { ctorExpression }
-                                    .Concat(DeserializeToProperties(type, context, value, recordSchema.Fields, recordSchema))
-                                    .Concat(new[] { Expression.ConvertChecked(value, type) }));
+                                    .Concat(DeserializeToProperties(deserializedType, context, value, recordSchema.Fields, recordSchema))
+                                    .Concat(new[] { Expression.ConvertChecked(value, deserializedType) }));
                         }
 
                         if (reference is not null)
