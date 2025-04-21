@@ -699,6 +699,23 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equivalent(person, deserialized);
         }
 
+
+        [Fact]
+        public void RecordWithDefaultConstructor_Test()
+        {
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                },
+            };
+            var person = new MultipleConstructorsRecord() { Name = "Bob", Age = 30 };
+            var deserialized = SerializeAndDeserialize(person, schema);
+            Assert.Equivalent(person, deserialized);
+        }
+
         private T SerializeAndDeserialize<T>(T item, RecordSchema schema)
         {
             var deserialize = deserializerBuilder.BuildDelegate<T>(schema);

@@ -1,9 +1,9 @@
-namespace Chr.Avro.RecordTests;
+namespace Chr.Avro.SerialisationTests;
 
-public class Bug2
+public class NewRecordFieldTests
 {
     [Fact]
-    public void SchenaEvolution_NewFieldWithDefaultValue()
+    public void SchemaEvolution_NewFieldWithDefaultValue()
     {
         var schema = """
             {

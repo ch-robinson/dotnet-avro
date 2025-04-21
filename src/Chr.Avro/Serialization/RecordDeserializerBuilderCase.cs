@@ -59,7 +59,7 @@ namespace Chr.Avro.Serialization
                         if (match is not null)
                         {
                             unmatched.Remove(match);
-                            matchedFieldsCount--;
+                            matchedFieldsCount++;
                         }
                     }
 

@@ -1,4 +1,4 @@
-namespace Chr.Avro.RecordTests;
+namespace Chr.Avro.SerialisationTests;
 
 using Chr.Avro.Representation;
 using Chr.Avro.Serialization;
