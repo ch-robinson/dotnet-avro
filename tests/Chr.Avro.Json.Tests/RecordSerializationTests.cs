@@ -202,30 +202,35 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(5, n5.RequiredValue);
             Assert.Equal(999, n5.OptionalValue);
+            Assert.Null(n5.NullableValue);
             Assert.Collection(
                 n5.Children,
                 n9 =>
                 {
                     Assert.Equal(9, n9.RequiredValue);
                     Assert.Equal(999, n9.OptionalValue);
+                    Assert.Null(n9.NullableValue);
                     Assert.Empty(n9.Children);
                 },
                 n3 =>
                 {
                     Assert.Equal(3, n3.RequiredValue);
                     Assert.Equal(999, n3.OptionalValue);
+                    Assert.Null(n3.NullableValue);
                     Assert.Collection(
                         n3.Children,
                         n2 =>
                         {
                             Assert.Equal(2, n2.RequiredValue);
                             Assert.Equal(999, n2.OptionalValue);
+                            Assert.Null(n2.NullableValue);
                             Assert.Empty(n2.Children);
                         },
                         n10 =>
                         {
                             Assert.Equal(10, n10.RequiredValue);
                             Assert.Equal(999, n10.OptionalValue);
+                            Assert.Null(n10.NullableValue);
                             Assert.Empty(n10.Children);
                         });
                 });
@@ -536,16 +541,19 @@ namespace Chr.Avro.Serialization.Tests
 
         public class MappedNode
         {
-            public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999)
+            public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999, double? nullableValue = null)
             {
                 Children = children;
                 OptionalValue = optionalValue;
+                NullableValue = nullableValue;
                 RequiredValue = value;
             }
 
             public int RequiredValue { get; set; }
 
             public int OptionalValue { get; set; }
+
+            public double? NullableValue { get; }
 
             public IEnumerable<MappedNode> Children { get; set; }
         }
