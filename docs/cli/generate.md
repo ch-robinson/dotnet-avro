@@ -62,6 +62,9 @@ namespace Example.Models
 `--nullable-references`
 :   Whether reference types selected for nullable record fields should be annotated as nullable.
 
+`--record-type`
+:   Which kind of C# type to generate for records. Options are `class` (the default behavior) and `record`.
+
 #### Resolve schema by ID
 
 `-i`, `--id`
