@@ -29,11 +29,16 @@ namespace Chr.Avro.Serialization
         /// <param name="name">
         /// The name of the member to get.
         /// </param>
+        /// <param name="defaultValue">
+        /// An value to return when no member matching <paramref name="name" /> is present. If
+        /// null, <see cref="RuntimeBinderException" /> will be thrown at serialization time if the
+        /// member does not exist.
+        /// </param>
         /// <returns>
         /// An <see cref="Expression" /> representing a dynamic get of <paramref name="name" />
         /// on <paramref name="object" />.
         /// </returns>
-        protected virtual Expression BuildDynamicGet(Expression @object, string name)
+        protected virtual Expression BuildDynamicGet(Expression @object, string name, DefaultValue? defaultValue = default)
         {
             var getType = typeof(object)
                 .GetMethod(nameof(object.GetType), Type.EmptyTypes);
@@ -51,13 +56,29 @@ namespace Chr.Avro.Serialization
             var type = Expression.Parameter(typeof(Type));
             var members = Expression.Parameter(typeof(MemberInfo[]));
 
+            Expression dynamicGet = Expression.Dynamic(binder, typeof(object), @object);
+
+            if (defaultValue is not null)
+            {
+                var value = typeof(DefaultValue)
+                    .GetMethod(nameof(DefaultValue.ToObject), Type.EmptyTypes)
+                    .MakeGenericMethod(dynamicGet.Type)
+                    .Invoke(defaultValue, Array.Empty<object>());
+
+                dynamicGet = Expression.TryCatch(
+                    dynamicGet,
+                    Expression.Catch(
+                        typeof(RuntimeBinderException),
+                        Expression.Constant(value, dynamicGet.Type)));
+            }
+
             return Expression.Block(
                 new[] { members, type },
                 Expression.Assign(type, Expression.Call(@object, getType)),
                 Expression.Assign(members, Expression.Call(type, getMembers, Expression.Constant(name))),
                 Expression.Condition(
                     Expression.Equal(Expression.ArrayLength(members), Expression.Constant(0)),
-                    Expression.Dynamic(binder, typeof(object), @object),
+                    dynamicGet,
                     Expression.Call(null, getValue, Expression.ArrayAccess(members, Expression.Constant(0)), @object)));
         }
 

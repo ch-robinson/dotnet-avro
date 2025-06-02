@@ -50,32 +50,38 @@ namespace Chr.Avro.Serialization.Tests
                     new RecordField("Sixth", map),
                     new RecordField("Seventh", @enum),
                     new RecordField("Eighth", @enum),
+                    new RecordField("Ninth", boolean)
+                    {
+                        Default = new ObjectDefaultValue<bool>(true, boolean),
+                    },
                 },
             };
 
             var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
             var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
 
-            var value = new
-            {
-                First = new List<bool>() { false },
-                Second = new List<bool>() { false, false },
-                Third = new List<bool>() { false, false, false },
-                Fourth = new List<bool>() { false },
-                Fifth = new Dictionary<string, int>() { { "first", 1 } },
-                Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
-                Seventh = ImplicitEnum.First,
-                Eighth = ImplicitEnum.None,
-            };
-
             using (stream)
             {
-                serialize(value, new BinaryWriter(stream));
+                serialize(
+                    new
+                    {
+                        First = new List<bool>() { false },
+                        Second = new List<bool>() { false, false },
+                        Third = new List<bool>() { false, false, false },
+                        Fourth = new List<bool>() { false },
+                        Fifth = new Dictionary<string, int>() { { "first", 1 } },
+                        Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
+                        Seventh = ImplicitEnum.First,
+                        Eighth = ImplicitEnum.None,
+                    },
+                    new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());
+            var value = deserialize(ref reader);
 
-            Assert.Equal(value.Seventh.ToString(), deserialize(ref reader).Seventh);
+            Assert.Equal(nameof(ImplicitEnum.First), value.Seventh);
+            Assert.Equal(true, value.Ninth);
         }
 
         [Fact]
