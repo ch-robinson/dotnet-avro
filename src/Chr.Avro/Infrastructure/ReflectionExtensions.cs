@@ -272,28 +272,6 @@ namespace Chr.Avro.Infrastructure
         }
 
         /// <summary>
-        /// Gets the value of a member.
-        /// </summary>
-        /// <param name="member">
-        /// A <see cref="MemberInfo" /> object to get the value from.
-        /// </param>
-        /// <param name="object">
-        /// An object instance.
-        /// </param>
-        /// <returns>
-        /// The value of <paramref name="member" /> on <paramref name="object" />.
-        /// </returns>
-        public static object GetValue(this MemberInfo member, object @object)
-        {
-            return member switch
-            {
-                FieldInfo field => field.GetValue(@object),
-                PropertyInfo property => property.GetValue(@object),
-                _ => throw new ArgumentException($"Unable to get a value from {member.Name}."),
-            };
-        }
-
-        /// <summary>
         /// Determines whether <see cref="MemberInfo" /> has <typeparamref name="T" /> as an
         /// attribute.
         /// </summary>

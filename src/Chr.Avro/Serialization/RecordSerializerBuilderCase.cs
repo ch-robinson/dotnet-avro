@@ -8,9 +8,6 @@ namespace Chr.Avro.Serialization
     using System.Text.RegularExpressions;
     using Chr.Avro.Abstract;
     using Chr.Avro.Infrastructure;
-    using Microsoft.CSharp.RuntimeBinder;
-
-    using Binder = Microsoft.CSharp.RuntimeBinder.Binder;
 
     /// <summary>
     /// Provides a base implementation for serializer builder cases that match <see cref="RecordSchema" />.
@@ -31,7 +28,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         /// <param name="defaultValue">
         /// An value to return when no member matching <paramref name="name" /> is present. If
-        /// null, <see cref="RuntimeBinderException" /> will be thrown at serialization time if the
+        /// null, <see cref="MissingMemberException" /> will be thrown at serialization time if the
         /// member does not exist.
         /// </param>
         /// <returns>
@@ -40,46 +37,9 @@ namespace Chr.Avro.Serialization
         /// </returns>
         protected virtual Expression BuildDynamicGet(Expression @object, string name, DefaultValue? defaultValue = default)
         {
-            var getType = typeof(object)
-                .GetMethod(nameof(object.GetType), Type.EmptyTypes);
+            var binder = Binders.GetMember(name, defaultValue);
 
-            var getMembers = typeof(Type)
-                .GetMethod(nameof(Type.GetMember), new[] { typeof(string) });
-
-            var getValue = typeof(ReflectionExtensions)
-                .GetMethod(nameof(ReflectionExtensions.GetValue), new[] { typeof(MemberInfo), typeof(object) });
-
-            var flags = CSharpBinderFlags.None;
-            var infos = new[] { CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, null) };
-            var binder = Binder.GetMember(flags, name, @object.Type, infos);
-
-            var type = Expression.Parameter(typeof(Type));
-            var members = Expression.Parameter(typeof(MemberInfo[]));
-
-            Expression dynamicGet = Expression.Dynamic(binder, typeof(object), @object);
-
-            if (defaultValue is not null)
-            {
-                var value = typeof(DefaultValue)
-                    .GetMethod(nameof(DefaultValue.ToObject), Type.EmptyTypes)
-                    .MakeGenericMethod(dynamicGet.Type)
-                    .Invoke(defaultValue, Array.Empty<object>());
-
-                dynamicGet = Expression.TryCatch(
-                    dynamicGet,
-                    Expression.Catch(
-                        typeof(RuntimeBinderException),
-                        Expression.Constant(value, dynamicGet.Type)));
-            }
-
-            return Expression.Block(
-                new[] { members, type },
-                Expression.Assign(type, Expression.Call(@object, getType)),
-                Expression.Assign(members, Expression.Call(type, getMembers, Expression.Constant(name))),
-                Expression.Condition(
-                    Expression.Equal(Expression.ArrayLength(members), Expression.Constant(0)),
-                    dynamicGet,
-                    Expression.Call(null, getValue, Expression.ArrayAccess(members, Expression.Constant(0)), @object)));
+            return Expression.Dynamic(binder, binder.ReturnType, @object);
         }
 
         /// <summary>
