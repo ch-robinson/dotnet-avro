@@ -85,7 +85,7 @@ namespace Chr.Avro.Serialization
                                     // if the type could be dynamic, attempt to use a dynamic getter:
                                     if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type) || type == typeof(object))
                                     {
-                                        inner = this.BuildDynamicGet(argument, field.Name);
+                                        inner = this.BuildDynamicGet(argument, field.Name, field.Default);
                                     }
                                     else
                                     {
