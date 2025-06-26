@@ -1,3 +1,5 @@
+using System.Threading;
+
 namespace Chr.Avro.Confluent
 {
     using System;
@@ -11,6 +13,10 @@ namespace Chr.Avro.Confluent
     using global::Confluent.Kafka;
     using global::Confluent.SchemaRegistry;
 
+#if NET8_0_OR_GREATER
+    using System.Collections.Frozen;
+#endif
+
     /// <summary>
     /// An <see cref="IAsyncDeserializer{T}" /> that resolves Avro schemas on the fly. When
     /// deserializing messages, this deserializer will attempt to derive a schema ID from the first
@@ -21,8 +27,12 @@ namespace Chr.Avro.Confluent
     /// <inheritdoc />
     public class AsyncSchemaRegistryDeserializer<T> : IAsyncDeserializer<T>, IDisposable
     {
-        private readonly IDictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>> cache;
-
+#if NET8_0_OR_GREATER
+        private FrozenDictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>> cache = FrozenDictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>.Empty;
+#else
+        private Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>> cache = new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>();
+#endif
+        private readonly object cacheLock = new object();
         private readonly bool disposeRegistryClient;
 
         /// <summary>
@@ -74,7 +84,6 @@ namespace Chr.Avro.Confluent
             SchemaReader = schemaReader ?? new JsonSchemaReader();
             TombstoneBehavior = tombstoneBehavior;
 
-            cache = new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>();
             disposeRegistryClient = true;
         }
 
@@ -122,7 +131,6 @@ namespace Chr.Avro.Confluent
             SchemaReader = schemaReader ?? new JsonSchemaReader();
             TombstoneBehavior = tombstoneBehavior;
 
-            cache = new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>();
             disposeRegistryClient = false;
         }
 
@@ -180,34 +188,45 @@ namespace Chr.Avro.Confluent
 
             Task<Func<ReadOnlyMemory<byte>, T>> task;
 
-            lock (cache)
+            if (!Volatile.Read(ref cache)!.TryGetValue(id, out task) || task.IsCanceled || task.IsFaulted)
             {
-                if (!cache.TryGetValue(id, out task) || task.IsCanceled || task.IsFaulted)
+                lock (cacheLock)
                 {
-                    cache[id] = task = ((Func<int, Task<Func<ReadOnlyMemory<byte>, T>>>)(async id =>
+                    if (!cache.TryGetValue(id, out task) || task.IsCanceled || task.IsFaulted)
                     {
-                        var registration = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
-
-                        if (registration.SchemaType != SchemaType.Avro)
+                        var clone = new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>(cache)
                         {
-                            throw new UnsupportedSchemaException(null, $"The schema used to encode the data ({id}) is not an Avro schema.");
-                        }
-
-                        var schema = SchemaReader.Read(registration.SchemaString);
-
-                        if (TombstoneBehavior != TombstoneBehavior.None)
-                        {
-                            var hasNull = schema is NullSchema
-                                || (schema is UnionSchema union && union.Schemas.Any(s => s is NullSchema));
-
-                            if (TombstoneBehavior == TombstoneBehavior.Strict && hasNull)
+                            [id] = task = ((Func<int, Task<Func<ReadOnlyMemory<byte>, T>>>)(async id =>
                             {
-                                throw new UnsupportedSchemaException(schema, "Tombstone deserialization is not supported for schemas that can represent null values.");
-                            }
-                        }
+                                var registration = await RegistryClient.GetSchemaAsync(id).ConfigureAwait(false);
 
-                        return Build(schema);
-                    }))(id);
+                                if (registration.SchemaType != SchemaType.Avro)
+                                {
+                                    throw new UnsupportedSchemaException(null, $"The schema used to encode the data ({id}) is not an Avro schema.");
+                                }
+
+                                var schema = SchemaReader.Read(registration.SchemaString);
+
+                                if (TombstoneBehavior != TombstoneBehavior.None)
+                                {
+                                    var hasNull = schema is NullSchema
+                                                  || (schema is UnionSchema union && union.Schemas.Any(s => s is NullSchema));
+
+                                    if (TombstoneBehavior == TombstoneBehavior.Strict && hasNull)
+                                    {
+                                        throw new UnsupportedSchemaException(schema, "Tombstone deserialization is not supported for schemas that can represent null values.");
+                                    }
+                                }
+
+                                return Build(schema);
+                            }))(id),
+                        };
+#if NET8_0_OR_GREATER
+                        Volatile.Write(ref cache, clone.ToFrozenDictionary());
+#else
+                        Volatile.Write(ref cache,  new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>(clone));
+#endif
+                    }
                 }
             }
 
