@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Threading;
 
 namespace Chr.Avro.Confluent
@@ -167,25 +168,7 @@ namespace Chr.Avro.Confluent
                 }
             }
 
-            if (data.Length < 5)
-            {
-                throw new InvalidEncodingException(0, "The encoded data does not include a Confluent wire format header.");
-            }
-
-            var header = data.Slice(0, 5).ToArray();
-
-            if (header[0] != 0x00)
-            {
-                throw new InvalidEncodingException(0, "The encoded data does not conform to the Confluent wire format.");
-            }
-
-            if (BitConverter.IsLittleEndian)
-            {
-                Array.Reverse(header, 1, 4);
-            }
-
-            var id = BitConverter.ToInt32(header, 1);
-
+            var id = DeserializeSchemaId(data);
             Task<Func<ReadOnlyMemory<byte>, T>> task;
 
             if (!Volatile.Read(ref cache)!.TryGetValue(id, out task) || task.IsCanceled || task.IsFaulted)
@@ -231,6 +214,39 @@ namespace Chr.Avro.Confluent
             }
 
             return (await task.ConfigureAwait(false))(data);
+        }
+
+        private static int DeserializeSchemaId(ReadOnlyMemory<byte> data)
+        {
+            if (data.Length < 5)
+            {
+                throw new InvalidEncodingException(0, "The encoded data does not include a Confluent wire format header.");
+            }
+
+#if NET6_0_OR_GREATER
+            var header = data.Span[..5];
+
+            if (header[0] != 0x00)
+            {
+                throw new InvalidEncodingException(0, "The encoded data does not conform to the Confluent wire format.");
+            }
+
+            return BinaryPrimitives.ReadInt32BigEndian(header[1..]);
+#else
+            var header = data.Slice(0, 5).ToArray();
+
+            if (header[0] != 0x00)
+            {
+                throw new InvalidEncodingException(0, "The encoded data does not conform to the Confluent wire format.");
+            }
+
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(header, 1, 4);
+            }
+
+            return BitConverter.ToInt32(header, 1);
+#endif
         }
 
         /// <summary>
