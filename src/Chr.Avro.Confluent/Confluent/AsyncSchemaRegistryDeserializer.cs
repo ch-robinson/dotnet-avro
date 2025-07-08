@@ -1,12 +1,11 @@
-using System.Buffers.Binary;
-using System.Threading;
-
 namespace Chr.Avro.Confluent
 {
     using System;
+    using System.Buffers.Binary;
     using System.Collections.Generic;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Threading;
     using System.Threading.Tasks;
     using Chr.Avro.Abstract;
     using Chr.Avro.Representation;
@@ -207,7 +206,7 @@ namespace Chr.Avro.Confluent
 #if NET8_0_OR_GREATER
                         Volatile.Write(ref cache, clone.ToFrozenDictionary());
 #else
-                        Volatile.Write(ref cache,  new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>(clone));
+                        Volatile.Write(ref cache, clone);
 #endif
                     }
                 }
