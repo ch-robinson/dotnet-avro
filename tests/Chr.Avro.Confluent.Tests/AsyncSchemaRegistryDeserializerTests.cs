@@ -33,7 +33,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync(new Schema("\"null\"", SchemaType.Avro));
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context)));
+                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context).AsTask()));
 
             registryClientMock
                 .Verify(c => c.GetSchemaAsync(0, null), Times.Once());
@@ -52,8 +52,8 @@ namespace Chr.Avro.Confluent.Tests
                 .Setup(c => c.GetSchemaAsync(0, null))
                 .ThrowsAsync(new HttpRequestException());
 
-            await Assert.ThrowsAsync<HttpRequestException>(() =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
+            await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
 
             registryClientMock
                 .Setup(c => c.GetSchemaAsync(0, null))
@@ -78,8 +78,8 @@ namespace Chr.Avro.Confluent.Tests
                 .Setup(c => c.GetSchemaAsync(0, null))
                 .Returns(Task.FromCanceled<Schema>(cts.Token));
 
-            await Assert.ThrowsAsync<TaskCanceledException>(() =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
+            await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+                await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
 
             registryClientMock
                 .Setup(c => c.GetSchemaAsync(0, null))
@@ -147,8 +147,8 @@ namespace Chr.Avro.Confluent.Tests
             var encoding = Array.Empty<byte>();
             var context = new SerializationContext(MessageComponentType.Key, "test_topic");
 
-            await Assert.ThrowsAsync<InvalidEncodingException>(() =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
+            await Assert.ThrowsAsync<InvalidEncodingException>(async () =>
+                await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
         }
 
         [Fact]
@@ -170,8 +170,8 @@ namespace Chr.Avro.Confluent.Tests
 
             var context = new SerializationContext(MessageComponentType.Value, "test_topic");
 
-            await Assert.ThrowsAsync<InvalidEncodingException>(() =>
-                deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
+            await Assert.ThrowsAsync<InvalidEncodingException>(async () =>
+                await deserializer.DeserializeAsync(encoding, encoding.Length == 0, context));
         }
     }
 }
