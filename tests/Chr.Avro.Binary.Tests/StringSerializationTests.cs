@@ -354,6 +354,25 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Theory]
+        [MemberData(nameof(Enums))]
+        public void NullableEnumValues(DateTimeKind value)
+        {
+            var schema = new StringSchema();
+
+            var deserialize = deserializerBuilder.BuildDelegate<DateTimeKind?>(schema);
+            var serialize = serializerBuilder.BuildDelegate<DateTimeKind>(schema);
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            Assert.Equal(value, deserialize(ref reader));
+        }
+
+        [Theory]
         [MemberData(nameof(Guids))]
         public void NullableGuidValues(Guid value)
         {
