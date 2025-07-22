@@ -20,7 +20,9 @@ namespace Chr.Avro.Serialization
         /// <inheritdoc />
         protected override Expression BuildStaticConversion(Expression value, Type target)
         {
-            if (target == typeof(DateTime) || target == typeof(DateTime?))
+            var underlying = Nullable.GetUnderlyingType(target) ?? target;
+
+            if (underlying == typeof(DateTime))
             {
                 var parseDateTime = typeof(DateTime)
                     .GetMethod(nameof(DateTime.Parse), new[] { value.Type, typeof(IFormatProvider), typeof(DateTimeStyles) });
@@ -34,7 +36,7 @@ namespace Chr.Avro.Serialization
                         Expression.Constant(DateTimeStyles.RoundtripKind)),
                     target);
             }
-            else if (target == typeof(DateTimeOffset) || target == typeof(DateTimeOffset?))
+            else if (underlying == typeof(DateTimeOffset))
             {
                 var parseDateTimeOffset = typeof(DateTimeOffset)
                     .GetMethod(nameof(DateTimeOffset.Parse), new[] { value.Type, typeof(IFormatProvider), typeof(DateTimeStyles) });
@@ -49,7 +51,7 @@ namespace Chr.Avro.Serialization
                     target);
             }
 #if NET6_0_OR_GREATER
-            else if (target == typeof(DateOnly) || target == typeof(DateOnly?))
+            else if (underlying == typeof(DateOnly))
             {
                 var parseDateOnly = typeof(DateOnly)
                     .GetMethod(nameof(DateOnly.Parse), new[]
@@ -68,7 +70,7 @@ namespace Chr.Avro.Serialization
                         Expression.Constant(DateTimeStyles.None)),
                     target);
             }
-            else if (target == typeof(TimeOnly) || target == typeof(TimeOnly?))
+            else if (underlying == typeof(TimeOnly))
             {
                 var parseTimeOnly = typeof(TimeOnly)
                     .GetMethod(nameof(TimeOnly.Parse), new[]
@@ -88,11 +90,11 @@ namespace Chr.Avro.Serialization
                     target);
             }
 #endif
-            else if (target.IsEnum)
+            else if (underlying.IsEnum)
             {
-                var cases = target.GetEnumMembers()
+                var cases = underlying.GetEnumMembers()
                     .Select(field => Expression.SwitchCase(
-                        Expression.Constant(Enum.Parse(target, field.Name)),
+                        Expression.Convert(Expression.Constant(Enum.Parse(underlying, field.Name)), target),
                         Expression.Constant(field.GetEnumMemberName())));
 
                 var exceptionConstructor = typeof(ArgumentException)
@@ -107,21 +109,21 @@ namespace Chr.Avro.Serialization
                         target),
                     cases.ToArray());
             }
-            else if (target == typeof(Guid) || target == typeof(Guid?))
+            else if (underlying == typeof(Guid))
             {
                 var guidConstructor = typeof(Guid)
                     .GetConstructor(new[] { value.Type });
 
                 value = Expression.New(guidConstructor, value);
             }
-            else if (target == typeof(TimeSpan) || target == typeof(TimeSpan?))
+            else if (underlying == typeof(TimeSpan))
             {
                 var parseTimeSpan = typeof(XmlConvert)
                     .GetMethod(nameof(XmlConvert.ToTimeSpan));
 
                 value = Expression.Call(null, parseTimeSpan, value);
             }
-            else if (target == typeof(Uri))
+            else if (underlying == typeof(Uri))
             {
                 var uriConstructor = typeof(Uri)
                     .GetConstructor(new[] { value.Type });
