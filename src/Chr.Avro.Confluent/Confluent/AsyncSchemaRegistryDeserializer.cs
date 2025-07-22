@@ -157,7 +157,13 @@ namespace Chr.Avro.Confluent
         public TombstoneBehavior TombstoneBehavior { get; }
 
         /// <inheritdoc />
-        public virtual async Task<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, SerializationContext context)
+        Task<T> IAsyncDeserializer<T>.DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, SerializationContext context)
+        {
+            return DeserializeAsync(data, isNull, context).AsTask();
+        }
+
+        /// <inheritdoc cref="IAsyncDeserializer{T}.DeserializeAsync" />
+        public virtual async ValueTask<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, SerializationContext context)
         {
             if (isNull && TombstoneBehavior != TombstoneBehavior.None)
             {
