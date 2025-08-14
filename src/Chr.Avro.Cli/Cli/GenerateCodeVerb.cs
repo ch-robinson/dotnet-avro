@@ -52,6 +52,9 @@ namespace Chr.Avro.Cli
         [Option("nullable-references", HelpText = "Whether reference types selected for nullable record fields should be annotated as nullable.")]
         public bool NullableReferences { get; set; }
 
+        [Option("record-type", HelpText = "Which kind of C# type to generate for records.")]
+        public RecordType RecordType { get; set; }
+
         [Option('v', "version", SetName = BySubjectSet, HelpText = "The version of the schema.")]
         public int? SchemaVersion { get; set; }
 
@@ -59,7 +62,8 @@ namespace Chr.Avro.Cli
         {
             var generator = new CSharpCodeGenerator(
                 enableDescriptionAttributeForDocumentation: ComponentModelAnnotations,
-                enableNullableReferenceTypes: NullableReferences);
+                enableNullableReferenceTypes: NullableReferences,
+                recordType: RecordType);
             var reader = new JsonSchemaReader();
             var schema = reader.Read(await ((ISchemaResolutionOptions)this).ResolveSchema());
 

@@ -28,13 +28,15 @@
         {
             var descendants = node.DescendantNodesAndSelf();
 
+            var parameters = descendants.OfType<ParameterSyntax>().Select(p => p.Type);
+            var properties = descendants.OfType<PropertyDeclarationSyntax>().Select(p => p.Type);
+
             internals = new HashSet<string>(descendants
                 .OfType<NamespaceDeclarationSyntax>()
                 .Select(n => n.Name.ToString()));
 
-            externals = new HashSet<string>(descendants
-                .OfType<PropertyDeclarationSyntax>()
-                .Select(p => p.Type)
+            externals = new HashSet<string>(Enumerable
+                .Concat(parameters, properties)
                 .OfType<QualifiedNameSyntax>()
                 .Select(n => StripGlobalAlias(n.Left).ToString())
                 .Where(n => !internals.Contains(n)));
@@ -55,6 +57,19 @@
             breadcrumb.Push(node.Name.ToString());
             var result = base.VisitNamespaceDeclaration(node)!;
             breadcrumb.Pop();
+
+            return result;
+        }
+
+        /// <inheritdoc />
+        public override SyntaxNode? VisitParameter(ParameterSyntax node)
+        {
+            var result = (ParameterSyntax)base.VisitParameter(node)!;
+
+            if (result.Type is NameSyntax name)
+            {
+                result = result.WithType(Reduce(name)).WithTriviaFrom(result);
+            }
 
             return result;
         }
