@@ -364,28 +364,16 @@ namespace Chr.Avro.Codegen
 
                 case UnionSchema u:
                     var nulls = u.Schemas.OfType<NullSchema>();
-                    var others = u.Schemas.Except(nulls);
+                    var others = u.Schemas.Except(nulls).ToArray();
 
                     try
                     {
-                        var recordSchemas = others.OfType<RecordSchema>().ToArray();
-
-                        if (recordSchemas.Length > 1)
+                        if (IsPolymorphic(others, out var recordSchemas))
                         {
-                            string? fullName = null;
+                            // All non-null schemas are record schemas
+                            string fullName = recordSchemas.First().FullName;
 
-                            // all record schemas should have been added to the interfaceDeclarationsMap for the same interface
-                            foreach (RecordSchema recordSchema in recordSchemas)
-                            {
-                                if (interfaceDeclarationsMap.ContainsKey(recordSchema.FullName))
-                                {
-                                    fullName = recordSchema.FullName;
-                                    break;
-                                }
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(fullName) &&
-                                interfaceDeclarationsMap.TryGetValue(fullName!, out var interfaceName) &&
+                            if (interfaceDeclarationsMap.TryGetValue(fullName, out var interfaceName) &&
                                 interfaceDeclarations.TryGetValue(interfaceName, out var interfaceDefinition))
                             {
                                 type = SyntaxFactory.ParseTypeName(interfaceDefinition.Declaration.Identifier.ValueText);
@@ -510,6 +498,13 @@ namespace Chr.Avro.Codegen
             return classSyntax;
         }
 
+        private static bool IsPolymorphic(Schema[] schemas, out RecordSchema[] recordSchemas)
+        {
+            recordSchemas = schemas.OfType<RecordSchema>().ToArray();
+
+            return recordSchemas.Length > 1 && recordSchemas.Length == schemas.Length;
+        }
+
         private IEnumerable<NamedSchema> GetCandidateSchemas(Schema schema, ISet<Schema>? seen = null)
         {
             seen ??= new HashSet<Schema>();
@@ -586,10 +581,12 @@ namespace Chr.Avro.Codegen
 
         private void DeriveInterfaceDefinitions(UnionSchema u)
         {
-            var recordSchemas = u.Schemas.OfType<RecordSchema>().ToList();
-            if (recordSchemas.Count > 1)
+            var others = u.Schemas.Except(u.Schemas.OfType<NullSchema>()).ToArray();
+
+            if (IsPolymorphic(others, out var recordSchemas))
             {
-                var definition = GetOrCreateInterfaceDefinition(recordSchemas);
+                // All non-null schemas are record schemas
+                InterfaceDefinition definition = GetOrCreateInterfaceDefinition(recordSchemas);
 
                 foreach (RecordSchema recordSchema in recordSchemas)
                 {

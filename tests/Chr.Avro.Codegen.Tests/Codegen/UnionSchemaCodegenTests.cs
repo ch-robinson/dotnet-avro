@@ -43,16 +43,6 @@ namespace Chr.Avro.Codegen.Tests.Codegen
             Assert.Contains(compiledTypes, t => t.Name == nameof(Polymorphic));
             Assert.DoesNotContain(compiledTypes, t => t.Name == nameof(PolymorphicClassA));
             Assert.DoesNotContain(compiledTypes, t => t.Name == nameof(PolymorphicClassB));
-
-            /*List<Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>> serializers = BinaryDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
-
-            // Prepend our custom case to handle the polymorphic Animal type
-            serializers.Insert(0, builder => new PolymorphicClassAUnionDeserializerBuilderCase(builder));
-            serializers.Insert(0, builder => new PolymorphicClassBUnionDeserializerBuilderCase(builder));
-
-            // Optionally, check compatibility
-            CompatibilityChecker.AssertCanDeserializeTypeFromSchema(new BinaryDeserializerBuilder(serializers), generatedType, schema);
-            */
         }
 
         // Class with polymorphic field
