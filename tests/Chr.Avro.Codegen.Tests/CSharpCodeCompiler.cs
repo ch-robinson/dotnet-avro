@@ -7,6 +7,7 @@ namespace Chr.Avro.Codegen.Tests
     using System.Linq;
     using System.Reflection;
     using System.Text;
+    using Chr.Avro.Serialization;
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.Emit;
@@ -27,6 +28,8 @@ namespace Chr.Avro.Codegen.Tests
             var refPaths = new[]
             {
                 typeof(DescriptionAttribute).Assembly.Location, // Load the DescriptionAttribute
+                typeof(BinaryDeserializerBuilder).Assembly.Location, // Load the BinaryDeserializerBuilder
+                typeof(UnsupportedTypeException).Assembly.Location, // Load the UnsupportedTypeException
                 typeof(object).GetTypeInfo().Assembly.Location,
                 typeof(Console).GetTypeInfo().Assembly.Location,
                 Path.Combine(Path.GetDirectoryName(typeof(System.Runtime.GCSettings).GetTypeInfo().Assembly.Location), "System.Runtime.dll"),

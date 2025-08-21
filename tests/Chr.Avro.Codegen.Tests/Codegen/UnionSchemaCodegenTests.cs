@@ -34,10 +34,12 @@ namespace Chr.Avro.Codegen.Tests.Codegen
             // Check that the generated types include original polymorphic derived classes
             var todoRename = Assert.Single(compiledTypes, t => t.Name == "ITodoRename" && t.IsInterface);
             Assert.Contains(compiledTypes, t => t.Name == "TodoRenameUnknown" && t.IsClass && t.ImplementedInterfaces.Contains(todoRename.AsType()));
+            Assert.Contains(compiledTypes, t => t.Name == "ITodoRenameDeserializerBuilderCase" && t.IsClass && t.BaseType == typeof(BinaryUnionDeserializerBuilderCase));
             Assert.Contains(compiledTypes, t => t.Name == nameof(PolymorphicClassAA) && t.ImplementedInterfaces.Contains(todoRename.AsType()));
             Assert.Contains(compiledTypes, t => t.Name == nameof(PolymorphicClassAB) && t.ImplementedInterfaces.Contains(todoRename.AsType()));
             var todoRename1 = Assert.Single(compiledTypes, t => t.Name == "ITodoRename1" && t.IsInterface);
             Assert.Contains(compiledTypes, t => t.Name == "TodoRename1Unknown" && t.IsClass && t.ImplementedInterfaces.Contains(todoRename1.AsType()));
+            Assert.Contains(compiledTypes, t => t.Name == "ITodoRename1DeserializerBuilderCase" && t.IsClass && t.BaseType == typeof(BinaryUnionDeserializerBuilderCase));
             Assert.Contains(compiledTypes, t => t.Name == nameof(PolymorphicClassBA) && t.ImplementedInterfaces.Contains(todoRename1.AsType()));
             Assert.Contains(compiledTypes, t => t.Name == nameof(PolymorphicClassBB) && t.ImplementedInterfaces.Contains(todoRename1.AsType()));
             Assert.Contains(compiledTypes, t => t.Name == nameof(Polymorphic));

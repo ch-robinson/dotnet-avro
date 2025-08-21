@@ -543,7 +543,7 @@ namespace Chr.Avro.Codegen
         {{
         }}
 
-        public override BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
+        public override BinaryDeserializerBuilderCaseResult BuildExpression(global::System.Type type, Schema schema, BinaryDeserializerBuilderContext context)
         {{
             if (type == typeof({interfaceDefinition.InterfaceName}))
             {{
@@ -556,7 +556,7 @@ namespace Chr.Avro.Codegen
             }}
         }}
 
-        protected override Type SelectType(Type type, Schema schema)
+        protected override global::System.Type SelectType(global::System.Type type, Schema schema)
         {{
             return (schema as RecordSchema)?.Name switch
             {{            
