@@ -159,6 +159,7 @@ namespace Chr.Avro.Codegen
                     {
                         keyValuePair.Value.Declaration, // Interface declaration
                         GenerateClassWithInterface(keyValuePair.Value), // Class declaration
+                        GenerateDeserializerBuilderCase(keyValuePair.Value), // Deserializer builder case
                     })
                     .ToArray();
 
@@ -166,11 +167,28 @@ namespace Chr.Avro.Codegen
             {
                 if (string.IsNullOrWhiteSpace(commonNamespace))
                 {
+                    // No common namespace, add the interfaces directly to the compilation unit
+                    // First add using directives to the compilation unit header
+                    unit = unit.AddUsings(
+                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Abstract")),
+                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Serialization")));
+
                     unit = unit.AddMembers(commonInterfaces);
                 }
                 else
                 {
-                    var declaration = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(commonNamespace)).AddMembers(commonInterfaces);
+                    // There is a common namespace, add the interfaces within a namespace declaration
+                    // Create a namespace declaration with using directives
+                    var usings = SyntaxFactory.List(new[]
+                    {
+                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Abstract")),
+                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Serialization")),
+                    });
+
+                    var declaration = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(commonNamespace))
+                        .WithUsings(usings)
+                        .AddMembers(commonInterfaces);
+
                     unit = unit.AddMembers(declaration);
                 }
             }
@@ -495,6 +513,63 @@ namespace Chr.Avro.Codegen
             }
 
             return classSyntax;
+        }
+
+        /// <summary>
+        /// Generates a deserializer builder case for an interface declaration.
+        /// </summary>
+        /// <param name="interfaceDefinition">
+        /// The interface definition to generate a deserializer builder case for.
+        /// </param>
+        /// <returns>
+        /// A class declaration for a deserializer builder case that handles the interface type.
+        /// </returns>
+        private static ClassDeclarationSyntax GenerateDeserializerBuilderCase(InterfaceDefinition interfaceDefinition)
+        {
+            // Create record type cases for the switch expression
+            var recordTypesCases = string.Join(
+                Environment.NewLine,
+                interfaceDefinition.RecordSchemaNames.Select(schemaName =>
+                {
+                    return $"                nameof({schemaName}) => typeof({schemaName}),";
+                }));
+
+            // Create the class template with non-global namespace references
+            string classTemplate = $@"
+    public class {interfaceDefinition.InterfaceName}DeserializerBuilderCase : BinaryUnionDeserializerBuilderCase
+    {{
+        public {interfaceDefinition.InterfaceName}DeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+            : base(deserializerBuilder)
+        {{
+        }}
+
+        public override BinaryDeserializerBuilderCaseResult BuildExpression(Type type, Schema schema, BinaryDeserializerBuilderContext context)
+        {{
+            if (type == typeof({interfaceDefinition.InterfaceName}))
+            {{
+                return base.BuildExpression(type, schema, context);
+            }}
+            else
+            {{
+                return BinaryDeserializerBuilderCaseResult.FromException(
+                    new UnsupportedTypeException(type, $""{{this.GetType()}} can only be applied to the {{typeof({interfaceDefinition.InterfaceName})}} type.""));
+            }}
+        }}
+
+        protected override Type SelectType(Type type, Schema schema)
+        {{
+            return (schema as RecordSchema)?.Name switch
+            {{            
+{recordTypesCases}
+                _ => throw new UnsupportedSchemaException(schema),
+            }};
+        }}
+    }}";
+
+            // Parse the template into a syntax tree
+            var classDeclaration = SyntaxFactory.ParseMemberDeclaration(classTemplate) as ClassDeclarationSyntax;
+
+            return classDeclaration;
         }
 
         private static bool IsPolymorphic(Schema[] schemas, out RecordSchema[] recordSchemas)
