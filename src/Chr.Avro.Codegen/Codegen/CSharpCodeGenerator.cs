@@ -460,8 +460,7 @@ namespace Chr.Avro.Codegen
 
             // Get the common properties of all types
             var commonFields = fields
-                .Aggregate(fields.First(), (prev, current) => prev.Intersect(current, new RecordFieldComparer()).ToArray())
-                .ToList();
+                 .Aggregate(fields.First(), (prev, current) => prev.Where(p => current.Any(c => c.Name == p.Name && c.Type == p.Type)).ToArray()).ToList();
 
             return commonFields;
         }
@@ -603,13 +602,12 @@ namespace Chr.Avro.Codegen
             var sourceNames = recordSchemas.Select(r => r.FullName).ToList();
             var commonFields = GetCommonFields(recordSchemas);
 
-            var comparer = new RecordFieldComparer();
             var existingDefinition = interfaceDeclarations.Values
                 .FirstOrDefault(def =>
                     def.Field.Count == commonFields.Count &&
                     def.RecordSchemaNames.Count == sourceNames.Count &&
                     def.RecordSchemaNames.All(name => sourceNames.Contains(name)) &&
-                    def.Field.All(f => commonFields.Contains(f, comparer)));
+                    def.Field.All(f => commonFields.Any(c => c.Name == f.Name && c.Type == f.Type)));
 
             if (existingDefinition != null)
             {
@@ -641,32 +639,6 @@ namespace Chr.Avro.Codegen
             interfaceDeclarations.Add(name, new InterfaceDefinition(unknownClassName, name, sourceNames, commonFields, interfaceDeclaration));
 
             return interfaceDeclarations[name];
-        }
-
-        private class RecordFieldComparer : IEqualityComparer<RecordField>
-        {
-            public bool Equals(RecordField x, RecordField y)
-            {
-                return x.Name == y.Name && new SchemaComparer().Equals(x.Type, y.Type);
-            }
-
-            public int GetHashCode(RecordField obj)
-            {
-                return obj.Name.GetHashCode() ^ new SchemaComparer().GetHashCode(obj.Type);
-            }
-        }
-
-        private class SchemaComparer : IEqualityComparer<Schema>
-        {
-            public bool Equals(Schema x, Schema y)
-            {
-                return (x.LogicalType is null && y.LogicalType is null) || x.LogicalType?.GetType() == y.LogicalType?.GetType();
-            }
-
-            public int GetHashCode(Schema obj)
-            {
-                return obj.LogicalType?.GetType().GetHashCode() ?? -1;
-            }
         }
 
         private class InterfaceDefinition
