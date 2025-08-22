@@ -561,7 +561,7 @@ namespace Chr.Avro.Codegen
             return (schema as RecordSchema)?.Name switch
             {{            
 {recordTypesCases}
-                _ => throw new UnsupportedSchemaException(schema),
+                _ => typeof({interfaceDefinition.UnknownClassName}),
             }};
         }}
     }}";
