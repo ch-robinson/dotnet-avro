@@ -7,6 +7,7 @@ namespace Chr.Avro.Codegen.Tests
     using System.Linq;
     using System.Reflection;
     using System.Text;
+    using Chr.Avro.Abstract;
     using Chr.Avro.Serialization;
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
@@ -23,16 +24,19 @@ namespace Chr.Avro.Codegen.Tests
         private static Assembly CompileAssembly(string codeToCompile)
         {
             SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(codeToCompile);
-            string assemblyName = Path.GetRandomFileName();
+            var assemblyName = Path.GetRandomFileName();
+            var runtimePath = Path.GetDirectoryName(typeof(object).GetTypeInfo().Assembly.Location);
 
             var refPaths = new[]
             {
-                typeof(DescriptionAttribute).Assembly.Location, // Load the DescriptionAttribute
-                typeof(BinaryDeserializerBuilder).Assembly.Location, // Load the BinaryDeserializerBuilder
-                typeof(UnsupportedTypeException).Assembly.Location, // Load the UnsupportedTypeException
-                typeof(object).GetTypeInfo().Assembly.Location,
-                typeof(Console).GetTypeInfo().Assembly.Location,
-                Path.Combine(Path.GetDirectoryName(typeof(System.Runtime.GCSettings).GetTypeInfo().Assembly.Location), "System.Runtime.dll"),
+#if !NET6_0_OR_GREATER
+                Path.Combine(runtimePath, "netstandard.dll"),
+#endif
+                typeof(object).GetTypeInfo().Assembly.Location, // mscorlib
+                typeof(DescriptionAttribute).Assembly.Location, // System.ComponentModel.Primitives
+                Path.Combine(runtimePath, "System.Runtime.dll"), // System.Runtime
+                typeof(Schema).Assembly.Location, // Chr.Avro
+                typeof(BinaryDeserializerBuilder).Assembly.Location, // Chr.Avro.Binary
             };
             MetadataReference[] references = refPaths.Select(r => MetadataReference.CreateFromFile(r)).ToArray();
 
