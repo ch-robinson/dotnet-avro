@@ -205,12 +205,12 @@ namespace Chr.Avro.Codegen
                     .OfType<MemberDeclarationSyntax>()
                     .ToArray();
 
-                if (group.Key is string key)
+                if (!string.IsNullOrWhiteSpace(group.Key))
                 {
                     // If the group has a namespace, wrap the members in a namespace declaration
                     members = new[]
                     {
-                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(key)).AddMembers(members),
+                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(group.Key)).AddMembers(members),
                     };
                 }
 
