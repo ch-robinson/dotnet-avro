@@ -246,7 +246,13 @@ namespace Chr.Avro.Confluent
         }
 
         /// <inheritdoc />
-        public virtual async Task<byte[]> SerializeAsync(T data, SerializationContext context)
+        Task<byte[]> IAsyncSerializer<T>.SerializeAsync(T value, SerializationContext context)
+        {
+            return SerializeAsync(value, context).AsTask();
+        }
+
+        /// <inheritdoc cref="IAsyncSerializer{T}.SerializeAsync" />
+        public virtual async ValueTask<byte[]> SerializeAsync(T data, SerializationContext context)
         {
             var subject = SubjectNameBuilder(context);
 
