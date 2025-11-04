@@ -33,7 +33,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync(new RegisteredSchema(subject, 1, 12, "\"null\"", SchemaType.Avro, null));
 
             await Task.WhenAll(Enumerable.Range(0, 5).Select(i =>
-                serializer.SerializeAsync(null, context)));
+                serializer.SerializeAsync(null, context).AsTask()));
 
             registryClientMock
                 .Verify(c => c.GetLatestSchemaAsync(subject), Times.Once());
@@ -53,7 +53,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ThrowsAsync(new HttpRequestException());
 
             await Assert.ThrowsAsync<HttpRequestException>(() =>
-                serializer.SerializeAsync(null, context));
+                serializer.SerializeAsync(null, context).AsTask());
 
             registryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
@@ -79,7 +79,7 @@ namespace Chr.Avro.Confluent.Tests
                 .Returns(Task.FromCanceled<RegisteredSchema>(cts.Token));
 
             await Assert.ThrowsAsync<TaskCanceledException>(() =>
-                serializer.SerializeAsync(null, context));
+                serializer.SerializeAsync(null, context).AsTask());
 
             registryClientMock
                 .Setup(c => c.GetLatestSchemaAsync(subject))
@@ -180,7 +180,7 @@ namespace Chr.Avro.Confluent.Tests
                 .Setup(c => c.GetLatestSchemaAsync(subject))
                 .ReturnsAsync(new RegisteredSchema(subject, 1, 9, "\"string\"", SchemaType.Avro, null));
 
-            await Assert.ThrowsAsync<UnsupportedTypeException>(() => serializer.SerializeAsync(data, context));
+            await Assert.ThrowsAsync<UnsupportedTypeException>(() => serializer.SerializeAsync(data, context).AsTask());
         }
 
         [Fact]
@@ -199,7 +199,7 @@ namespace Chr.Avro.Confluent.Tests
                 .ReturnsAsync(new RegisteredSchema(subject, 1, 4, "\"int\"", SchemaType.Avro, null));
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                serializer.SerializeAsync(data, context));
+                serializer.SerializeAsync(data, context).AsTask());
         }
 
         [Fact]
