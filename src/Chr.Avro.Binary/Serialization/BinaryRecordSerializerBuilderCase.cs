@@ -115,7 +115,7 @@ namespace Chr.Avro.Serialization
                             })
                             .ToList();
 
-                        // .NET Framework doesn’t permit empty block expressions:
+                        // .NET Framework doesn't permit empty block expressions:
                         var expression = writes.Count > 0
                             ? Expression.Block(writes)
                             : Expression.Empty() as Expression;

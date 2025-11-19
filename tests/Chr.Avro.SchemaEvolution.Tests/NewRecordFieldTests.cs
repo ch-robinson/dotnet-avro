@@ -1,7 +1,14 @@
+using Chr.Avro.Representation;
+using Chr.Avro.Serialization;
+
 namespace Chr.Avro.SerialisationTests;
 
 public class NewRecordFieldTests
 {
+    private static readonly JsonSchemaReader SchemaReader = new();
+    private static readonly BinaryDeserializerBuilder DeserializerBuilder = new();
+    private static readonly BinarySerializerBuilder SerializerBuilder = new();
+
     [Fact]
     public void SchemaEvolution_NewFieldWithDefaultValue()
     {
@@ -54,7 +61,7 @@ public class NewRecordFieldTests
     }
 
     [Fact]
-    public void SchenaEvolution_NewFieldWithDefaultNullValue()
+    public void SchemaEvolution_NewFieldWithDefaultNullValue()
     {
         var schema = """
             {
@@ -99,9 +106,55 @@ public class NewRecordFieldTests
         deserialized = serialiser13.Deserialise(bytes);
         Assert.Equal(new Player("Alice", 25), deserialized);
 
-        // We should also be able to deeserialize to v3 DTO
+        // We should also be able to deserialize to v3 DTO
         deserialized3 = serialiser33.Deserialise(bytes);
         Assert.Equal(new Player3("Alice", 25), deserialized3);
+    }
+
+    [Fact]
+    public void SchemaEvolution_NewFieldWithoutDefaultValueCannotBeSerialized()
+    {
+        var schema = """
+            {
+                "name": "MyRecord",
+                "type": "record",
+                "fields": [
+                    {"name":"name", "type":"string"},
+                    {"name":"age", "type":"int"},
+                    {"name":"score", "type":"double"}
+                ]
+            }
+            """;
+
+        // New schema and DTO without default value -> Fail
+        var avroSchema = SchemaReader.Read(schema);
+
+        // Player is missing "score", and no default value exists in the schema
+        var exception = Assert.Throws<UnsupportedTypeException>(() => SerializerBuilder.BuildDelegate<Player>(avroSchema));
+        var typeName = typeof(Player).FullName;
+        Assert.Equal($"{typeName} does not have a field or property that matches the score field on MyRecord.", exception.Message);
+    }
+
+    [Fact]
+    public void InvalidFieldType()
+    {
+        var schema = """
+            {
+                "name": "MyRecord",
+                "type": "record",
+                "fields": [
+                    {"name":"name", "type":"string"},
+                    {"name":"age", "type":"string"}
+                ]
+            }
+            """;
+
+        var avroSchema = SchemaReader.Read(schema);
+
+        // Player field 'age' has incorrect type
+        var exception = Assert.Throws<UnsupportedTypeException>(() => SerializerBuilder.BuildDelegate<Player>(avroSchema));
+        var typeName = typeof(Player).FullName;
+        Assert.Equal($"The Age member on {typeName} could not be mapped to the age field on MyRecord.", exception.Message);
     }
 
     public record Player(string Name, int Age);
@@ -123,9 +176,9 @@ public class NewRecordFieldTests
         public int Age { get; }
     }
 
-    public class PlayerClass2
+    public class PlayerWithScore
     {
-        public PlayerClass2(string name, int age, double score = 0)
+        public PlayerWithScore(string name, int age, double score = 0)
         {
             Name = name;
             Age = age;
