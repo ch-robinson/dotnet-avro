@@ -32,14 +32,6 @@ namespace Chr.Avro.Serialization
         /// </returns>
         protected virtual ConstructorInfo? GetRecordConstructor(Type type, RecordSchema schema)
         {
-            // TODO: Can we handle dynamic deserialisation better?
-            // Instead of skipping the regular handling, maybe we can incorporate dynamic setters
-            // in the member handling in BinaryRecordDeserializerBuilderCase.BuildExpression (and the Json one)?
-            // if (type == typeof(object))
-            // {
-            //     return null;
-            // }
-
             // Find the constructor that matches the record's fields the best, ie:
             //  - all the constructor parameters match a field, or has a default value if not
             //  - the constructor maximizes the number of fields matched in the record
@@ -170,11 +162,11 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// <c>true</c> if <paramref name="name" /> is a match; <c>false</c> otherwise.
         /// </returns>
-        protected virtual bool IsMatch(RecordField field, string name)
+        protected virtual bool IsMatch(RecordField field, string? name)
         {
             return string.Equals(
                 FuzzyCharacters.Replace(field.Name, string.Empty),
-                FuzzyCharacters.Replace(name, string.Empty),
+                FuzzyCharacters.Replace(name ?? string.Empty, string.Empty),
                 StringComparison.InvariantCultureIgnoreCase);
         }
     }

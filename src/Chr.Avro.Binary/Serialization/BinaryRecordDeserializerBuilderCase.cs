@@ -225,7 +225,7 @@ namespace Chr.Avro.Serialization
 
             // Fields that have a match as a constructor parameter
             var fieldsMatchedToConstructorParam = recordSchema.Fields
-                .Where(f => ctorParameters.Any(p => IsMatch(f, p.Name!)))
+                .Where(f => ctorParameters.Any(p => IsMatch(f, p.Name)))
                 .ToDictionary(f => f.Name);
 
             var members = type.GetMembers(MemberVisibility);
@@ -243,7 +243,7 @@ namespace Chr.Avro.Serialization
                 .Select(field =>
                 {
                     // There might not be a match for a particular field, in which case it will be deserialized and then ignored
-                    var constructorParameter = ctorParameters.SingleOrDefault(parameter => IsMatch(field, parameter.Name!));
+                    var constructorParameter = ctorParameters.SingleOrDefault(parameter => IsMatch(field, parameter.Name));
 
                     if (constructorParameter is null)
                     {

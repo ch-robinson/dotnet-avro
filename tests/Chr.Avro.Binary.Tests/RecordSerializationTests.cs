@@ -699,7 +699,6 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Equivalent(person, deserialized);
         }
 
-
         [Fact]
         public void RecordWithDefaultConstructor_Test()
         {
