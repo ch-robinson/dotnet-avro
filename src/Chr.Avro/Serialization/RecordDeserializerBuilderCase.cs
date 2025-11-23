@@ -32,30 +32,44 @@ namespace Chr.Avro.Serialization
         /// </returns>
         protected virtual ConstructorInfo? GetRecordConstructor(Type type, RecordSchema schema)
         {
-            return type.GetConstructors().FirstOrDefault(constructor =>
-            {
-                var unmatched = new HashSet<ParameterInfo>(constructor.GetParameters());
-
-                foreach (var field in schema.Fields)
+            // Find the constructor that matches the record's fields the best, ie:
+            //  - all the constructor parameters match a field, or has a default value if not
+            //  - the constructor maximizes the number of fields matched in the record
+            // Notes: We're ok to not match all fields in the record; these will just be ignored
+            // this is actually an important feature to allow old clients to use a new schema
+            var candidates = type.GetConstructors()
+                .Select(constructor =>
                 {
-                    var match = unmatched
-                        .FirstOrDefault(parameter => IsMatch(field, parameter.Name));
+                    var unmatched = new HashSet<ParameterInfo>(constructor.GetParameters());
+                    var matchedFieldsCount = 0;
 
-                    if (match == null)
+                    foreach (var field in schema.Fields)
                     {
-                        return false;
+                        var match = unmatched
+                            .FirstOrDefault(parameter => IsMatch(field, parameter.Name));
+
+                        if (match is not null)
+                        {
+                            unmatched.Remove(match);
+                            matchedFieldsCount++;
+                        }
                     }
 
-                    unmatched.Remove(match);
-                }
+                    // If some constructor parameter haven't been matched, they have to have a default value,
+                    // or we can't use that constructor to deserialize
+                    if (unmatched.Any(parameter => !parameter.HasDefaultValue))
+                    {
+                        return (constructor: null, score: -1);
+                    }
 
-                if (unmatched.Any(parameter => !parameter.HasDefaultValue))
-                {
-                    return false;
-                }
+                    // The constructor is a valid candidate, use the number of matched fields as its score
+                    return (constructor: (ConstructorInfo?)constructor, score: matchedFieldsCount);
+                })
+                .OrderByDescending(x => x.score)
+                .ToArray();
 
-                return true;
-            });
+            return candidates
+                .FirstOrDefault().constructor;
         }
 
         /// <summary>
@@ -148,11 +162,11 @@ namespace Chr.Avro.Serialization
         /// <returns>
         /// <c>true</c> if <paramref name="name" /> is a match; <c>false</c> otherwise.
         /// </returns>
-        protected virtual bool IsMatch(RecordField field, string name)
+        protected virtual bool IsMatch(RecordField field, string? name)
         {
             return string.Equals(
                 FuzzyCharacters.Replace(field.Name, string.Empty),
-                FuzzyCharacters.Replace(name, string.Empty),
+                FuzzyCharacters.Replace(name ?? string.Empty, string.Empty),
                 StringComparison.InvariantCultureIgnoreCase);
         }
     }

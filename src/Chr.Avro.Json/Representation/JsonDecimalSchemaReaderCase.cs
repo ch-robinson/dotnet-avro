@@ -74,7 +74,7 @@ namespace Chr.Avro.Representation
                         ? @namespace.GetString()
                         : context.Scope;
 
-                    var schema = new FixedSchema(QualifyName(name.GetString(), scope), size.GetInt32())
+                    var schema = new FixedSchema(QualifyName(name.GetString()!, scope), size.GetInt32())
                     {
                         LogicalType = new DecimalLogicalType(precision.GetInt32(), scale.ValueKind == JsonValueKind.Undefined ? 0 : scale.GetInt32()),
                     };
@@ -82,7 +82,7 @@ namespace Chr.Avro.Representation
                     if (element.TryGetProperty(JsonAttributeToken.Aliases, out var aliases))
                     {
                         schema.Aliases = aliases.EnumerateArray()
-                            .Select(alias => QualifyName(alias.GetString(), scope))
+                            .Select(alias => QualifyName(alias.GetString()!, scope))
                             .ToArray();
                     }
 

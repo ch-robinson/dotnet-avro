@@ -59,7 +59,7 @@ namespace Chr.Avro.Serialization
                     .GetConstructor(new[] { typeof(long) });
 
                 var add = typeof(TimeOnly)
-                    .GetMethod(nameof(TimeOnly.Add), new [] { typeof(TimeSpan) });
+                    .GetMethod(nameof(TimeOnly.Add), new[] { typeof(TimeSpan) });
 
                 try
                 {

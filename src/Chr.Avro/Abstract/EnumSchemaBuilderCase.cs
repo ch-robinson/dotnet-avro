@@ -1,8 +1,7 @@
-using System.Collections.Generic;
-
 namespace Chr.Avro.Abstract
 {
     using System;
+    using System.Collections.Generic;
     using System.ComponentModel;
     using System.Linq;
     using System.Reflection;
@@ -72,7 +71,7 @@ namespace Chr.Avro.Abstract
                     {
                         Namespace = GetSchemaNamespace(type),
                         Default = GetDefaultValue(type, enumMembers),
-                        Documentation = type.GetAttribute<DescriptionAttribute>()?.Description
+                        Documentation = type.GetAttribute<DescriptionAttribute>()?.Description,
                     };
 
                     foreach (var member in enumMembers
@@ -100,16 +99,6 @@ namespace Chr.Avro.Abstract
             {
                 return SchemaBuilderCaseResult.FromException(new UnsupportedTypeException(type, $"{nameof(EnumSchemaBuilderCase)} can only be applied to {typeof(Enum)} types."));
             }
-        }
-
-        private string? GetDefaultValue(Type type, IEnumerable<MemberInfo> enumMembers)
-        {
-            var enumDefaultValue = type.GetAttribute<DefaultValueAttribute>()?.Value;
-            if (enumDefaultValue is null)
-                return null;
-            var matchedMember = enumMembers
-                .Single(member => member.Name == Enum.GetName(type, enumDefaultValue));
-            return GetSymbol(matchedMember);
         }
 
         /// <summary>
@@ -169,6 +158,19 @@ namespace Chr.Avro.Abstract
         protected virtual string GetSymbol(MemberInfo member)
         {
             return member.GetEnumMemberName();
+        }
+
+        private string? GetDefaultValue(Type type, IEnumerable<MemberInfo> enumMembers)
+        {
+            var enumDefaultValue = type.GetAttribute<DefaultValueAttribute>()?.Value;
+            if (enumDefaultValue is null)
+            {
+                return null;
+            }
+
+            var matchedMember = enumMembers
+                .Single(member => member.Name == Enum.GetName(type, enumDefaultValue));
+            return GetSymbol(matchedMember);
         }
     }
 }

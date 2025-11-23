@@ -3,6 +3,7 @@ namespace Chr.Avro.Serialization.Tests
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using Chr.Avro.Abstract;
     using Chr.Avro.Fixtures;
     using Xunit;
@@ -16,7 +17,7 @@ namespace Chr.Avro.Serialization.Tests
 
         private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream stream;
+        private MemoryStream stream;
 
         public RecordSerializationTests()
         {
@@ -547,6 +548,187 @@ namespace Chr.Avro.Serialization.Tests
             Assert.Empty(root.RelatedNodes);
         }
 
+        [Fact]
+        public void RecordWithNewFieldDeserializedIntoTypeWithDefaultConstructor()
+        {
+            // schema: int A, string B, double C = 0
+            // records: {A a, B b = null}, {A a}
+            // other: class Mapped {
+            //     Mapped(int a) { string B {get;set;} }
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                    new RecordField("Address", new StringSchema())
+                    {
+                        Default = new ObjectDefaultValue<string>(string.Empty, new StringSchema()),
+                    },
+                },
+            };
+
+            // The entity class has a default constructor and read/write properties
+            // but Address is missing
+            var person = new PersonWithDefaultConstructor() { Name = "Bob", Age = 30 };
+            var deserialized = SerializeAndDeserialize(person, schema);
+
+            Assert.Equivalent(person, deserialized);
+        }
+
+        [Fact]
+        public void RecordWithNewFieldDeserializedIntoTypeWithPartialMatchConstructor()
+        {
+            // schema: int A, string B, double C = 0
+            // records: {A a, B b = null}, {A a}
+            // other: class Mapped {
+            //     Mapped(int a) { string B {get;set;} }
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                    new RecordField("Address", new StringSchema())
+                    {
+                        Default = new ObjectDefaultValue<string>(string.Empty, new StringSchema()),
+                    },
+                },
+            };
+
+            // The entity doesn't have a default constructor, but takes the Name as
+            // a constructor parameter
+            var person = new PersonWithoutDefaultConstructor("Bob") { Age = 30 };
+            var deserialized = SerializeAndDeserialize(person, schema);
+
+            Assert.Equivalent(person, deserialized);
+        }
+
+        [Fact]
+        public void RecordWithNewFieldDeserializedWithDefaultNullableValue()
+        {
+            // schema: int A, string B, double C = 0
+            // records: {A a, B b = null}, {A a}
+            // other: class Mapped {
+            //     Mapped(int a) { string B {get;set;} }
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                },
+            };
+
+            // The entity doesn't have a default constructor, but takes the Name as
+            // a constructor parameter
+            var person = new PersonWithDefaultNullableValue("Bob");
+            var deserialized = SerializeAndDeserialize(person, schema);
+
+            Assert.Equivalent(person, deserialized);
+        }
+
+        // TODO: Add test where the class has multiple constructors; pick the one that matches more fields from the record
+        [Fact]
+        public void RecordWithCustomDeserialization()
+        {
+            var boolean = new BooleanSchema();
+            var array = new ArraySchema(boolean);
+            var map = new MapSchema(new IntSchema());
+            var @enum = new EnumSchema("Ordinal", new[] { "None", "First", "Second", "Third", "Fourth" });
+            var union = new UnionSchema(new Schema[]
+            {
+                new NullSchema(),
+                array,
+            });
+
+            var schema = new RecordSchema("AllFields")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Id", new IntSchema()),
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                },
+            };
+
+            // Use a deserializer that picks a particular constructor in the deserialized class
+            var builders = BinaryDeserializerBuilder.CreateDefaultCaseBuilders().ToList();
+            builders.Insert(0, b => new CustomConstructorPickerRecordDeserializerCase(b));
+            var customDeserializerBuilder = new BinaryDeserializerBuilder(builders);
+
+            var deserialize = customDeserializerBuilder.BuildDelegate<MultipleConstructorsRecord>(schema);
+            var serialize = serializerBuilder.BuildDelegate<MultipleConstructorsRecord>(schema);
+
+            var value = new MultipleConstructorsRecord
+            {
+                Id = 123,
+                Name = "Alice",
+                Age = 24,
+            };
+
+            using (stream)
+            {
+                serialize(value, new BinaryWriter(stream));
+            }
+
+            var reader = new BinaryReader(stream.ToArray());
+
+            var expected = new MultipleConstructorsRecord
+            {
+                Id = 42,
+                Name = "ALICE",
+                Age = 22,
+            };
+
+            Assert.Equivalent(expected, deserialize(ref reader));
+        }
+
+        [Fact]
+        public void RecordWithDefaultConstructor()
+        {
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                },
+            };
+            var person = new PersonWithDefaultConstructor() { Name = "Bob", Age = 30 };
+            var deserialized = SerializeAndDeserialize(person, schema);
+            Assert.Equivalent(person, deserialized);
+        }
+
+        [Fact]
+        public void RecordWithDefaultConstructor_Test()
+        {
+            var schema = new RecordSchema("Person")
+            {
+                Fields = new[]
+                {
+                    new RecordField("Name", new StringSchema()),
+                    new RecordField("Age", new IntSchema()),
+                },
+            };
+            var person = new MultipleConstructorsRecord() { Name = "Bob", Age = 30 };
+            var deserialized = SerializeAndDeserialize(person, schema);
+            Assert.Equivalent(person, deserialized);
+        }
+
+        private T SerializeAndDeserialize<T>(T item, RecordSchema schema)
+        {
+            var deserialize = deserializerBuilder.BuildDelegate<T>(schema);
+            var serialize = serializerBuilder.BuildDelegate<T>(schema);
+
+            using var memoryStream = new MemoryStream();
+
+            serialize(item, new BinaryWriter(memoryStream));
+            var reader = new BinaryReader(memoryStream.ToArray());
+
+            var root = deserialize(ref reader);
+            return root;
+        }
+
         public class MappedNode
         {
             public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999, double? nullableValue = null)
@@ -629,6 +811,69 @@ namespace Chr.Avro.Serialization.Tests
             public int Age { get; set; }
 
             public dynamic[] Properties { get; set; }
+        }
+
+        public class PersonWithoutDefaultConstructor
+        {
+            public PersonWithoutDefaultConstructor(string name)
+            {
+                Name = name;
+            }
+
+            public string Name { get; }
+
+            public int Age { get; set; }
+        }
+
+        public class PersonWithDefaultConstructor
+        {
+            public string Name { get; set; }
+
+            public int Age { get; set; }
+        }
+
+        public class MultipleConstructorsRecord
+        {
+            public MultipleConstructorsRecord()
+            {
+            }
+
+            public MultipleConstructorsRecord(int id, string name, int age, string city = "Paris")
+            {
+                Id = id;
+                Name = name?.ToUpperInvariant();
+                Age = age;
+                City = city;
+            }
+
+            [ChrPreferredConstructor]
+            public MultipleConstructorsRecord(int id, string name, int age)
+            {
+                Id = 42;
+                Name = name?.ToUpperInvariant();
+                Age = age - 2;
+            }
+
+            public int Id { get; set; }
+
+            public string Name { get; set; }
+
+            public int Age { get; set; }
+
+            public string City { get; set; }
+        }
+
+        public record PersonWithDefaultNullableValue
+        {
+            public PersonWithDefaultNullableValue(string name, double? age = null)
+            {
+                Name = name;
+                Age = age;
+            }
+
+            public string Name { get; private set; }
+
+            public double? Age { get; private set; }
         }
     }
 }
