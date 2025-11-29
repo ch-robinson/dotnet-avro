@@ -1,8 +1,8 @@
-﻿namespace Chr.Avro.Serialization;
-
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using Chr.Avro.Abstract;
+
+namespace Chr.Avro.Infrastructure;
 
 /// <summary>
 /// Utility class that traverses a given <see cref="Schema" /> and identifies which elements of the schema

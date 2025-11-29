@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Chr.Avro.Infrastructure;
 
 namespace Chr.Avro.Serialization
 {
@@ -73,7 +74,6 @@ namespace Chr.Avro.Serialization
 
                         schemaIsRecursive = context.RecursiveReferences[schema];
                     }
-
 
                     if (schemaIsRecursive)
                     {

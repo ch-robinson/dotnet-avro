@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Chr.Avro.Abstract;
+using Chr.Avro.Infrastructure;
 using Xunit;
 
 namespace Chr.Avro.Serialization.Tests;
