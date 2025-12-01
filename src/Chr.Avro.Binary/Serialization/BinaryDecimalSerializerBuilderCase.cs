@@ -2,7 +2,7 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Linq.Expressions;
-    using System.Numerics;
+    using System.Reflection;
     using Chr.Avro.Abstract;
 
     /// <summary>
@@ -31,8 +31,8 @@ namespace Chr.Avro.Serialization
         {
             if (schema.LogicalType is DecimalLogicalType decimalLogicalType)
             {
-                var precision = decimalLogicalType.Precision;
-                var scale = decimalLogicalType.Scale;
+                var precision = Expression.Constant(decimalLogicalType.Precision);
+                var scale = Expression.Constant(decimalLogicalType.Scale);
 
                 Expression expression;
 
@@ -45,71 +45,24 @@ namespace Chr.Avro.Serialization
                     throw new UnsupportedTypeException(type, $"Failed to map {schema} to {type}.", exception);
                 }
 
-                // declare variables for in-place transformation:
-                var bytes = Expression.Variable(typeof(byte[]));
-
-                var integerConstructor = typeof(BigInteger)
-                    .GetConstructor(new[] { typeof(decimal) });
-
-                var reverse = typeof(Array)
-                    .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
-
-                var toByteArray = typeof(BigInteger)
-                    .GetMethod(nameof(BigInteger.ToByteArray), Type.EmptyTypes);
-
-                // var fraction = new BigInteger(...) * BigInteger.Pow(10, scale);
-                // var whole = new BigInteger((... % 1m) * (decimal)Math.Pow(10, scale));
-                // var bytes = (fraction + whole).ToByteArray();
-                //
-                // // BigInteger is little-endian, so reverse:
-                // Array.Reverse(bytes);
-                //
-                // return bytes;
-                expression = Expression.Block(
-                    Expression.Assign(
-                        bytes,
-                        Expression.Call(
-                            Expression.Add(
-                                Expression.Multiply(
-                                    Expression.New(
-                                        integerConstructor,
-                                        expression),
-                                    Expression.Constant(BigInteger.Pow(10, scale))),
-                                Expression.New(
-                                    integerConstructor,
-                                    Expression.Multiply(
-                                        Expression.Modulo(expression, Expression.Constant(1m)),
-                                        Expression.Constant((decimal)Math.Pow(10, scale))))),
-                            toByteArray)),
-                    Expression.Call(null, reverse, bytes),
-                    bytes);
-
                 // figure out how to write:
                 if (schema is BytesSchema)
                 {
-                    var writeBytes = typeof(BinaryWriter)
-                        .GetMethod(nameof(BinaryWriter.WriteBytes), new[] { typeof(byte[]) });
+                    var writeBytes = typeof(BinaryDecimalCodec)
+                        .GetMethod(nameof(BinaryDecimalCodec.WriteDecimalBytes), BindingFlags.Static | BindingFlags.Public)!;
 
                     expression = Expression.Block(
-                        new[] { bytes },
                         expression,
-                        Expression.Call(context.Writer, writeBytes, bytes));
+                        Expression.Call(writeBytes, context.Writer, expression, precision, scale));
                 }
                 else if (schema is FixedSchema fixedSchema)
                 {
-                    var exceptionConstructor = typeof(OverflowException)
-                        .GetConstructor(new[] { typeof(string) });
-
-                    var writeFixed = typeof(BinaryWriter)
-                        .GetMethod(nameof(BinaryWriter.WriteFixed), new[] { typeof(byte[]) });
+                    var writeFixed = typeof(BinaryDecimalCodec)
+                        .GetMethod(nameof(BinaryDecimalCodec.WriteDecimalFixed), BindingFlags.Static | BindingFlags.Public)!;
 
                     expression = Expression.Block(
-                        new[] { bytes },
                         expression,
-                        Expression.IfThen(
-                            Expression.NotEqual(Expression.ArrayLength(bytes), Expression.Constant(fixedSchema.Size)),
-                            Expression.Throw(Expression.New(exceptionConstructor, Expression.Constant($"Size mismatch between {fixedSchema} (size {fixedSchema.Size}) and decimal with precision {precision} and scale {scale}.")))),
-                        Expression.Call(context.Writer, writeFixed, bytes));
+                        Expression.Call(writeFixed, context.Writer, expression, precision, scale, Expression.Constant(fixedSchema)));
                 }
                 else
                 {
