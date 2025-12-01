@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using Chr.Avro.Infrastructure;
+
 namespace Chr.Avro.Serialization
 {
     using System;
@@ -62,12 +65,26 @@ namespace Chr.Avro.Serialization
                 {
                     // since record serialization is potentially recursive, create a top-level
                     // reference:
-                    var parameter = Expression.Parameter(
-                        Expression.GetDelegateType(type, context.Writer.Type, typeof(void)));
+                    ParameterExpression? parameter = null;
+                    ParameterExpression? reference = null;
+                    Expression? expression = null;
 
-                    if (!context.References.TryGetValue((recordSchema, type), out var reference))
+                    if (!context.RecursiveReferences.TryGetValue(schema, out var schemaIsRecursive))
                     {
-                        context.References.Add((recordSchema, type), reference = parameter);
+                        RecursiveReferenceSearch.Collect(schema, context.RecursiveReferences);
+
+                        schemaIsRecursive = context.RecursiveReferences[schema];
+                    }
+
+                    if (schemaIsRecursive)
+                    {
+                        parameter = Expression.Parameter(
+                            Expression.GetDelegateType(type, context.Writer.Type, typeof(void)));
+
+                        if (!context.References.TryGetValue((recordSchema, type), out reference))
+                        {
+                            context.References.Add((recordSchema, type), reference = parameter);
+                        }
                     }
 
                     // then build/set the delegate if it hasn’t been built yet:
@@ -82,7 +99,10 @@ namespace Chr.Avro.Serialization
                         var writeEndObject = typeof(Utf8JsonWriter)
                             .GetMethod(nameof(Utf8JsonWriter.WriteEndObject), Type.EmptyTypes);
 
-                        var argument = Expression.Variable(type);
+                        // If we are creating a lambda expression, argument will be coming from its parameter
+                        // If we are serializing directly without a lambda, we can use the value directly
+                        var argument = reference is null ? value : Expression.Variable(type);
+
                         var writes = new List<Expression>
                         {
                             Expression.Call(context.Writer, writeStartObject),
@@ -131,17 +151,28 @@ namespace Chr.Avro.Serialization
 
                         writes.Add(Expression.Call(context.Writer, writeEndObject));
 
-                        var expression = Expression.Lambda(
-                            parameter.Type,
-                            Expression.Block(writes),
-                            $"{type.Name} to {recordSchema.Name} serializer",
-                            new[] { argument, context.Writer });
+                        // .NET Framework doesn’t permit empty block expressions:
+                        expression = Expression.Block(writes);
 
-                        context.Assignments.Add(reference, expression);
+                        if (reference is not null)
+                        {
+                            expression = Expression.Lambda(
+                                parameter.Type,
+                                expression,
+                                $"{type.Name} to {recordSchema.Name} serializer",
+                                new[] { (ParameterExpression)argument, context.Writer });
+
+                            context.Assignments.Add(reference, expression);
+                        }
                     }
 
-                    return JsonSerializerBuilderCaseResult.FromExpression(
-                        Expression.Invoke(reference, value, context.Writer));
+                    if (reference is not null)
+                    {
+                        expression = Expression.Invoke(reference, value, context.Writer);
+                    }
+
+                    Debug.Assert(expression != null, "Expression has not been built");
+                    return JsonSerializerBuilderCaseResult.FromExpression(expression);
                 }
                 else
                 {

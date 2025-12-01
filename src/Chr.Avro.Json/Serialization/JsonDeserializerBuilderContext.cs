@@ -23,6 +23,7 @@ namespace Chr.Avro.Serialization
             Assignments = new Dictionary<ParameterExpression, Expression>();
             References = new Dictionary<(Schema, Type), ParameterExpression>();
             Reader = reader ?? Expression.Parameter(typeof(Utf8JsonReader).MakeByRefType());
+            RecursiveReferences = new Dictionary<Schema, bool>();
         }
 
         /// <summary>
@@ -48,5 +49,11 @@ namespace Chr.Avro.Serialization
         /// <see cref="RecordSchema" />s.
         /// </summary>
         public virtual IDictionary<(Schema Schema, Type Type), ParameterExpression> References { get; }
+
+        /// <summary>
+        /// Gets a map that associates whether a <see cref="Schema"/> is on any potentially recursive path.
+        /// A value of true means the schema is part of a recursive path, false means it is not.
+        /// </summary>
+        internal IDictionary<Schema, bool> RecursiveReferences { get; }
     }
 }
