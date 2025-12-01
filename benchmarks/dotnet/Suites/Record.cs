@@ -67,7 +67,7 @@ namespace Chr.Avro.Benchmarks.Apache
                 var record = new GenericRecord(person);
 
                 record.Add("name", value.Name);
-                record.Add("birthdate", (long)value.Birthdate.Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds);
+                record.Add("birthdate", value.Birthdate);
                 record.Add("favoriteColor", new GenericEnum(color, value.FavoriteColor.ToString().ToUpperInvariant()));
 
                 return record;
@@ -84,89 +84,89 @@ namespace Chr.Avro.Benchmarks.Apache
             RecordSuite.Values.Select(value => new Person()
             {
                 name = value.Name,
-                birthdate = (long)value.Birthdate.Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds,
+                birthdate = value.Birthdate,
                 favoriteColor = (Color)Enum.Parse(typeof(Color), value.FavoriteColor.ToString().ToUpperInvariant())
             })
         ) { }
     }
 
     public enum Color
-	{
-		RED,
-		GREEN,
-		BLUE,
-	}
+    {
+        RED,
+        GREEN,
+        BLUE,
+    }
 
     public class Person : ISpecificRecord
-	{
-		public static Schema _SCHEMA = Schema.Parse("{\"type\":\"record\",\"name\":\"Person\",\"namespace\":\"chr\",\"fields\":[{\"name\":\"name\",\"type" +
-				"\":\"string\"},{\"name\":\"birthdate\",\"type\":\"long\"},{\"name\":\"favoriteColor\",\"type\":{\"" +
-				"type\":\"enum\",\"name\":\"Color\",\"namespace\":\"chr\",\"symbols\":[\"RED\",\"GREEN\",\"BLUE\"]}}" +
-				"]}");
-		private string _name;
-		private long _birthdate;
-		private Color _favoriteColor;
-		public virtual Schema Schema
-		{
-			get
-			{
-				return Person._SCHEMA;
-			}
-		}
-		public string name
-		{
-			get
-			{
-				return this._name;
-			}
-			set
-			{
-				this._name = value;
-			}
-		}
-		public long birthdate
-		{
-			get
-			{
-				return this._birthdate;
-			}
-			set
-			{
-				this._birthdate = value;
-			}
-		}
-		public Color favoriteColor
-		{
-			get
-			{
-				return this._favoriteColor;
-			}
-			set
-			{
-				this._favoriteColor = value;
-			}
-		}
-		public virtual object Get(int fieldPos)
-		{
-			switch (fieldPos)
-			{
-			case 0: return this.name;
-			case 1: return this.birthdate;
-			case 2: return this.favoriteColor;
-			default: throw new AvroRuntimeException("Bad index " + fieldPos + " in Get()");
-			};
-		}
-		public virtual void Put(int fieldPos, object fieldValue)
-		{
-			switch (fieldPos)
-			{
-			case 0: this.name = (System.String)fieldValue; break;
-			case 1: this.birthdate = (System.Int64)fieldValue; break;
-			case 2: this.favoriteColor = (Color)fieldValue; break;
-			default: throw new AvroRuntimeException("Bad index " + fieldPos + " in Put()");
-			};
-		}
-	}
+    {
+        public static Schema _SCHEMA = Schema.Parse("{\"type\":\"record\",\"name\":\"Person\",\"namespace\":\"chr\",\"fields\":[{\"name\":\"name\",\"type" +
+                "\":\"string\"},{\"name\":\"birthdate\",\"type\":\"long\",\"logicalType\":\"timestamp-millis\"},{\"name\":\"favoriteColor\",\"type\":{\"" +
+                "type\":\"enum\",\"name\":\"Color\",\"namespace\":\"chr\",\"symbols\":[\"RED\",\"GREEN\",\"BLUE\"]}}" +
+                "]}");
+        private string _name;
+        private DateTime _birthdate;
+        private Color _favoriteColor;
+        public virtual Schema Schema
+        {
+            get
+            {
+                return Person._SCHEMA;
+            }
+        }
+        public string name
+        {
+            get
+            {
+                return this._name;
+            }
+            set
+            {
+                this._name = value;
+            }
+        }
+        public DateTime birthdate
+        {
+            get
+            {
+                return this._birthdate;
+            }
+            set
+            {
+                this._birthdate = value;
+            }
+        }
+        public Color favoriteColor
+        {
+            get
+            {
+                return this._favoriteColor;
+            }
+            set
+            {
+                this._favoriteColor = value;
+            }
+        }
+        public virtual object Get(int fieldPos)
+        {
+            switch (fieldPos)
+            {
+            case 0: return this.name;
+            case 1: return this.birthdate;
+            case 2: return this.favoriteColor;
+            default: throw new AvroRuntimeException("Bad index " + fieldPos + " in Get()");
+            };
+        }
+        public virtual void Put(int fieldPos, object fieldValue)
+        {
+            switch (fieldPos)
+            {
+            case 0: this.name = (System.String)fieldValue; break;
+            case 1: this.birthdate = (System.DateTime)fieldValue; break;
+            case 2: this.favoriteColor = (Color)fieldValue; break;
+            default: throw new AvroRuntimeException("Bad index " + fieldPos + " in Put()");
+            };
+        }
+    }
 }
 
 namespace Chr.Avro.Benchmarks.Chr

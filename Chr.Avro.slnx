@@ -1,0 +1,28 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/examples/">
+    <Project Path="examples/Chr.Avro.DefaultValuesExample/Chr.Avro.DefaultValuesExample.csproj" />
+    <Project Path="examples/Chr.Avro.NodaTimeExample/Chr.Avro.NodaTimeExample.csproj" />
+    <Project Path="examples/Chr.Avro.UnionTypeExample/Chr.Avro.UnionTypeExample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Chr.Avro.Binary/Chr.Avro.Binary.csproj" />
+    <Project Path="src/Chr.Avro.Cli/Chr.Avro.Cli.csproj" />
+    <Project Path="src/Chr.Avro.Codegen/Chr.Avro.Codegen.csproj" />
+    <Project Path="src/Chr.Avro.Confluent/Chr.Avro.Confluent.csproj" />
+    <Project Path="src/Chr.Avro.Fixtures/Chr.Avro.Fixtures.csproj" />
+    <Project Path="src/Chr.Avro.Json/Chr.Avro.Json.csproj" />
+    <Project Path="src/Chr.Avro/Chr.Avro.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Chr.Avro.Binary.Tests/Chr.Avro.Binary.Tests.csproj" />
+    <Project Path="tests/Chr.Avro.Codegen.Tests/Chr.Avro.Codegen.Tests.csproj" />
+    <Project Path="tests/Chr.Avro.Confluent.Tests/Chr.Avro.Confluent.Tests.csproj" />
+    <Project Path="tests/Chr.Avro.Json.Tests/Chr.Avro.Json.Tests.csproj" />
+    <Project Path="tests/Chr.Avro.Tests/Chr.Avro.Tests.csproj" />
+  </Folder>
+</Solution>
