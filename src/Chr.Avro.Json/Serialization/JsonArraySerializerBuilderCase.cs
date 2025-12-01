@@ -1,7 +1,6 @@
 namespace Chr.Avro.Serialization
 {
     using System;
-    using System.Collections;
     using System.Collections.Generic;
     using System.Linq.Expressions;
     using System.Text.Json;
@@ -45,65 +44,70 @@ namespace Chr.Avro.Serialization
         {
             if (schema is ArraySchema arraySchema)
             {
-                var enumerableType = GetEnumerableType(type);
+                var itemType = GetEnumerableType(type);
 
-                if (enumerableType is not null || type == typeof(object))
+                if (itemType is not null || type == typeof(object))
                 {
                     // support dynamic mapping:
-                    var itemType = enumerableType ?? typeof(object);
-
-                    var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(itemType));
-                    var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(itemType));
-                    var loop = Expression.Label();
-
-                    var writeStartArray = typeof(Utf8JsonWriter)
-                        .GetMethod(nameof(Utf8JsonWriter.WriteStartArray), Type.EmptyTypes);
-
-                    var getEnumerator = enumerable.Type
-                        .GetMethod("GetEnumerator", Type.EmptyTypes);
-
-                    var getCurrent = enumerator.Type
-                        .GetProperty(nameof(IEnumerator.Current))
-                        .GetGetMethod();
-
-                    var moveNext = typeof(IEnumerator)
-                        .GetMethod(nameof(IEnumerator.MoveNext), Type.EmptyTypes);
-
-                    var writeItem = SerializerBuilder
-                        .BuildExpression(Expression.Property(enumerator, getCurrent), arraySchema.Item, context);
-
-                    var writeEndArray = typeof(Utf8JsonWriter)
-                        .GetMethod(nameof(Utf8JsonWriter.WriteEndArray), Type.EmptyTypes);
-
-                    var dispose = typeof(IDisposable)
-                        .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
+                    itemType ??= typeof(object);
+                    var readOnlyCollectionType = typeof(IReadOnlyCollection<>).MakeGenericType(itemType);
+                    var enumerableType = typeof(IEnumerable<>).MakeGenericType(itemType);
+                    var enumeratorType = typeof(IEnumerator<>).MakeGenericType(itemType);
 
                     Expression expression;
-
                     try
                     {
-                        expression = BuildConversion(value, enumerable.Type);
+                        if (readOnlyCollectionType.IsAssignableFrom(type))
+                        {
+                            // NOTE: Not casting the expression to allow us to get the specific enumerator of `type`
+                            // This way we can avoid the allocation of an IEnumerator<T> and the overhead of
+                            // virtual dispatch calls
+                            expression = value;
+                        }
+                        else
+                        {
+                            expression = BuildConversion(value, readOnlyCollectionType);
+                        }
                     }
                     catch (Exception exception)
                     {
                         throw new UnsupportedTypeException(type, $"Failed to map {arraySchema} to {type}.", exception);
                     }
 
+                    var collection = Expression.Variable(expression.Type);
+                    var enumerationReflection = EnumerationReflection.Create(collection, readOnlyCollectionType, enumerableType);
+
+                    var loopLabel = Expression.Label();
+
+                    var writeStartArray = typeof(Utf8JsonWriter)
+                        .GetMethod(nameof(Utf8JsonWriter.WriteStartArray), Type.EmptyTypes);
+
+                    var writeItem = SerializerBuilder
+                        .BuildExpression(Expression.Property(enumerationReflection.Enumerator, enumerationReflection.GetCurrent), arraySchema.Item, context);
+
+                    var writeEndArray = typeof(Utf8JsonWriter)
+                        .GetMethod(nameof(Utf8JsonWriter.WriteEndArray), Type.EmptyTypes);
+
+                    Expression loop = Expression.Loop(
+                        Expression.IfThenElse(
+                            Expression.Call(enumerationReflection.Enumerator, enumerationReflection.MoveNext),
+                            writeItem,
+                            Expression.Break(loopLabel)),
+                        loopLabel);
+
+                    if (enumerationReflection.DisposeCall is not null)
+                    {
+                        loop = Expression.TryFinally(loop, enumerationReflection.DisposeCall);
+                    }
+
                     return JsonSerializerBuilderCaseResult.FromExpression(
                         Expression.Block(
-                            new[] { enumerator },
+                            new[] { enumerationReflection.Enumerator },
                             Expression.Call(context.Writer, writeStartArray),
                             Expression.Assign(
-                                enumerator,
-                                Expression.Call(expression, getEnumerator)),
-                            Expression.TryFinally(
-                                Expression.Loop(
-                                    Expression.IfThenElse(
-                                        Expression.Call(enumerator, moveNext),
-                                        writeItem,
-                                        Expression.Break(loop)),
-                                    loop),
-                                Expression.Call(enumerator, dispose)),
+                                enumerationReflection.Enumerator,
+                                Expression.Call(expression, enumerationReflection.GetEnumerator)),
+                            loop,
                             Expression.Call(context.Writer, writeEndArray)));
                 }
                 else
