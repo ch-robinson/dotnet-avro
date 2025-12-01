@@ -127,6 +127,13 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteInteger(int value)
         {
+#if NET6_0_OR_GREATER
+            var index = 0;
+
+            // Max 5 bytes for 32-bit varint
+            Span<byte> buffer = stackalloc byte[5];
+#endif
+
             var encoded = (uint)((value << 1) ^ (value >> 31));
 
             do
@@ -139,9 +146,17 @@ namespace Chr.Avro.Serialization
                     current |= 0x80U;
                 }
 
+#if NET6_0_OR_GREATER
+                buffer[index++] = (byte)current;
+#else
                 stream.WriteByte((byte)current);
+#endif
             }
             while (encoded != 0U);
+
+#if NET6_0_OR_GREATER
+            stream.Write(buffer.Slice(0, index));
+#endif
         }
 
         /// <summary>
@@ -152,6 +167,13 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteInteger(long value)
         {
+#if NET6_0_OR_GREATER
+            var index = 0;
+
+            // Max 10 bytes for 64-bit varint
+            Span<byte> buffer = stackalloc byte[10];
+#endif
+
             var encoded = (ulong)((value << 1) ^ (value >> 63));
 
             do
@@ -164,9 +186,17 @@ namespace Chr.Avro.Serialization
                     current |= 0x80UL;
                 }
 
+#if NET6_0_OR_GREATER
+                buffer[index++] = (byte)current;
+#else
                 stream.WriteByte((byte)current);
+#endif
             }
             while (encoded != 0UL);
+
+#if NET6_0_OR_GREATER
+            stream.Write(buffer.Slice(0, index));
+#endif
         }
 
         /// <summary>
