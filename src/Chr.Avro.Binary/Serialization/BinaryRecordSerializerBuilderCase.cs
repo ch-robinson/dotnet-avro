@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using Chr.Avro.Infrastructure;
+
 namespace Chr.Avro.Serialization
 {
     using System;
@@ -61,18 +64,35 @@ namespace Chr.Avro.Serialization
                 {
                     // since record serialization is potentially recursive, create a top-level
                     // reference:
-                    var parameter = Expression.Parameter(
-                        Expression.GetDelegateType(type, context.Writer.Type, typeof(void)));
+                    ParameterExpression? parameter = null;
+                    ParameterExpression? reference = null;
+                    Expression? expression = null;
 
-                    if (!context.References.TryGetValue((recordSchema, type), out var reference))
+                    if (!context.RecursiveReferences.TryGetValue(schema, out var schemaIsRecursive))
                     {
-                        context.References.Add((recordSchema, type), reference = parameter);
+                        RecursiveReferenceSearch.Collect(schema, context.RecursiveReferences);
+
+                        schemaIsRecursive = context.RecursiveReferences[schema];
+                    }
+
+                    if (schemaIsRecursive)
+                    {
+                        parameter = Expression.Parameter(
+                            Expression.GetDelegateType(type, context.Writer.Type, typeof(void)));
+
+                        if (!context.References.TryGetValue((recordSchema, type), out reference))
+                        {
+                            context.References.Add((recordSchema, type), reference = parameter);
+                        }
                     }
 
                     // then build/set the delegate if it hasn’t been built yet:
                     if (parameter == reference)
                     {
-                        var argument = Expression.Variable(type);
+                        // If we are creating a lambda expression, argument will be coming from its parameter
+                        // If we are serializing directly without a lambda, we can use the value directly
+                        var argument = reference is null ? value : Expression.Variable(type);
+
                         var writes = recordSchema.Fields
                             .Select(field =>
                             {
@@ -85,7 +105,7 @@ namespace Chr.Avro.Serialization
                                     // if the type could be dynamic, attempt to use a dynamic getter:
                                     if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type) || type == typeof(object))
                                     {
-                                        inner = this.BuildDynamicGet(argument, field.Name);
+                                        inner = this.BuildDynamicGet(argument, field.Name, field.Default);
                                     }
                                     else
                                     {
@@ -116,21 +136,29 @@ namespace Chr.Avro.Serialization
                             .ToList();
 
                         // .NET Framework doesn’t permit empty block expressions:
-                        var expression = writes.Count > 0
+                        expression = writes.Count > 0
                             ? Expression.Block(writes)
                             : Expression.Empty() as Expression;
 
-                        expression = Expression.Lambda(
-                            parameter.Type,
-                            expression,
-                            $"{type.Name} to {recordSchema.Name} serializer",
-                            new[] { argument, context.Writer });
+                        if (reference is not null)
+                        {
+                            expression = Expression.Lambda(
+                                parameter.Type,
+                                expression,
+                                $"{type.Name} to {recordSchema.Name} serializer",
+                                new[] { (ParameterExpression)argument, context.Writer });
 
-                        context.Assignments.Add(reference, expression);
+                            context.Assignments.Add(reference, expression);
+                        }
                     }
 
-                    return BinarySerializerBuilderCaseResult.FromExpression(
-                        Expression.Invoke(reference, value, context.Writer));
+                    if (reference is not null)
+                    {
+                        expression = Expression.Invoke(reference, value, context.Writer);
+                    }
+
+                    Debug.Assert(expression != null, "Expression has not been built");
+                    return BinarySerializerBuilderCaseResult.FromExpression(expression);
                 }
                 else
                 {

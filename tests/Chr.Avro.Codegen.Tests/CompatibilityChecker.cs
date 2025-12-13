@@ -25,7 +25,16 @@ namespace Chr.Avro.Codegen.Tests
         {
             var context = new BinaryDeserializerBuilderContext();
 
-            var root = new BinaryDeserializerBuilder().BuildExpression(type, schema, context);
+            var builder = new BinaryDeserializerBuilder();
+
+            AssertCanDeserializeTypeFromSchema(builder, type, schema, context);
+        }
+
+        internal static void AssertCanDeserializeTypeFromSchema(BinaryDeserializerBuilder builder, Type type, Schema schema, BinaryDeserializerBuilderContext context = null)
+        {
+            context ??= new BinaryDeserializerBuilderContext();
+
+            var root = builder.BuildExpression(type, schema, context);
 
             // Compile() will throw if not compatible
             Expression.Lambda(

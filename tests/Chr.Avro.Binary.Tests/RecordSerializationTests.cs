@@ -50,32 +50,38 @@ namespace Chr.Avro.Serialization.Tests
                     new RecordField("Sixth", map),
                     new RecordField("Seventh", @enum),
                     new RecordField("Eighth", @enum),
+                    new RecordField("Ninth", boolean)
+                    {
+                        Default = new ObjectDefaultValue<bool>(true, boolean),
+                    },
                 },
             };
 
             var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
             var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
 
-            var value = new
-            {
-                First = new List<bool>() { false },
-                Second = new List<bool>() { false, false },
-                Third = new List<bool>() { false, false, false },
-                Fourth = new List<bool>() { false },
-                Fifth = new Dictionary<string, int>() { { "first", 1 } },
-                Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
-                Seventh = ImplicitEnum.First,
-                Eighth = ImplicitEnum.None,
-            };
-
             using (stream)
             {
-                serialize(value, new BinaryWriter(stream));
+                serialize(
+                    new
+                    {
+                        First = new List<bool>() { false },
+                        Second = new List<bool>() { false, false },
+                        Third = new List<bool>() { false, false, false },
+                        Fourth = new List<bool>() { false },
+                        Fifth = new Dictionary<string, int>() { { "first", 1 } },
+                        Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
+                        Seventh = ImplicitEnum.First,
+                        Eighth = ImplicitEnum.None,
+                    },
+                    new BinaryWriter(stream));
             }
 
             var reader = new BinaryReader(stream.ToArray());
+            var value = deserialize(ref reader);
 
-            Assert.Equal(value.Seventh.ToString(), deserialize(ref reader).Seventh);
+            Assert.Equal(nameof(ImplicitEnum.First), value.Seventh);
+            Assert.Equal(true, value.Ninth);
         }
 
         [Fact]
@@ -204,30 +210,35 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(5, n5.RequiredValue);
             Assert.Equal(999, n5.OptionalValue);
+            Assert.Null(n5.NullableValue);
             Assert.Collection(
                 n5.Children,
                 n9 =>
                 {
                     Assert.Equal(9, n9.RequiredValue);
                     Assert.Equal(999, n9.OptionalValue);
+                    Assert.Null(n9.NullableValue);
                     Assert.Empty(n9.Children);
                 },
                 n3 =>
                 {
                     Assert.Equal(3, n3.RequiredValue);
                     Assert.Equal(999, n3.OptionalValue);
+                    Assert.Null(n3.NullableValue);
                     Assert.Collection(
                         n3.Children,
                         n2 =>
                         {
                             Assert.Equal(2, n2.RequiredValue);
                             Assert.Equal(999, n2.OptionalValue);
+                            Assert.Null(n2.NullableValue);
                             Assert.Empty(n2.Children);
                         },
                         n10 =>
                         {
                             Assert.Equal(10, n10.RequiredValue);
                             Assert.Equal(999, n10.OptionalValue);
+                            Assert.Null(n10.NullableValue);
                             Assert.Empty(n10.Children);
                         });
                 });
@@ -538,16 +549,19 @@ namespace Chr.Avro.Serialization.Tests
 
         public class MappedNode
         {
-            public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999)
+            public MappedNode(int value, IEnumerable<MappedNode> children, int optionalValue = 999, double? nullableValue = null)
             {
                 Children = children;
                 OptionalValue = optionalValue;
+                NullableValue = nullableValue;
                 RequiredValue = value;
             }
 
             public int RequiredValue { get; set; }
 
             public int OptionalValue { get; set; }
+
+            public double? NullableValue { get; set; }
 
             public IEnumerable<MappedNode> Children { get; set; }
         }

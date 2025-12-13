@@ -3,12 +3,12 @@
   <PropertyGroup>
     <Description>Integration tools for the Confluent Kafka and Schema Registry clients</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="[2.8.0,2.9)" />
-    <PackageReference Include="Confluent.SchemaRegistry" Version="[2.8.0,2.9)" />
+    <PackageReference Include="Confluent.Kafka" Version="[2.11.0,2.13.0)" />
+    <PackageReference Include="Confluent.SchemaRegistry" Version="[2.11.0,2.13.0)" />
   </ItemGroup>
 
   <ItemGroup>

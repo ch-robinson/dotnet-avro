@@ -3,6 +3,8 @@ namespace Chr.Avro.Serialization.Tests
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
+    using System.Text;
     using Xunit;
 
     using BinaryWriter = Chr.Avro.Serialization.BinaryWriter;
@@ -89,6 +91,60 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { float.PositiveInfinity, new byte[] { 0x00, 0x00, 0x80, 0x7f } },
         };
 
+        public static IEnumerable<object[]> StringEncodings
+        {
+            get
+            {
+                return new List<object[]>
+                {
+                    // String that will be written in a single chunk
+                    Create("Hello world"),
+
+                    // Simple string that will require multiple chunks
+                    Create(string.Join(", ", Enumerable.Range(0, 1000).Select(i => $"Hello world {i}"))),
+
+                    // String entirely made of char with 2 sequence points that will required multiple chunks
+                    Create(string.Join(", ", Enumerable.Range(0, 1000).Select(i => "ç"))),
+
+                    // String entirely made of char with 3 sequence points that will required multiple chunks
+                    Create(string.Join(", ", Enumerable.Range(0, 1000).Select(i => "✔"))),
+
+                    // String entirely made of char with 4 sequence points that will required multiple chunks
+                    Create(string.Join(", ", Enumerable.Range(0, 1000).Select(i => "𝄞"))),
+                };
+
+                static object[] Create(string value)
+                {
+                    var encoded = EncodeZigZag(Encoding.UTF8.GetByteCount(value)).Concat(Encoding.UTF8.GetBytes(value)).ToArray();
+                    return new object[] { value, encoded };
+                }
+
+                static byte[] EncodeZigZag(int value)
+                {
+                    // Max 5 bytes for a 32-bit varint
+                    Span<byte> buffer = stackalloc byte[5];
+                    var encoded = (uint)((value << 1) ^ (value >> 31));
+
+                    var index = 0;
+                    do
+                    {
+                        var current = encoded & 0x7FU;
+                        encoded >>= 7;
+
+                        if (encoded != 0)
+                        {
+                            current |= 0x80U;
+                        }
+
+                        buffer[index] = (byte)current;
+                        index++;
+                    }
+                    while (encoded != 0U);
+                    return buffer.Slice(0, index).ToArray();
+                }
+            }
+        }
+
         [Theory]
         [MemberData(nameof(BooleanEncodings))]
         public void WritesBooleans(bool value, byte[] encoding)
@@ -145,6 +201,18 @@ namespace Chr.Avro.Serialization.Tests
             using (stream)
             {
                 writer.WriteSingle(value);
+            }
+
+            Assert.Equal(encoding, stream.ToArray());
+        }
+
+        [Theory]
+        [MemberData(nameof(StringEncodings))]
+        public void WritesStrings(string value, byte[] encoding)
+        {
+            using (stream)
+            {
+                writer.WriteString(value);
             }
 
             Assert.Equal(encoding, stream.ToArray());

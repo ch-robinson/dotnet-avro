@@ -127,6 +127,13 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteInteger(int value)
         {
+#if NET6_0_OR_GREATER
+            var index = 0;
+
+            // Max 5 bytes for 32-bit varint
+            Span<byte> buffer = stackalloc byte[5];
+#endif
+
             var encoded = (uint)((value << 1) ^ (value >> 31));
 
             do
@@ -139,9 +146,17 @@ namespace Chr.Avro.Serialization
                     current |= 0x80U;
                 }
 
+#if NET6_0_OR_GREATER
+                buffer[index++] = (byte)current;
+#else
                 stream.WriteByte((byte)current);
+#endif
             }
             while (encoded != 0U);
+
+#if NET6_0_OR_GREATER
+            stream.Write(buffer.Slice(0, index));
+#endif
         }
 
         /// <summary>
@@ -152,6 +167,13 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteInteger(long value)
         {
+#if NET6_0_OR_GREATER
+            var index = 0;
+
+            // Max 10 bytes for 64-bit varint
+            Span<byte> buffer = stackalloc byte[10];
+#endif
+
             var encoded = (ulong)((value << 1) ^ (value >> 63));
 
             do
@@ -164,9 +186,17 @@ namespace Chr.Avro.Serialization
                     current |= 0x80UL;
                 }
 
+#if NET6_0_OR_GREATER
+                buffer[index++] = (byte)current;
+#else
                 stream.WriteByte((byte)current);
+#endif
             }
             while (encoded != 0UL);
+
+#if NET6_0_OR_GREATER
+            stream.Write(buffer.Slice(0, index));
+#endif
         }
 
         /// <summary>
@@ -201,7 +231,31 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteString(string value)
         {
+#if NET6_0_OR_GREATER
+            WriteInteger(Encoding.UTF8.GetByteCount(value));
+
+            // UTF8 is Unicode encoding that represents each code point as a sequence of 1 to 4 bytes.
+            // By using the max to set the size of our stackalloc'ed buffer, we can be sure we can always
+            // encode any UTF8 chars into the buffer without having to perform any checks
+            const int MaxBytesPerChar = 4;
+
+            // Limiting a chunk to 64 bytes so the used space in the stack is limited to 256 bytes
+            const int MaxCharChunk = 64;
+            Span<byte> buffer = stackalloc byte[MaxCharChunk * MaxBytesPerChar];
+
+            var pos = 0;
+            while (pos < value.Length)
+            {
+                int remaining = value.Length - pos;
+                int sliceLength = remaining < MaxCharChunk ? remaining : MaxCharChunk;
+                var chunk = value.AsSpan(pos, sliceLength);
+                var written = Encoding.UTF8.GetBytes(chunk, buffer);
+                stream.Write(buffer.Slice(0, written));
+                pos += sliceLength;
+            }
+#else
             WriteBytes(Encoding.UTF8.GetBytes(value));
+#endif
         }
     }
 }

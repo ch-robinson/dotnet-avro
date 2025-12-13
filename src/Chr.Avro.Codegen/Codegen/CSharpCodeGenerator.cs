@@ -15,8 +15,13 @@ namespace Chr.Avro.Codegen
     /// </summary>
     public class CSharpCodeGenerator : ICodeGenerator
     {
+        private const string InterfaceNamePrefix = "TodoRename";
+        private const string UnknownSuffix = "Unknown";
         private readonly bool enableNullableReferenceTypes;
         private readonly bool enableDescriptionAttributeForDocumentation;
+        private readonly Dictionary<string, InterfaceDefinition> interfaceDeclarations = new Dictionary<string, InterfaceDefinition>();
+        private readonly Dictionary<string, string> interfaceDeclarationsMap = new Dictionary<string, string>();
+        private int? interfaceNameCount = null;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CSharpCodeGenerator" /> class.
@@ -55,9 +60,7 @@ namespace Chr.Avro.Codegen
                     .Select(field =>
                     {
                         var child = SyntaxFactory
-                            .PropertyDeclaration(
-                                GetPropertyType(field.Type),
-                                field.Name)
+                            .PropertyDeclaration(GetPropertyType(field.Type), field.Name)
                             .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                             .AddAccessorListAccessors(
                                 SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
@@ -80,6 +83,13 @@ namespace Chr.Avro.Codegen
             if (!string.IsNullOrEmpty(schema.Documentation))
             {
                 declaration = AddSummaryComment(declaration, schema.Documentation!);
+            }
+
+            if (interfaceDeclarationsMap.TryGetValue(schema.FullName, out var interfaceName) &&
+                interfaceDeclarations.TryGetValue(interfaceName, out var interfaceDefinition))
+            {
+                var interfaceTypeSyntax = SyntaxFactory.ParseTypeName(interfaceDefinition.Declaration.Identifier.ValueText);
+                declaration = declaration.AddBaseListTypes(SyntaxFactory.SimpleBaseType(interfaceTypeSyntax));
             }
 
             return declaration;
@@ -130,8 +140,9 @@ namespace Chr.Avro.Codegen
         {
             var candidates = GetCandidateSchemas(schema)
                 .OrderBy(s => s.Name)
-                .GroupBy(s => s.Namespace)
-                .OrderBy(g => g.Key);
+                .GroupBy(s => s.Namespace ?? string.Empty)
+                .OrderBy(g => g.Key)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
             if (!candidates.Any())
             {
@@ -140,9 +151,50 @@ namespace Chr.Avro.Codegen
 
             var unit = SyntaxFactory.CompilationUnit();
 
+            string commonNamespace = GetCommonNamespace(candidates.Keys);
+
+            var commonInterfaces = interfaceDeclarations
+                    .SelectMany(keyValuePair => new MemberDeclarationSyntax[]
+                    {
+                        keyValuePair.Value.Declaration, // Interface declaration
+                        GenerateClassWithInterface(keyValuePair.Value), // Class declaration
+                        GenerateDeserializerBuilderCase(keyValuePair.Value), // Deserializer builder case
+                    })
+                    .ToArray();
+
+            if (commonInterfaces.Length > 0)
+            {
+                if (string.IsNullOrWhiteSpace(commonNamespace))
+                {
+                    // No common namespace, add the interfaces directly to the compilation unit
+                    // First add using directives to the compilation unit header
+                    unit = unit.AddUsings(
+                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Abstract")),
+                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Serialization")));
+
+                    unit = unit.AddMembers(commonInterfaces);
+                }
+                else
+                {
+                    // There is a common namespace, add the interfaces within a namespace declaration
+                    // Create a namespace declaration with using directives
+                    var usings = SyntaxFactory.List(new[]
+                    {
+                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Abstract")),
+                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Serialization")),
+                    });
+
+                    var declaration = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(commonNamespace))
+                        .WithUsings(usings)
+                        .AddMembers(commonInterfaces);
+
+                    unit = unit.AddMembers(declaration);
+                }
+            }
+
             foreach (var group in candidates)
             {
-                var members = group
+                var members = group.Value
                     .Select(candidate => candidate switch
                     {
                         EnumSchema enumSchema => GenerateEnum(enumSchema) as MemberDeclarationSyntax,
@@ -152,11 +204,12 @@ namespace Chr.Avro.Codegen
                     .OfType<MemberDeclarationSyntax>()
                     .ToArray();
 
-                if (group.Key is string key)
+                if (!string.IsNullOrWhiteSpace(group.Key))
                 {
+                    // If the group has a namespace, wrap the members in a namespace declaration
                     members = new[]
                     {
-                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(key)).AddMembers(members),
+                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(group.Key)).AddMembers(members),
                     };
                 }
 
@@ -285,10 +338,24 @@ namespace Chr.Avro.Codegen
 
                 case UnionSchema u:
                     var nulls = u.Schemas.OfType<NullSchema>();
-                    var others = u.Schemas.Except(nulls);
+                    var others = u.Schemas.Except(nulls).ToArray();
 
                     try
                     {
+                        if (IsPolymorphic(others, out var recordSchemas))
+                        {
+                            // All non-null schemas are record schemas
+                            string fullName = recordSchemas.First().FullName;
+
+                            if (interfaceDeclarationsMap.TryGetValue(fullName, out var interfaceName) &&
+                                interfaceDeclarations.TryGetValue(interfaceName, out var interfaceDefinition))
+                            {
+                                type = SyntaxFactory.ParseTypeName(interfaceDefinition.Declaration.Identifier.ValueText);
+                                value = nulls.Any();
+                                break;
+                            }
+                        }
+
                         return GetPropertyType(others.Single(), nulls.Any());
                     }
                     catch (InvalidOperationException exception)
@@ -325,7 +392,150 @@ namespace Chr.Avro.Codegen
             return node.WithLeadingTrivia(trivia);
         }
 
-        private static IEnumerable<NamedSchema> GetCandidateSchemas(Schema schema, ISet<Schema>? seen = null)
+        private static string GetCommonNamespace(IEnumerable<string?> sources)
+        {
+            // Get the namespaces of each type
+            var namespaces = sources.Select(source => source?.Split('.') ?? Array.Empty<string>()).ToList();
+
+            if (namespaces.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            List<string> namespaceParts = new List<string>();
+
+            // Find the shortest namespace length
+            int minLength = namespaces.Min(ns => ns.Length);
+
+            for (int i = 0; i < minLength; i++)
+            {
+                // Check if all namespaces have the same part at this index
+                string part = namespaces[0][i];
+                if (namespaces.All(ns => ns.Length > i && ns[i] == part))
+                {
+                    namespaceParts.Add(part);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Join the common namespace parts
+            string commonNamespace = string.Join(".", namespaceParts);
+
+            return commonNamespace;
+        }
+
+        private static List<RecordField> GetCommonFields(IEnumerable<RecordSchema> recordSchemas)
+        {
+            // Get the properties of each type
+            var fields = recordSchemas.Select(recordSchema => recordSchema.Fields).ToList();
+
+            // Get the common properties of all types
+            var commonFields = fields
+                 .Aggregate(fields.First(), (prev, current) => prev.Where(p => current.Any(c => c.Name == p.Name && c.Type == p.Type)).ToArray()).ToList();
+
+            return commonFields;
+        }
+
+        private static ClassDeclarationSyntax GenerateClassWithInterface(InterfaceDefinition interfaceDefinition)
+        {
+            // Create the class declaration syntax
+            var typeSyntax = SyntaxFactory.ParseTypeName(interfaceDefinition.Declaration.Identifier.ValueText);
+
+            var classSyntax = SyntaxFactory.ClassDeclaration(interfaceDefinition.UnknownClassName)
+                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+                .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(SyntaxFactory.SimpleBaseType(typeSyntax))));
+
+            // Get the properties from the interface type syntax
+            var interfaceProperties = interfaceDefinition.Declaration.Members.OfType<PropertyDeclarationSyntax>();
+
+            // Add the properties to the class syntax
+            foreach (var property in interfaceProperties)
+            {
+                var propertySyntax = SyntaxFactory.PropertyDeclaration(property.Type, property.Identifier)
+                    .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+                    .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List<AccessorDeclarationSyntax>(
+                        new AccessorDeclarationSyntax[]
+                        {
+                            SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                            SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                        })));
+
+                classSyntax = classSyntax.AddMembers(propertySyntax);
+            }
+
+            return classSyntax;
+        }
+
+        /// <summary>
+        /// Generates a deserializer builder case for an interface declaration.
+        /// </summary>
+        /// <param name="interfaceDefinition">
+        /// The interface definition to generate a deserializer builder case for.
+        /// </param>
+        /// <returns>
+        /// A class declaration for a deserializer builder case that handles the interface type.
+        /// </returns>
+        private static ClassDeclarationSyntax GenerateDeserializerBuilderCase(InterfaceDefinition interfaceDefinition)
+        {
+            // Create record type cases for the switch expression
+            var recordTypesCases = string.Join(
+                Environment.NewLine,
+                interfaceDefinition.RecordSchemaNames.Select(schemaName =>
+                {
+                    return $"                nameof({schemaName}) => typeof({schemaName}),";
+                }));
+
+            // Create the class template with non-global namespace references
+            string classTemplate = $@"
+    public class {interfaceDefinition.InterfaceName}DeserializerBuilderCase : BinaryUnionDeserializerBuilderCase
+    {{
+        public {interfaceDefinition.InterfaceName}DeserializerBuilderCase(IBinaryDeserializerBuilder deserializerBuilder)
+            : base(deserializerBuilder)
+        {{
+        }}
+
+        public override BinaryDeserializerBuilderCaseResult BuildExpression(global::System.Type type, Schema schema, BinaryDeserializerBuilderContext context)
+        {{
+            if (type == typeof({interfaceDefinition.InterfaceName}))
+            {{
+                return base.BuildExpression(type, schema, context);
+            }}
+            else
+            {{
+                return BinaryDeserializerBuilderCaseResult.FromException(
+                    new UnsupportedTypeException(type, $""{{this.GetType()}} can only be applied to the {{typeof({interfaceDefinition.InterfaceName})}} type.""));
+            }}
+        }}
+
+        protected override global::System.Type SelectType(global::System.Type type, Schema schema)
+        {{
+            return (schema as RecordSchema)?.Name switch
+            {{            
+{recordTypesCases}
+                _ => typeof({interfaceDefinition.UnknownClassName}),
+            }};
+        }}
+    }}";
+
+            // Parse the template into a syntax tree
+            var classDeclaration = SyntaxFactory.ParseMemberDeclaration(classTemplate) as ClassDeclarationSyntax;
+
+            return classDeclaration;
+        }
+
+        private static bool IsPolymorphic(Schema[] schemas, out RecordSchema[] recordSchemas)
+        {
+            recordSchemas = schemas.OfType<RecordSchema>().ToArray();
+
+            return recordSchemas.Length > 1 && recordSchemas.Length == schemas.Length;
+        }
+
+        private IEnumerable<NamedSchema> GetCandidateSchemas(Schema schema, ISet<Schema>? seen = null)
         {
             seen ??= new HashSet<Schema>();
 
@@ -344,12 +554,24 @@ namespace Chr.Avro.Codegen
                     case RecordSchema r:
                         foreach (var field in r.Fields)
                         {
-                            GetCandidateSchemas(field.Type, seen);
+                            switch (field.Type)
+                            {
+                                case UnionSchema u:
+                                    DeriveInterfaceDefinitions(u);
+
+                                    GetCandidateSchemas(field.Type, seen);
+                                    break;
+
+                                default:
+                                    GetCandidateSchemas(field.Type, seen);
+                                    break;
+                            }
                         }
 
                         break;
 
                     case UnionSchema u:
+                        DeriveInterfaceDefinitions(u);
                         foreach (var child in u.Schemas)
                         {
                             GetCandidateSchemas(child, seen);
@@ -385,6 +607,91 @@ namespace Chr.Avro.Codegen
             attributeList = attributeList.Add(attribute);
             var list = SyntaxFactory.AttributeList(attributeList);
             return new AttributeListSyntax[1] { list };
+        }
+
+        private void DeriveInterfaceDefinitions(UnionSchema u)
+        {
+            var others = u.Schemas.Except(u.Schemas.OfType<NullSchema>()).ToArray();
+
+            if (IsPolymorphic(others, out var recordSchemas))
+            {
+                // All non-null schemas are record schemas
+                InterfaceDefinition definition = GetOrCreateInterfaceDefinition(recordSchemas);
+
+                foreach (RecordSchema recordSchema in recordSchemas)
+                {
+                    if (!interfaceDeclarationsMap.ContainsKey(recordSchema.FullName))
+                    {
+                        interfaceDeclarationsMap.Add(recordSchema.FullName, definition.InterfaceName);
+                    }
+                }
+            }
+        }
+
+        private InterfaceDefinition GetOrCreateInterfaceDefinition(IReadOnlyCollection<RecordSchema> recordSchemas)
+        {
+            var sourceNames = recordSchemas.Select(r => r.FullName).ToList();
+            var commonFields = GetCommonFields(recordSchemas);
+
+            var existingDefinition = interfaceDeclarations.Values
+                .FirstOrDefault(def =>
+                    def.Field.Count == commonFields.Count &&
+                    def.RecordSchemaNames.Count == sourceNames.Count &&
+                    def.RecordSchemaNames.All(name => sourceNames.Contains(name)) &&
+                    def.Field.All(f => commonFields.Any(c => c.Name == f.Name && c.Type == f.Type)));
+
+            if (existingDefinition != null)
+            {
+                return existingDefinition;
+            }
+
+            // Generate a unique name for the interface
+            var interfaceId = interfaceNameCount.HasValue ? interfaceNameCount++ : null;
+            var name = $"I{InterfaceNamePrefix}{interfaceId}";
+            var unknownClassName = $"{InterfaceNamePrefix}{interfaceId}{UnknownSuffix}";
+
+            // Initialize the counter if it's not set
+            if (!interfaceNameCount.HasValue)
+            {
+                interfaceNameCount = 1;
+            }
+
+            // Create a new interface declaration
+            var interfaceDeclaration = SyntaxFactory.InterfaceDeclaration(name)
+                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+                .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(commonFields.Select(field =>
+                    SyntaxFactory.PropertyDeclaration(GetPropertyType(field.Type), field.Name)
+                        .AddAccessorListAccessors(
+                            SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                            SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))))));
+
+            interfaceDeclarations.Add(name, new InterfaceDefinition(unknownClassName, name, sourceNames, commonFields, interfaceDeclaration));
+
+            return interfaceDeclarations[name];
+        }
+
+        private class InterfaceDefinition
+        {
+            public InterfaceDefinition(string unknownClassName, string interfaceName, IReadOnlyCollection<string> recordSchemaNames, IReadOnlyCollection<RecordField> fields, InterfaceDeclarationSyntax declaration)
+            {
+                UnknownClassName = unknownClassName;
+                InterfaceName = interfaceName;
+                Declaration = declaration;
+                RecordSchemaNames = recordSchemaNames ?? throw new ArgumentNullException(nameof(recordSchemaNames), "Record schema names cannot be null.");
+                Field = fields ?? throw new ArgumentNullException(nameof(fields), "Fields cannot be null.");
+            }
+
+            public string InterfaceName { get; private set; }
+
+            public string UnknownClassName { get; private set; }
+
+            public IReadOnlyCollection<RecordField> Field { get; private set; }
+
+            public IReadOnlyCollection<string> RecordSchemaNames { get; private set; }
+
+            public InterfaceDeclarationSyntax Declaration { get; private set; }
         }
     }
 }

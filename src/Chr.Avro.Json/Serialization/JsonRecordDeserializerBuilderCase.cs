@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using Chr.Avro.Infrastructure;
+
 namespace Chr.Avro.Serialization
 {
     using System;
@@ -63,19 +66,31 @@ namespace Chr.Avro.Serialization
                 {
                     // since record deserialization is potentially recursive, create a top-level
                     // reference:
-                    var parameter = Expression.Parameter(
-                        Expression.GetDelegateType(context.Reader.Type.MakeByRefType(), type));
+                    ParameterExpression? parameter = null;
+                    ParameterExpression? reference = null;
+                    Expression? expression = null;
 
-                    if (!context.References.TryGetValue((recordSchema, type), out var reference))
+                    if (!context.RecursiveReferences.TryGetValue(schema, out var schemaIsRecursive))
                     {
-                        context.References.Add((recordSchema, type), reference = parameter);
+                        RecursiveReferenceSearch.Collect(schema, context.RecursiveReferences);
+
+                        schemaIsRecursive = context.RecursiveReferences[schema];
+                    }
+
+                    if (schemaIsRecursive)
+                    {
+                        parameter = Expression.Parameter(
+                            Expression.GetDelegateType(context.Reader.Type.MakeByRefType(), type));
+
+                        if (!context.References.TryGetValue((recordSchema, type), out reference))
+                        {
+                            context.References.Add((recordSchema, type), reference = parameter);
+                        }
                     }
 
                     // then build/set the delegate if it hasn’t been built yet:
                     if (parameter == reference)
                     {
-                        Expression expression;
-
                         var loop = Expression.Label();
 
                         var tokenType = typeof(Utf8JsonReader)
@@ -157,7 +172,7 @@ namespace Chr.Avro.Serialization
                                     parameters
                                         .Select(parameter => mapping.ContainsKey(parameter)
                                             ? (Expression)mapping[parameter].Parameter
-                                            : Expression.Constant(parameter.DefaultValue))));
+                                            : Expression.Constant(parameter.DefaultValue, parameter.ParameterType))));
                         }
                         else
                         {
@@ -254,17 +269,25 @@ namespace Chr.Avro.Serialization
                                 Expression.ConvertChecked(value, type));
                         }
 
-                        expression = Expression.Lambda(
-                            parameter.Type,
-                            expression,
-                            $"{recordSchema.Name} deserializer",
-                            new[] { context.Reader });
+                        if (reference is not null)
+                        {
+                            expression = Expression.Lambda(
+                                parameter.Type,
+                                expression,
+                                $"{recordSchema.Name} deserializer",
+                                new[] { context.Reader });
 
-                        context.Assignments.Add(reference, expression);
+                            context.Assignments.Add(reference, expression);
+                        }
                     }
 
-                    return JsonDeserializerBuilderCaseResult.FromExpression(
-                        Expression.Invoke(reference, context.Reader));
+                    if (reference is not null)
+                    {
+                        expression = Expression.Invoke(reference, context.Reader);
+                    }
+
+                    Debug.Assert(expression != null, "Expression has not been built");
+                    return JsonDeserializerBuilderCaseResult.FromExpression(expression);
                 }
                 else
                 {
