@@ -27,16 +27,10 @@
     <ProjectReference Include="..\Chr.Avro.Json\Chr.Avro.Json.csproj" GeneratePathProperty="true" PrivateAssets="all" />
   </ItemGroup>
 
-  <PropertyGroup>
-    <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
-  </PropertyGroup>
-
-  <Target Name="GetDependencyTargetPaths">
+  <Target Name="AddGenerationTimeReferences" AfterTargets="ResolvePackageDependenciesForBuild">
     <ItemGroup>
-      <!--   Need to verify the path for packing up NuGet   -->
-      <TargetPathWithTargetPlatformMoniker Include="..\..\src\Chr.Avro\$(OutputPath)\*.dll" IncludeRuntimeDependency="false" />
-      <TargetPathWithTargetPlatformMoniker Include="..\..\src\Chr.Avro.Codegen\$(OutputPath)\*.dll" IncludeRuntimeDependency="false" />
-      <TargetPathWithTargetPlatformMoniker Include="..\..\src\Chr.Avro.Json\$(OutputPath)\*.dll" IncludeRuntimeDependency="false" />
+      <None Include="@(ResolvedCompileFileDefinitions)" Pack="true" PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
   </Target>
+
 </Project>
