@@ -66,6 +66,9 @@ namespace Chr.Avro.Serialization
         {
             return new Func<IBinaryDeserializerBuilder, IBinaryDeserializerBuilderCase>[]
             {
+                // field skipping (must be first):
+                builder => new BinarySkipFieldDeserializerBuilderCase(builder),
+
                 // logical types:
 #if NET6_0_OR_GREATER
                 builder => new BinaryDateDeserializerBuilderCase(),

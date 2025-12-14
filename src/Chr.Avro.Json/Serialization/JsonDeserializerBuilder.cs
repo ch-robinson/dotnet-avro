@@ -67,6 +67,9 @@ namespace Chr.Avro.Serialization
         {
             return new Func<IJsonDeserializerBuilder, IJsonDeserializerBuilderCase>[]
             {
+                // field skipping (must be first):
+                builder => new JsonSkipFieldDeserializerBuilderCase(builder),
+
                 // logical types:
 #if NET6_0_OR_GREATER
                 builder => new JsonDateDeserializerBuilderCase(),
