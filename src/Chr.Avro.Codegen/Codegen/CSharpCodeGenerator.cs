@@ -378,18 +378,13 @@ namespace Chr.Avro.Codegen
         private static TSyntax AddSummaryComment<TSyntax>(TSyntax node, string summary)
             where TSyntax : SyntaxNode
         {
-            var components = new XmlNodeSyntax[]
-            {
-                SyntaxFactory.XmlSummaryElement(SyntaxFactory.XmlText(summary)),
-            };
+            var comment = $@"
+/// <summary>
+/// {summary}
+/// </summary>
+";
 
-            var trivia = node.GetLeadingTrivia().Add(
-                SyntaxFactory.Trivia(
-                    SyntaxFactory.DocumentationCommentTrivia(SyntaxKind.MultiLineDocumentationCommentTrivia, SyntaxFactory.List(components))
-                        .WithLeadingTrivia(SyntaxFactory.DocumentationCommentExterior("/// "))
-                        .WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed)));
-
-            return node.WithLeadingTrivia(trivia);
+            return node.WithLeadingTrivia(SyntaxFactory.ParseLeadingTrivia(comment));
         }
 
         private static string GetCommonNamespace(IEnumerable<string?> sources)
