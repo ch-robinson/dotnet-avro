@@ -144,16 +144,19 @@ namespace Chr.Avro.Serialization
 
                                         if (match == null)
                                         {
-                                            // always deserialize fields to advance the reader:
-                                            expression = DeserializerBuilder.BuildExpression(typeof(object), field.Type, context);
-
                                             // fall back to a dynamic setter if the value supports it:
                                             if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(value.Type))
                                             {
+                                                expression = DeserializerBuilder.BuildExpression(typeof(object), field.Type, context);
                                                 var flags = CSharpBinderFlags.None;
                                                 var infos = new[] { CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, null) };
                                                 var binder = Binder.SetMember(flags, field.Name, value.Type, infos);
                                                 expression = Expression.Dynamic(binder, typeof(void), value, expression);
+                                            }
+                                            else
+                                            {
+                                                // always deserialize fields to advance the reader:
+                                                expression = DeserializerBuilder.BuildExpression(typeof(SkipField), field.Type, context);
                                             }
                                         }
                                         else
