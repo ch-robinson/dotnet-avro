@@ -13,6 +13,8 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public class JsonDeserializerBuilder : ExpressionBuilder, IJsonDeserializerBuilder
     {
+        private readonly JsonSkipFieldDeserializerBuilderCase skipFieldDeserializerBuilderCase;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="JsonDeserializerBuilder" /> class
         /// configured with the default list of cases.
@@ -44,6 +46,8 @@ namespace Chr.Avro.Serialization
             {
                 cases.Add(builder(this));
             }
+
+            skipFieldDeserializerBuilderCase = new(this);
         }
 
         /// <summary>
@@ -67,9 +71,6 @@ namespace Chr.Avro.Serialization
         {
             return new Func<IJsonDeserializerBuilder, IJsonDeserializerBuilderCase>[]
             {
-                // field skipping (must be first):
-                builder => new JsonSkipFieldDeserializerBuilderCase(builder),
-
                 // logical types:
 #if NET6_0_OR_GREATER
                 builder => new JsonDateDeserializerBuilderCase(),
@@ -147,9 +148,19 @@ namespace Chr.Avro.Serialization
         {
             var exceptions = new List<Exception>();
 
+            // Special case for the skip field case since it must be called before all the others we can't simply put
+            // it in CreateDefaultCaseBuilders, because custom case builders usually are prepended to the default ones
+            var result = skipFieldDeserializerBuilderCase.BuildExpression(type, schema, context);
+            if (result.Expression != null)
+            {
+                return result.Expression;
+            }
+
+            exceptions.AddRange(result.Exceptions);
+
             foreach (var @case in Cases)
             {
-                var result = @case.BuildExpression(type, schema, context);
+                result = @case.BuildExpression(type, schema, context);
 
                 if (result.Expression != null)
                 {
