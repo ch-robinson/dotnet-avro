@@ -1,0 +1,87 @@
+{
+  "name": "something_created",
+  "namespace": "important.service.domain.contract",
+  "type": "record",
+  "fields": [
+    {
+      "name": "id",
+      "type": {
+        "logicalType": "uuid",
+        "type": "string"
+      }
+    },
+    {
+      "doc": "timestamp of when the event occurred",
+      "name": "occurred_on",
+      "type": {
+        "logicalType": "timestamp-micros",
+        "type": "long"
+      },
+      "default": 0
+    },
+    {
+      "doc": "name of the domain entity",
+      "name": "name",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "doc": "balance of the domain entity",
+      "name": "balance",
+      "type": {
+        "type": "record",
+        "name": "balance",
+        "fields": [
+          {
+            "name": "amount",
+            "type": {
+              "type": "bytes",
+              "logicalType": "decimal",
+              "precision": 29,
+              "scale": 14
+            }
+          },
+          {
+            "name": "currency",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "doc": "the status of the domain entity",
+      "name": "status",
+      "type": {
+        "default": "unknown",
+        "name": "domain_status",
+        "symbols": [
+          "created",
+          "inactive",
+          "deactivated",
+          "deleted",
+          "unknown"
+        ],
+        "type": "enum"
+      }
+    },
+    {
+      "name": "owned",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "owner",
+          "fields": [
+            {
+              "name": "id",
+              "type": {
+                "logicalType": "uuid",
+                "type": "string"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

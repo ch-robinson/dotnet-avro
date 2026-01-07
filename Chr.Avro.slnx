@@ -7,6 +7,7 @@
   <Folder Name="/examples/">
     <Project Path="examples/Chr.Avro.DefaultValuesExample/Chr.Avro.DefaultValuesExample.csproj" />
     <Project Path="examples/Chr.Avro.NodaTimeExample/Chr.Avro.NodaTimeExample.csproj" />
+    <Project Path="examples/Chr.Avro.SourceGeneratorExample/Chr.Avro.SourceGeneratorExample.csproj" />
     <Project Path="examples/Chr.Avro.UnionTypeExample/Chr.Avro.UnionTypeExample.csproj" />
   </Folder>
   <Folder Name="/src/">
@@ -16,6 +17,7 @@
     <Project Path="src/Chr.Avro.Confluent/Chr.Avro.Confluent.csproj" />
     <Project Path="src/Chr.Avro.Fixtures/Chr.Avro.Fixtures.csproj" />
     <Project Path="src/Chr.Avro.Json/Chr.Avro.Json.csproj" />
+    <Project Path="src/Chr.Avro.SourceGenerator/Chr.Avro.SourceGenerator.csproj" />
     <Project Path="src/Chr.Avro/Chr.Avro.csproj" />
   </Folder>
   <Folder Name="/tests/">
