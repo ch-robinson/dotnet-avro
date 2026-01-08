@@ -1,7 +1,6 @@
 namespace Chr.Avro.Serialization
 {
     using System;
-    using System.Collections;
     using System.Collections.Generic;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
@@ -44,51 +43,46 @@ namespace Chr.Avro.Serialization
         {
             if (schema is ArraySchema arraySchema)
             {
-                var enumerableType = GetEnumerableType(type);
+                var itemType = GetEnumerableType(type);
 
-                if (enumerableType is not null || type == typeof(object))
+                if (itemType is not null || type == typeof(object))
                 {
                     // support dynamic mapping:
-                    var itemType = enumerableType ?? typeof(object);
-
-                    var collection = Expression.Variable(typeof(ICollection<>).MakeGenericType(itemType));
-                    var enumerable = Expression.Variable(typeof(IEnumerable<>).MakeGenericType(itemType));
-                    var enumerator = Expression.Variable(typeof(IEnumerator<>).MakeGenericType(itemType));
-                    var loop = Expression.Label();
-
-                    var getCount = collection.Type
-                        .GetProperty("Count")
-                        .GetGetMethod();
-
-                    var getEnumerator = enumerable.Type
-                        .GetMethod("GetEnumerator", Type.EmptyTypes);
-
-                    var getCurrent = enumerator.Type
-                        .GetProperty(nameof(IEnumerator.Current))
-                        .GetGetMethod();
-
-                    var moveNext = typeof(IEnumerator)
-                        .GetMethod(nameof(IEnumerator.MoveNext), Type.EmptyTypes);
-
-                    var writeInteger = typeof(BinaryWriter)
-                        .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
-
-                    var writeItem = SerializerBuilder
-                        .BuildExpression(Expression.Property(enumerator, getCurrent), arraySchema.Item, context);
-
-                    var dispose = typeof(IDisposable)
-                        .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
+                    itemType ??= typeof(object);
+                    var readOnlyCollectionType = typeof(IReadOnlyCollection<>).MakeGenericType(itemType);
+                    var enumerableType = typeof(IEnumerable<>).MakeGenericType(itemType);
+                    var enumeratorType = typeof(IEnumerator<>).MakeGenericType(itemType);
 
                     Expression expression;
-
                     try
                     {
-                        expression = BuildConversion(value, collection.Type);
+                        if (readOnlyCollectionType.IsAssignableFrom(type))
+                        {
+                            // NOTE: Not casting the expression to allow us to get the specific enumerator of `type`
+                            // This way we can avoid the allocation of an IEnumerator<T> and the overhead of
+                            // virtual dispatch calls
+                            expression = value;
+                        }
+                        else
+                        {
+                            expression = BuildConversion(value, readOnlyCollectionType);
+                        }
                     }
                     catch (Exception exception)
                     {
                         throw new UnsupportedTypeException(type, $"Failed to map {arraySchema} to {type}.", exception);
                     }
+
+                    var collection = Expression.Variable(expression.Type);
+                    var enumerationReflection = EnumerationReflection.Create(collection, readOnlyCollectionType, enumerableType);
+
+                    var loopLabel = Expression.Label();
+
+                    var writeInteger = typeof(BinaryWriter)
+                        .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
+
+                    var writeItem = SerializerBuilder
+                        .BuildExpression(Expression.Property(enumerationReflection.Enumerator, enumerationReflection.GetCurrent), arraySchema.Item, context);
 
                     // if (collection.Count > 0)
                     // {
@@ -119,32 +113,39 @@ namespace Chr.Avro.Serialization
                     //
                     // // write closing block:
                     // writer.WriteInteger(0L);
+
+
+                    Expression loop = Expression.Loop(
+                        Expression.IfThenElse(
+                            Expression.Call(enumerationReflection.Enumerator, enumerationReflection.MoveNext),
+                            writeItem,
+                            Expression.Break(loopLabel)),
+                        loopLabel);
+
+                    if (enumerationReflection.DisposeCall is not null)
+                    {
+                        loop = Expression.TryFinally(loop, enumerationReflection.DisposeCall);
+                    }
+
                     return BinarySerializerBuilderCaseResult.FromExpression(
                         Expression.Block(
-                            new[] { collection, enumerator },
+                            new[] { collection, enumerationReflection.Enumerator },
                             Expression.Assign(collection, expression),
                             Expression.IfThen(
                                 Expression.GreaterThan(
-                                    Expression.Property(collection, getCount),
+                                    Expression.Property(collection, enumerationReflection.GetCount),
                                     Expression.Constant(0)),
                                 Expression.Block(
                                     Expression.Call(
                                         context.Writer,
                                         writeInteger,
                                         Expression.Convert(
-                                            Expression.Property(collection, getCount),
+                                            Expression.Property(collection, enumerationReflection.GetCount),
                                             typeof(long))),
                                     Expression.Assign(
-                                        enumerator,
-                                        Expression.Call(collection, getEnumerator)),
-                                    Expression.TryFinally(
-                                        Expression.Loop(
-                                            Expression.IfThenElse(
-                                                Expression.Call(enumerator, moveNext),
-                                                writeItem,
-                                                Expression.Break(loop)),
-                                            loop),
-                                        Expression.Call(enumerator, dispose)))),
+                                        enumerationReflection.Enumerator,
+                                        Expression.Call(collection, enumerationReflection.GetEnumerator)),
+                                    loop)),
                             Expression.Call(
                                 context.Writer,
                                 writeInteger,
