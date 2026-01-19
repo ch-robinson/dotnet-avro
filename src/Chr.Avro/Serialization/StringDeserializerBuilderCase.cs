@@ -58,7 +58,7 @@ namespace Chr.Avro.Serialization
                     {
                         value.Type,
                         typeof(IFormatProvider),
-                        typeof(DateTimeStyles)
+                        typeof(DateTimeStyles),
                     });
 
                 value = Expression.ConvertChecked(
@@ -77,7 +77,7 @@ namespace Chr.Avro.Serialization
                     {
                         value.Type,
                         typeof(IFormatProvider),
-                        typeof(DateTimeStyles)
+                        typeof(DateTimeStyles),
                     });
 
                 value = Expression.ConvertChecked(

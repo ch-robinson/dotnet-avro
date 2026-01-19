@@ -57,26 +57,26 @@ namespace Chr.Avro.Serialization
                     var loop = Expression.Label();
 
                     var writeStartArray = typeof(Utf8JsonWriter)
-                        .GetMethod(nameof(Utf8JsonWriter.WriteStartArray), Type.EmptyTypes);
+                        .GetMethod(nameof(Utf8JsonWriter.WriteStartArray), Type.EmptyTypes)!;
 
                     var getEnumerator = enumerable.Type
-                        .GetMethod("GetEnumerator", Type.EmptyTypes);
+                        .GetMethod("GetEnumerator", Type.EmptyTypes)!;
 
                     var getCurrent = enumerator.Type
-                        .GetProperty(nameof(IEnumerator.Current))
-                        .GetGetMethod();
+                        .GetProperty(nameof(IEnumerator.Current))!
+                        .GetGetMethod()!;
 
                     var moveNext = typeof(IEnumerator)
-                        .GetMethod(nameof(IEnumerator.MoveNext), Type.EmptyTypes);
+                        .GetMethod(nameof(IEnumerator.MoveNext), Type.EmptyTypes)!;
 
                     var writeItem = SerializerBuilder
                         .BuildExpression(Expression.Property(enumerator, getCurrent), arraySchema.Item, context);
 
                     var writeEndArray = typeof(Utf8JsonWriter)
-                        .GetMethod(nameof(Utf8JsonWriter.WriteEndArray), Type.EmptyTypes);
+                        .GetMethod(nameof(Utf8JsonWriter.WriteEndArray), Type.EmptyTypes)!;
 
                     var dispose = typeof(IDisposable)
-                        .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
+                        .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes)!;
 
                     Expression expression;
 

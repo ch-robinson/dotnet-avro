@@ -27,13 +27,14 @@ namespace Chr.Avro.Confluent
     /// <inheritdoc />
     public class AsyncSchemaRegistryDeserializer<T> : IAsyncDeserializer<T>, IDisposable
     {
+        private readonly object cacheLock = new object();
+        private readonly bool disposeRegistryClient;
+
 #if NET8_0_OR_GREATER
         private FrozenDictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>> cache = FrozenDictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>.Empty;
 #else
         private Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>> cache = new Dictionary<int, Task<Func<ReadOnlyMemory<byte>, T>>>();
 #endif
-        private readonly object cacheLock = new object();
-        private readonly bool disposeRegistryClient;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncSchemaRegistryDeserializer{T}" />
@@ -215,39 +216,6 @@ namespace Chr.Avro.Confluent
             return (await task.ConfigureAwait(false))(data);
         }
 
-        private static int DeserializeSchemaId(ReadOnlyMemory<byte> data)
-        {
-            if (data.Length < 5)
-            {
-                throw new InvalidEncodingException(0, "The encoded data does not include a Confluent wire format header.");
-            }
-
-#if NET6_0_OR_GREATER
-            var header = data.Span[..5];
-
-            if (header[0] != 0x00)
-            {
-                throw new InvalidEncodingException(0, "The encoded data does not conform to the Confluent wire format.");
-            }
-
-            return BinaryPrimitives.ReadInt32BigEndian(header[1..]);
-#else
-            var header = data.Slice(0, 5).ToArray();
-
-            if (header[0] != 0x00)
-            {
-                throw new InvalidEncodingException(0, "The encoded data does not conform to the Confluent wire format.");
-            }
-
-            if (BitConverter.IsLittleEndian)
-            {
-                Array.Reverse(header, 1, 4);
-            }
-
-            return BitConverter.ToInt32(header, 1);
-#endif
-        }
-
         /// <summary>
         /// Disposes the deserializer, freeing up any resources.
         /// </summary>
@@ -309,6 +277,39 @@ namespace Chr.Avro.Confluent
                     Expression.New(readerConstructor, span)));
 
             return Expression.Lambda<Func<ReadOnlyMemory<byte>, T>>(reader, memory).Compile();
+        }
+
+        private static int DeserializeSchemaId(ReadOnlyMemory<byte> data)
+        {
+            if (data.Length < 5)
+            {
+                throw new InvalidEncodingException(0, "The encoded data does not include a Confluent wire format header.");
+            }
+
+#if NET6_0_OR_GREATER
+            var header = data.Span[..5];
+
+            if (header[0] != 0x00)
+            {
+                throw new InvalidEncodingException(0, "The encoded data does not conform to the Confluent wire format.");
+            }
+
+            return BinaryPrimitives.ReadInt32BigEndian(header[1..]);
+#else
+            var header = data.Slice(0, 5).ToArray();
+
+            if (header[0] != 0x00)
+            {
+                throw new InvalidEncodingException(0, "The encoded data does not conform to the Confluent wire format.");
+            }
+
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(header, 1, 4);
+            }
+
+            return BitConverter.ToInt32(header, 1);
+#endif
         }
     }
 }
