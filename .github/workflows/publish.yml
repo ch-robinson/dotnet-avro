@@ -43,13 +43,16 @@ jobs:
 
               await fs.writeFile(`${releaseDirectory}/${asset.name}`, Buffer.from(contents.data));
             }));
+      - name: Log in to NuGet
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
       - name: Push packages
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           set -xe
 
           dotnet nuget push "releases/*.nupkg" \
-            --api-key "$NUGET_API_KEY" \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
             --skip-duplicate \
             --source https://api.nuget.org/v3/index.json
