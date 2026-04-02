@@ -8,7 +8,7 @@ If you haven’t already, install the Chr.Avro CLI:
 
 ```
 $ dotnet tool install Chr.Avro.Cli --global
-Tool 'chr.avro.cli' (version '10.12.0') was successfully installed.
+Tool 'chr.avro.cli' (version '10.13.0') was successfully installed.
 ```
 
 After the CLI tool has been installed, you can invoke it using `dotnet avro`. If the install command fails, make sure you have the latest version of the [.NET Core SDK](https://dotnet.microsoft.com/download) installed.
@@ -26,9 +26,9 @@ $ dotnet avro create --type ExampleNamespace.ExampleLibrary.ExampleClass --assem
 
 The CLI ships with some convenience options:
 
-*   The `--nullable-references` option causes all reference types to be written as nullable unions. This is useful when you prefer to keep .NET’s nullable semantics.
+- The `--nullable-references` option causes all reference types to be written as nullable unions. This is useful when you prefer to keep .NET’s nullable semantics.
 
-*   The `--enums-as-integers` option causes enums to be represented as `"int"` or `"long"` schemas instead of `"enum"` schemas.
+- The `--enums-as-integers` option causes enums to be represented as `"int"` or `"long"` schemas instead of `"enum"` schemas.
 
 Chr.Avro also recognizes [data contract attributes](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.serialization.datacontractattribute), which can be used to customize names.
 

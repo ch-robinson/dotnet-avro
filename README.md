@@ -2,12 +2,12 @@
 
 Chr.Avro is an Avro implementation for .NET. It’s designed to serve as a flexible alternative to the [Apache implementation](https://github.com/apache/avro/tree/master/lang/csharp/src/apache/main) and integrate seamlessly with [Confluent’s Kafka and Schema Registry clients](https://github.com/confluentinc/confluent-kafka-dotnet).
 
-*   [Chr.Avro](src/Chr.Avro): schema models, type resolution, and schema builder
-*   [Chr.Avro.Binary](src/Chr.Avro.Binary): binary serialization implementation
-*   [Chr.Avro.Cli](src/Chr.Avro.Cli): command line interface
-*   [Chr.Avro.Codegen](src/Chr.Avro.Codegen): experimental C# code generation
-*   [Chr.Avro.Confluent](src/Chr.Avro.Confluent): serializers/deserializers and glue
-*   [Chr.Avro.Json](src/Chr.Avro.Json): JSON schema representation
+- [Chr.Avro](src/Chr.Avro): schema models, type resolution, and schema builder
+- [Chr.Avro.Binary](src/Chr.Avro.Binary): binary serialization implementation
+- [Chr.Avro.Cli](src/Chr.Avro.Cli): command line interface
+- [Chr.Avro.Codegen](src/Chr.Avro.Codegen): experimental C# code generation
+- [Chr.Avro.Confluent](src/Chr.Avro.Confluent): serializers/deserializers and glue
+- [Chr.Avro.Json](src/Chr.Avro.Json): JSON schema representation
 
 **For more information, check out [the documentation](https://ch-robinson.github.io/dotnet-avro/).**
 
@@ -18,9 +18,9 @@ Chr.Avro is an Avro implementation for .NET. It’s designed to serve as a flexi
 ```
 $ dotnet tool install Chr.Avro.Cli --global
 You can invoke the tool using the following command: dotnet-avro
-Tool 'chr.avro.cli' (version '10.12.0') was successfully installed.
+Tool 'chr.avro.cli' (version '10.13.0') was successfully installed.
 $ dotnet avro help
-Chr.Avro 10.12.0
+Chr.Avro 10.13.0
 ...
 ```
 
@@ -150,8 +150,8 @@ namespace Example
 
 For more complex examples, see the [examples directory](examples):
 
-*   [Default field values](examples/Chr.Avro.DefaultValuesExample)
-*   [Discriminated union types](examples/Chr.Avro.UnionTypeExample)
+- [Default field values](examples/Chr.Avro.DefaultValuesExample)
+- [Discriminated union types](examples/Chr.Avro.UnionTypeExample)
 
 ## Contributing
 

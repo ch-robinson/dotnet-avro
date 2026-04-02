@@ -6,7 +6,7 @@ If you haven’t already, install the Chr.Avro CLI:
 
 ```
 $ dotnet tool install Chr.Avro.Cli --global
-Tool 'chr.avro.cli' (version '10.12.0') was successfully installed.
+Tool 'chr.avro.cli' (version '10.13.0') was successfully installed.
 ```
 
 After the CLI tool has been installed, you can invoke it using `dotnet avro`. If the install command fails, make sure you have the latest version of the [.NET Core SDK](https://dotnet.microsoft.com/download) installed.
@@ -27,7 +27,7 @@ namespace ExampleNamespace
 }
 ```
 
-The CLI writes generated code to the [console](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). Use your shell’s capabilities to read from and write to files. In Bash, that looks like this:
+The CLI writes generated code to the [console](<https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>). Use your shell’s capabilities to read from and write to files. In Bash, that looks like this:
 
 ```bash
 dotnet avro generate < example-class.avsc > ExampleClass.cs
