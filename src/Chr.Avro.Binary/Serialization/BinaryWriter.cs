@@ -12,6 +12,13 @@ namespace Chr.Avro.Serialization
     /// </summary>
     public sealed class BinaryWriter : IDisposable
     {
+        /// <summary>
+        /// The maximum number of characters encoded per chunk when writing strings.
+        /// Limiting a chunk to this size keeps the stack-allocated buffer at most
+        /// <c>MaxCharChunk * 4</c> bytes (256 bytes for the default value of 64).
+        /// </summary>
+        internal const int MaxCharChunk = 64;
+
         private readonly Stream stream;
 
         /// <summary>
@@ -239,8 +246,6 @@ namespace Chr.Avro.Serialization
             // encode any UTF8 chars into the buffer without having to perform any checks
             const int MaxBytesPerChar = 4;
 
-            // Limiting a chunk to 64 bytes so the used space in the stack is limited to 256 bytes
-            const int MaxCharChunk = 64;
             Span<byte> buffer = stackalloc byte[MaxCharChunk * MaxBytesPerChar];
 
             var pos = 0;
@@ -248,6 +253,11 @@ namespace Chr.Avro.Serialization
             {
                 int remaining = value.Length - pos;
                 int sliceLength = remaining < MaxCharChunk ? remaining : MaxCharChunk;
+                if (sliceLength < remaining && char.IsHighSurrogate(value[pos + sliceLength - 1]))
+                {
+                    sliceLength--;
+                }
+
                 var chunk = value.AsSpan(pos, sliceLength);
                 var written = Encoding.UTF8.GetBytes(chunk, buffer);
                 stream.Write(buffer.Slice(0, written));

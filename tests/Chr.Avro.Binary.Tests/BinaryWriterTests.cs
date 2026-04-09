@@ -103,14 +103,17 @@ namespace Chr.Avro.Serialization.Tests
                     // Simple string that will require multiple chunks
                     Create(string.Join(", ", Enumerable.Range(0, 1000).Select(i => $"Hello world {i}"))),
 
-                    // String entirely made of char with 2 sequence points that will required multiple chunks
+                    // String entirely made of char with 2 sequence points that will require multiple chunks
                     Create(string.Join(", ", Enumerable.Range(0, 1000).Select(i => "ç"))),
 
-                    // String entirely made of char with 3 sequence points that will required multiple chunks
+                    // String entirely made of char with 3 sequence points that will require multiple chunks
                     Create(string.Join(", ", Enumerable.Range(0, 1000).Select(i => "✔"))),
 
-                    // String entirely made of char with 4 sequence points that will required multiple chunks
+                    // String entirely made of char with 4 sequence points that will require multiple chunks
                     Create(string.Join(", ", Enumerable.Range(0, 1000).Select(i => "𝄞"))),
+
+                    // String that will require multiple chunks and have a surrogate char at the end of a chunk
+                    Create(new string('A', BinaryWriter.MaxCharChunk - 1) + "😀" + "trailing"),
                 };
 
                 static object[] Create(string value)
