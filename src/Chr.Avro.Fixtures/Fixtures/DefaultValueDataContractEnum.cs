@@ -1,8 +1,8 @@
-using System.ComponentModel;
-using System.Runtime.Serialization;
-
 namespace Chr.Avro.Fixtures
 {
+    using System.ComponentModel;
+    using System.Runtime.Serialization;
+
     [DefaultValue(Third)]
     [DataContract]
     public enum DefaultValueDataContractEnum

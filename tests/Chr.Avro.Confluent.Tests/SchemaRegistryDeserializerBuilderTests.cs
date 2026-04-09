@@ -35,6 +35,40 @@ namespace Chr.Avro.Confluent.Tests
         }
 
         [Fact]
+        public async Task CannotBuildsDeserializerForDynamicObjectIfNoDefaultConstructorIsFound()
+        {
+            var id = 6;
+            var json = @"{""type"":""record"",""name"":""Test"",""fields"":[{""type"":""string"",""name"":""Field""}]}";
+
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
+                .Verifiable();
+
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
+
+            await Assert.ThrowsAsync<UnsupportedTypeException>(() => builder.Build<NoDefaultConstructor>(id));
+        }
+
+        [Fact]
+        public async Task CanBuildsDeserializerForDynamicObjectIfCompatibleConstructorIsFound()
+        {
+            var id = 6;
+            var json = @"{""type"":""record"",""name"":""Test"",""fields"":[{""type"":""string"",""name"":""Field""},{""type"":""int"",""name"":""id""}]}";
+
+            registryMock.Setup(r => r.GetSchemaAsync(id, null))
+                .ReturnsAsync(new Schema(json, SchemaType.Avro))
+                .Verifiable();
+
+            var context = new SerializationContext(MessageComponentType.Value, "test-topic");
+            var data = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x54 };
+            using var builder = new SchemaRegistryDeserializerBuilder(registryMock.Object);
+
+            var deserializer = await builder.Build<NoDefaultConstructor>(id);
+            var deserialized = deserializer.Deserialize(data, false, context);
+            Assert.Equal(42, deserialized.Id);
+        }
+
+        [Fact]
         public async Task BuildsDeserializerWithSchemaId()
         {
             var id = 6;
@@ -227,6 +261,18 @@ namespace Chr.Avro.Confluent.Tests
 
             Assert.Throws<InvalidEncodingException>(() =>
                 deserializer.Deserialize(encoding, false, context));
+        }
+
+        public class NoDefaultConstructor
+        {
+            public NoDefaultConstructor(int id)
+            {
+                Id = id;
+            }
+
+            public int Id { get; }
+
+            public string Field { get; set; } = string.Empty;
         }
     }
 }
