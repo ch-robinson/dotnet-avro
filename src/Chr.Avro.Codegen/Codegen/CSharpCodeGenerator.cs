@@ -55,13 +55,13 @@ namespace Chr.Avro.Codegen
         /// </throws>
         public virtual ClassDeclarationSyntax GenerateClass(RecordSchema schema)
         {
-            var declaration = SyntaxFactory.ClassDeclaration(schema.Name)
+            var declaration = SyntaxFactory.ClassDeclaration(EscapeIdentifier(schema.Name))
                 .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                 .AddMembers(schema.Fields
                     .Select(field =>
                     {
                         var child = SyntaxFactory
-                            .PropertyDeclaration(GetPropertyType(field.Type), field.Name)
+                            .PropertyDeclaration(GetPropertyType(field.Type), EscapeIdentifier(field.Name))
                             .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                             .AddAccessorListAccessors(
                                 SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
@@ -107,10 +107,10 @@ namespace Chr.Avro.Codegen
         /// </returns>
         public virtual EnumDeclarationSyntax GenerateEnum(EnumSchema schema)
         {
-            var declaration = SyntaxFactory.EnumDeclaration(schema.Name)
+            var declaration = SyntaxFactory.EnumDeclaration(EscapeIdentifier(schema.Name))
                 .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                 .AddMembers(schema.Symbols
-                    .Select(symbol => SyntaxFactory.EnumMemberDeclaration(symbol))
+                    .Select(symbol => SyntaxFactory.EnumMemberDeclaration(EscapeIdentifier(symbol)))
                     .ToArray())
                 .AddAttributeLists(GetDescriptionAttribute(schema.Documentation));
 
@@ -185,7 +185,7 @@ namespace Chr.Avro.Codegen
                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Chr.Avro.Serialization")),
                     });
 
-                    var declaration = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(commonNamespace))
+                    var declaration = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(EscapeDottedName(commonNamespace)))
                         .WithUsings(usings)
                         .AddMembers(commonInterfaces);
 
@@ -210,7 +210,7 @@ namespace Chr.Avro.Codegen
                     // If the group has a namespace, wrap the members in a namespace declaration
                     members = new[]
                     {
-                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(group.Key)).AddMembers(members),
+                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(EscapeDottedName(group.Key))).AddMembers(members),
                     };
                 }
 
@@ -346,7 +346,7 @@ namespace Chr.Avro.Codegen
                     break;
 
                 case EnumSchema e:
-                    type = SyntaxFactory.ParseTypeName($"global::{e.FullName}");
+                    type = SyntaxFactory.ParseTypeName($"global::{EscapeDottedName(e.FullName)}");
                     value = true;
                     break;
 
@@ -373,7 +373,7 @@ namespace Chr.Avro.Codegen
                     break;
 
                 case RecordSchema r:
-                    type = SyntaxFactory.ParseTypeName($"global::{r.FullName}");
+                    type = SyntaxFactory.ParseTypeName($"global::{EscapeDottedName(r.FullName)}");
                     break;
 
                 case StringSchema s:
@@ -434,6 +434,23 @@ namespace Chr.Avro.Codegen
                         .WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed)));
 
             return node.WithLeadingTrivia(trivia);
+        }
+
+        private static string EscapeIdentifier(string name)
+        {
+            return SyntaxFacts.GetKeywordKind(name) != SyntaxKind.None
+                ? "@" + name
+                : name;
+        }
+
+        private static string EscapeDottedName(string dottedName)
+        {
+            if (string.IsNullOrEmpty(dottedName) || dottedName.IndexOf('.') < 0)
+            {
+                return EscapeIdentifier(dottedName);
+            }
+
+            return string.Join(".", dottedName.Split('.').Select(EscapeIdentifier));
         }
 
         private static string GetCommonNamespace(IEnumerable<string?> sources)
@@ -531,7 +548,8 @@ namespace Chr.Avro.Codegen
                 Environment.NewLine,
                 interfaceDefinition.RecordSchemaNames.Select(schemaName =>
                 {
-                    return $"                nameof({schemaName}) => typeof({schemaName}),";
+                    var escaped = EscapeDottedName(schemaName);
+                    return $"                nameof({escaped}) => typeof({escaped}),";
                 }));
 
             // Create the class template with non-global namespace references
@@ -704,7 +722,7 @@ namespace Chr.Avro.Codegen
             var interfaceDeclaration = SyntaxFactory.InterfaceDeclaration(name)
                 .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
                 .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(commonFields.Select(field =>
-                    SyntaxFactory.PropertyDeclaration(GetPropertyType(field.Type), field.Name)
+                    SyntaxFactory.PropertyDeclaration(GetPropertyType(field.Type), EscapeIdentifier(field.Name))
                         .AddAccessorListAccessors(
                             SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
