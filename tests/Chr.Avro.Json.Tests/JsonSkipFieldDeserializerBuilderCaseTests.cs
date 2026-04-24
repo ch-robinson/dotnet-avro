@@ -188,6 +188,40 @@ namespace Chr.Avro.Serialization.Tests
         }
 
         [Fact]
+        public void Can_skip_empty_nested_record_field()
+        {
+            var emptySchema = new RecordSchema("EmptyRecord");
+
+            var schema = new RecordSchema("TestRecord", new RecordField[]
+            {
+                new("KeptField", new StringSchema()),
+                new("SkippedField", emptySchema),
+                new("KeptField2", new StringSchema()),
+            });
+
+            var serialize = serializerBuilder.BuildDelegate<Record<string, EmptyRecord>>(schema);
+            var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
+
+            using (stream)
+            {
+                serialize(
+                    new()
+                    {
+                        KeptField = "before",
+                        SkippedField = new EmptyRecord(),
+                        KeptField2 = "after",
+                    },
+                    new(stream));
+            }
+
+            var reader = new Utf8JsonReader(stream.ToArray());
+            var result = deserialize(ref reader);
+
+            Assert.Equal("before", result.KeptField);
+            Assert.Equal("after", result.KeptField2);
+        }
+
+        [Fact]
         public void Can_skip_nested_record_field()
         {
             var nestedSchema = new RecordSchema("NestedRecord", new RecordField[]
@@ -357,6 +391,8 @@ namespace Chr.Avro.Serialization.Tests
 
             public TKept KeptField2 { get; set; }
         }
+
+        public class EmptyRecord { }
 
         public class NestedRecord
         {
