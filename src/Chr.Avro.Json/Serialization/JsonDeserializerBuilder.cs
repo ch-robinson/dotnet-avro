@@ -47,7 +47,7 @@ namespace Chr.Avro.Serialization
                 cases.Add(builder(this));
             }
 
-            skipFieldDeserializerBuilderCase = new(this);
+            skipFieldDeserializerBuilderCase = new();
         }
 
         /// <summary>
