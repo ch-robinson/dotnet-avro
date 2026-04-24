@@ -50,14 +50,12 @@ namespace Chr.Avro.Serialization
                 {
                     // support dynamic mapping:
                     itemType ??= typeof(object);
-                    var readOnlyCollectionType = typeof(IReadOnlyCollection<>).MakeGenericType(itemType);
                     var enumerableType = typeof(IEnumerable<>).MakeGenericType(itemType);
-                    var enumeratorType = typeof(IEnumerator<>).MakeGenericType(itemType);
 
                     Expression expression;
                     try
                     {
-                        if (readOnlyCollectionType.IsAssignableFrom(type))
+                        if (enumerableType.IsAssignableFrom(type))
                         {
                             // NOTE: Not casting the expression to allow us to get the specific enumerator of `type`
                             // This way we can avoid the allocation of an IEnumerator<T> and the overhead of
@@ -66,7 +64,7 @@ namespace Chr.Avro.Serialization
                         }
                         else
                         {
-                            expression = BuildConversion(value, readOnlyCollectionType);
+                            expression = BuildConversion(value, enumerableType);
                         }
                     }
                     catch (Exception exception)
@@ -75,7 +73,7 @@ namespace Chr.Avro.Serialization
                     }
 
                     var collection = Expression.Variable(expression.Type);
-                    var enumerationReflection = EnumerationReflection.Create(collection, readOnlyCollectionType, enumerableType);
+                    var enumerationReflection = EnumerationReflection.Create(collection, enumerableType, enumerableType);
 
                     var loopLabel = Expression.Label();
 

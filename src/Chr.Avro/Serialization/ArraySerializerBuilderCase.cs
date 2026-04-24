@@ -3,7 +3,6 @@ namespace Chr.Avro.Serialization
     using System;
     using System.Collections;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
@@ -22,7 +21,7 @@ namespace Chr.Avro.Serialization
         {
             if (target.GetEnumerableType() is Type itemType)
             {
-                var collectionType = typeof(IReadOnlyCollection<>).MakeGenericType(itemType);
+                var collectionType = typeof(ICollection<>).MakeGenericType(itemType);
                 var enumerableType = typeof(IEnumerable<>).MakeGenericType(itemType);
 
                 var toList = typeof(Enumerable)
@@ -62,7 +61,7 @@ namespace Chr.Avro.Serialization
         {
             if (target.GetEnumerableType() is Type itemType)
             {
-                var collectionType = typeof(IReadOnlyCollection<>).MakeGenericType(itemType);
+                var collectionType = typeof(ICollection<>).MakeGenericType(itemType);
                 var enumerableType = typeof(IEnumerable<>).MakeGenericType(itemType);
 
                 if (!collectionType.IsAssignableFrom(value.Type))
@@ -126,7 +125,7 @@ namespace Chr.Avro.Serialization
         {
             private EnumerationReflection(
                 ParameterExpression enumerator,
-                PropertyInfo getCount,
+                PropertyInfo? getCount,
                 PropertyInfo getCurrent,
                 MethodInfo getEnumerator,
                 MethodInfo moveNext,
@@ -147,8 +146,9 @@ namespace Chr.Avro.Serialization
 
             /// <summary>
             /// Gets the <see cref="PropertyInfo"/> for the collection's Count or Length property.
+            /// May be null when count is not needed (e.g., JSON serialization).
             /// </summary>
-            public PropertyInfo GetCount { get; }
+            public PropertyInfo? GetCount { get; }
 
             /// <summary>
             /// Gets the <see cref="PropertyInfo"/> for the <c>Current</c> property of the enumerator.
@@ -176,14 +176,18 @@ namespace Chr.Avro.Serialization
             /// Analyzes the provided collection type and resolves the reflection metadata needed to iterate it.
             /// </summary>
             /// <param name="collection">The expression representing the collection instance.</param>
-            /// <param name="readOnlyCollectionType">The fallback type for read-only collections (usually <see cref="IReadOnlyCollection{T}"/>).</param>
-            /// <param name="enumerableType">The fallback type for enumerables (usually <see cref="IEnumerable{T}"/> or <see cref="IEnumerable"/>).</param>
+            /// <param name="collectionType">
+            /// The fallback type for collections (can be <see cref="IReadOnlyCollection{T}"/> or <see cref="ICollection{T}"/>).
+            /// </param>
+            /// <param name="enumerableType">
+            /// The fallback type for enumerables (usually <see cref="IEnumerable{T}"/> or <see cref="IEnumerable"/>).
+            /// </param>
             /// <returns>A populated <see cref="EnumerationReflection"/> instance.</returns>
-            public static EnumerationReflection Create(ParameterExpression collection, Type readOnlyCollectionType, Type enumerableType)
+            public static EnumerationReflection Create(ParameterExpression collection, Type collectionType, Type enumerableType)
             {
                 // Try to get the Count property from the actual concrete type first.
                 // If not found (e.g., explicit interface impl), fallback to looking up ICollection or IReadOnlyCollection.
-                var getCount = GetCountProperty(collection.Type, readOnlyCollectionType);
+                var getCount = GetCountProperty(collection.Type, collectionType);
 
                 // Similarly, look on the concrete type (to avoid boxing struct enumerators like List<T>.Enumerator),
                 // falling back to the generic IEnumerable<T> interface if needed.
@@ -216,7 +220,7 @@ namespace Chr.Avro.Serialization
                 return new EnumerationReflection(enumerator, getCount, getCurrent, getEnumerator, moveNext, disposeCall);
             }
 
-            private static PropertyInfo GetCountProperty(Type type, Type fallback)
+            private static PropertyInfo? GetCountProperty(Type type, Type fallback)
             {
                 // Try to get the property from the concrete type (e.g., List<int>)
                 var property = type.GetProperty(nameof(ICollection.Count));
@@ -225,9 +229,12 @@ namespace Chr.Avro.Serialization
                     return property;
                 }
 
-                // If not found, get from the fallback type
-                Debug.Assert(fallback.IsAssignableFrom(type), "Fallback should aways be IReadOnlyCollection and BuildConversion will result in an IReadOnlyCollection");
-                property = fallback.GetProperty(nameof(ICollection.Count))!;
+                // If not found, get from the fallback type if applicable.
+                if (fallback.IsAssignableFrom(type))
+                {
+                    property = fallback.GetProperty(nameof(ICollection.Count));
+                }
+
                 return property;
             }
 

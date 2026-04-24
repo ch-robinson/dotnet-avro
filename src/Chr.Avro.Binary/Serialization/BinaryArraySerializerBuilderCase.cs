@@ -2,6 +2,7 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
 
@@ -49,14 +50,13 @@ namespace Chr.Avro.Serialization
                 {
                     // support dynamic mapping:
                     itemType ??= typeof(object);
-                    var readOnlyCollectionType = typeof(IReadOnlyCollection<>).MakeGenericType(itemType);
-                    var enumerableType = typeof(IEnumerable<>).MakeGenericType(itemType);
-                    var enumeratorType = typeof(IEnumerator<>).MakeGenericType(itemType);
 
+                    var collectionType = typeof(ICollection<>).MakeGenericType(itemType);
+                    var enumerableType = typeof(IEnumerable<>).MakeGenericType(itemType);
                     Expression expression;
                     try
                     {
-                        if (readOnlyCollectionType.IsAssignableFrom(type))
+                        if (collectionType.IsAssignableFrom(type))
                         {
                             // NOTE: Not casting the expression to allow us to get the specific enumerator of `type`
                             // This way we can avoid the allocation of an IEnumerator<T> and the overhead of
@@ -65,7 +65,23 @@ namespace Chr.Avro.Serialization
                         }
                         else
                         {
-                            expression = BuildConversion(value, readOnlyCollectionType);
+                            var readOnlyCollectionType = typeof(IReadOnlyCollection<>).MakeGenericType(itemType);
+                            if (readOnlyCollectionType.IsAssignableFrom(type))
+                            {
+                                // NOTE: If the type is assignable to IReadOnlyCollection<T> (like ImmutableCollections)
+                                // we can use that instead of ICollection<T> to get the count of items in the collection
+                                expression = value;
+                                collectionType = readOnlyCollectionType;
+                            }
+                            else
+                            {
+                                // If the type is not assignable to either IReadOnlyCollection<T> or ICollection<T> we
+                                // convert to an ICollection<T> to be able to get the count of items in the collection.
+                                //
+                                // This will likely result in a materialization of the IEnumerable<T> which is not ideal
+                                // but we need the count of items in the collection to write the length prefix of the array.
+                                expression = BuildConversion(value, collectionType);
+                            }
                         }
                     }
                     catch (Exception exception)
@@ -74,12 +90,13 @@ namespace Chr.Avro.Serialization
                     }
 
                     var collection = Expression.Variable(expression.Type);
-                    var enumerationReflection = EnumerationReflection.Create(collection, readOnlyCollectionType, enumerableType);
+                    var enumerationReflection = EnumerationReflection.Create(collection, collectionType, enumerableType);
+                    Debug.Assert(enumerationReflection.GetCount is not null, "For binary serialization we must have a valid GetCount method.");
 
                     var loopLabel = Expression.Label();
 
                     var writeInteger = typeof(BinaryWriter)
-                        .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) });
+                        .GetMethod(nameof(BinaryWriter.WriteInteger), new[] { typeof(long) })!;
 
                     var writeItem = SerializerBuilder
                         .BuildExpression(Expression.Property(enumerationReflection.Enumerator, enumerationReflection.GetCurrent), arraySchema.Item, context);
@@ -113,8 +130,6 @@ namespace Chr.Avro.Serialization
                     //
                     // // write closing block:
                     // writer.WriteInteger(0L);
-
-
                     Expression loop = Expression.Loop(
                         Expression.IfThenElse(
                             Expression.Call(enumerationReflection.Enumerator, enumerationReflection.MoveNext),
@@ -161,5 +176,7 @@ namespace Chr.Avro.Serialization
                 return BinarySerializerBuilderCaseResult.FromException(new UnsupportedSchemaException(schema, $"{nameof(BinaryArraySerializerBuilderCase)} can only be applied to {nameof(ArraySchema)}s."));
             }
         }
+
+
     }
 }
