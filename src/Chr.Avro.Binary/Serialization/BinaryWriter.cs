@@ -1,7 +1,7 @@
 namespace Chr.Avro.Serialization
 {
     using System;
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     using System.Buffers.Binary;
 #endif
     using System.IO;
@@ -63,7 +63,7 @@ namespace Chr.Avro.Serialization
             WriteInteger(value.Length);
             WriteFixed(value);
         }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         /// <summary>
         /// Writes fixed-length binary data to the current position and advances the writer.
@@ -87,7 +87,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteDouble(double value)
         {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             Span<byte> bytes = stackalloc byte[sizeof(double)];
             BinaryPrimitives.WriteDoubleLittleEndian(bytes, value);
 #else
@@ -112,7 +112,7 @@ namespace Chr.Avro.Serialization
         {
             stream.Write(value, 0, value.Length);
         }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         /// <summary>
         /// Writes fixed-length binary data to the current position and advances the writer.
@@ -134,7 +134,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteInteger(int value)
         {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             var index = 0;
 
             // Max 5 bytes for 32-bit varint
@@ -153,7 +153,7 @@ namespace Chr.Avro.Serialization
                     current |= 0x80U;
                 }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
                 buffer[index++] = (byte)current;
 #else
                 stream.WriteByte((byte)current);
@@ -161,7 +161,7 @@ namespace Chr.Avro.Serialization
             }
             while (encoded != 0U);
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             stream.Write(buffer.Slice(0, index));
 #endif
         }
@@ -174,7 +174,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteInteger(long value)
         {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             var index = 0;
 
             // Max 10 bytes for 64-bit varint
@@ -193,7 +193,7 @@ namespace Chr.Avro.Serialization
                     current |= 0x80UL;
                 }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
                 buffer[index++] = (byte)current;
 #else
                 stream.WriteByte((byte)current);
@@ -201,7 +201,7 @@ namespace Chr.Avro.Serialization
             }
             while (encoded != 0UL);
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             stream.Write(buffer.Slice(0, index));
 #endif
         }
@@ -215,7 +215,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteSingle(float value)
         {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             Span<byte> bytes = stackalloc byte[sizeof(float)];
             BinaryPrimitives.WriteSingleLittleEndian(bytes, value);
 #else
@@ -238,7 +238,7 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteString(string value)
         {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             WriteInteger(Encoding.UTF8.GetByteCount(value));
 
             // UTF8 is Unicode encoding that represents each code point as a sequence of 1 to 4 bytes.

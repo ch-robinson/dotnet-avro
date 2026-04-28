@@ -304,7 +304,7 @@ namespace Chr.Avro.Codegen
                     value = true;
                     break;
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
                 case IntSchema i when i.LogicalType is DateLogicalType t:
                     type = SyntaxFactory.ParseTypeName("global::System.DateOnly");
                     value = true;

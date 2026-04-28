@@ -29,7 +29,7 @@ namespace Chr.Avro.Codegen.Tests
 
             var refPaths = new[]
             {
-#if !NET6_0_OR_GREATER
+#if !NET8_0_OR_GREATER
                 Path.Combine(runtimePath, "netstandard.dll"),
 #endif
                 typeof(object).GetTypeInfo().Assembly.Location, // mscorlib

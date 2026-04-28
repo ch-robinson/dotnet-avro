@@ -2,7 +2,7 @@ namespace Chr.Avro.Serialization
 {
     using System;
     using System.Linq.Expressions;
-    using System.Numerics;
+    using System.Reflection;
     using Chr.Avro.Abstract;
 
     /// <summary>
@@ -31,69 +31,40 @@ namespace Chr.Avro.Serialization
         {
             if (schema.LogicalType is DecimalLogicalType decimalLogicalType)
             {
-                var precision = decimalLogicalType.Precision;
                 var scale = decimalLogicalType.Scale;
 
                 Expression expression;
+
+                var decodeDecimal = typeof(BinaryDecimalCodec)
+                    .GetMethod(nameof(BinaryDecimalCodec.DecodeDecimal), BindingFlags.Static | BindingFlags.Public)!;
 
                 // figure out the size:
                 if (schema is BytesSchema)
                 {
                     var readBytes = typeof(BinaryReader)
-                        .GetMethod(nameof(BinaryReader.ReadBytes), Type.EmptyTypes);
+                        .GetMethod(nameof(BinaryReader.ReadBytesSpan), Type.EmptyTypes)!;
 
-                    expression = Expression.Call(context.Reader, readBytes);
+                    expression = Expression.Call(
+                        null,
+                        decodeDecimal,
+                        Expression.Call(context.Reader, readBytes),
+                        Expression.Constant(scale));
                 }
                 else if (schema is FixedSchema fixedSchema)
                 {
                     var readFixed = typeof(BinaryReader)
-                        .GetMethod(nameof(BinaryReader.ReadFixed), new[] { typeof(long) });
+                        .GetMethod(nameof(BinaryReader.ReadFixedSpan), new[] { typeof(int) })!;
 
-                    expression = Expression.Call(context.Reader, readFixed, Expression.Constant((long)fixedSchema.Size));
+                    expression = Expression.Call(
+                        null,
+                        decodeDecimal,
+                        Expression.Call(context.Reader, readFixed, Expression.Constant(fixedSchema.Size)),
+                        Expression.Constant(scale));
                 }
                 else
                 {
                     throw new UnsupportedSchemaException(schema);
                 }
-
-                // declare variables for in-place transformation:
-                var bytes = Expression.Variable(typeof(byte[]));
-                var remainder = Expression.Variable(typeof(BigInteger));
-
-                var divide = typeof(BigInteger)
-                    .GetMethod(nameof(BigInteger.DivRem), new[] { typeof(BigInteger), typeof(BigInteger), typeof(BigInteger).MakeByRefType() });
-
-                var integerConstructor = typeof(BigInteger)
-                    .GetConstructor(new[] { typeof(byte[]) });
-
-                var reverse = typeof(Array)
-                    .GetMethod(nameof(Array.Reverse), new[] { typeof(Array) });
-
-                // var bytes = ...;
-                //
-                // // BigInteger is little-endian, so reverse:
-                // Array.Reverse(bytes);
-                //
-                // var whole = BigInteger.DivRem(new BigInteger(bytes), BigInteger.Pow(10, scale), out var remainder);
-                // var fraction = (decimal)remainder / (decimal)Math.Pow(10, scale);
-                //
-                // return whole + fraction;
-                expression = Expression.Block(
-                    new[] { bytes, remainder },
-                    Expression.Assign(bytes, expression),
-                    Expression.Call(null, reverse, bytes),
-                    Expression.Add(
-                        Expression.ConvertChecked(
-                            Expression.Call(
-                                null,
-                                divide,
-                                Expression.New(integerConstructor, bytes),
-                                Expression.Constant(BigInteger.Pow(10, scale)),
-                                remainder),
-                            typeof(decimal)),
-                        Expression.Divide(
-                            Expression.ConvertChecked(remainder, typeof(decimal)),
-                            Expression.Constant((decimal)Math.Pow(10, scale)))));
 
                 try
                 {

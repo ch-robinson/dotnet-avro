@@ -4,21 +4,21 @@ namespace Chr.Avro.Fixtures
 
     public class RangeAnnotatedPropertiesClass
     {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
         [Range(typeof(decimal), "0.00", "999999.99", ConvertValueInInvariantCulture = true)]
 #else
         [Range(typeof(decimal), "0.00", "999999.99")]
 #endif
         public decimal Currency { get; set; }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
         [Range(typeof(decimal?), "0.00", "999999.99", ConvertValueInInvariantCulture = true)]
 #else
         [Range(typeof(decimal?), "0.00", "999999.99")]
 #endif
         public decimal? NullableCurrency { get; set; }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
         [Range(typeof(decimal), "-.500", ".500", ConvertValueInInvariantCulture = true)]
 #else
         [Range(typeof(decimal), "-.500", ".500")]

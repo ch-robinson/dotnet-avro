@@ -545,7 +545,7 @@ namespace Chr.Avro.Tests
             Assert.Equal(typeof(CircularClass).Name, schema.Name);
             Assert.Equal(typeof(CircularClass).Namespace, schema.Namespace);
         }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         [Theory]
         [InlineData(typeof(DateOnly))]
@@ -843,7 +843,7 @@ namespace Chr.Avro.Tests
                 s => Assert.IsType<NullSchema>(s),
                 s => Assert.IsType(inner, s));
         }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         [Theory]
         [InlineData(typeof(TimeOnly))]
