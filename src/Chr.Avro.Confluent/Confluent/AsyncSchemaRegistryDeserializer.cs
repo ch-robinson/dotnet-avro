@@ -222,7 +222,7 @@ namespace Chr.Avro.Confluent
                 throw new InvalidEncodingException(0, "The encoded data does not include a Confluent wire format header.");
             }
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             var header = data.Span[..5];
 
             if (header[0] != 0x00)

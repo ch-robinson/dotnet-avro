@@ -1,7 +1,7 @@
 namespace Chr.Avro.Serialization
 {
     using System;
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
     using System.Buffers.Binary;
 #endif
     using System.Text;
@@ -76,7 +76,7 @@ namespace Chr.Avro.Serialization
         /// </returns>
         public double ReadDouble()
         {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return BinaryPrimitives.ReadDoubleLittleEndian(ReadFixedSpan(8));
 #else
             var bytes = ReadFixed(8);
@@ -157,7 +157,7 @@ namespace Chr.Avro.Serialization
         /// </returns>
         public float ReadSingle()
         {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return BinaryPrimitives.ReadSingleLittleEndian(ReadFixedSpan(4));
 #else
             var bytes = ReadFixed(4);
@@ -180,7 +180,7 @@ namespace Chr.Avro.Serialization
         /// </returns>
         public string ReadString()
         {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return Encoding.UTF8.GetString(ReadBytesSpan());
 #else
             return Encoding.UTF8.GetString(ReadBytes());

@@ -27,7 +27,7 @@ namespace Chr.Avro.Serialization
 
                 var convertDateTimeOffset = typeof(DateTimeOffset)
                     .GetMethod(nameof(DateTimeOffset.ToString), new[] { typeof(string), typeof(IFormatProvider) });
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
                 var convertDateOnly = typeof(DateOnly)
                     .GetMethod(nameof(DateOnly.ToString), new[] { typeof(string), typeof(IFormatProvider) });
@@ -78,7 +78,7 @@ namespace Chr.Avro.Serialization
                                 convertDateTimeOffset,
                                 Expression.Constant("O"),
                                 Expression.Constant(CultureInfo.InvariantCulture)))),
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
                     Expression.IfThen(
                         Expression.TypeIs(intermediate, typeof(DateOnly)),
                         Expression.Return(
@@ -161,7 +161,7 @@ namespace Chr.Avro.Serialization
                         Expression.Constant("O"),
                         Expression.Constant(CultureInfo.InvariantCulture));
                 }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
                 else if (value.Type == typeof(DateOnly))
                 {
                     var convertDateOnly = typeof(DateOnly)

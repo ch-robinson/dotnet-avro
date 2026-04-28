@@ -24,7 +24,7 @@ namespace Chr.Avro.Serialization.Tests
             serializerBuilder = new BinarySerializerBuilder();
             stream = new MemoryStream();
         }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         public static IEnumerable<object[]> DateOnlys => new List<object[]>
         {
@@ -66,7 +66,7 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { "wizard" },
             new object[] { "🧙" },
         };
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         public static IEnumerable<object[]> TimeOnlys => new List<object[]>
         {
@@ -91,7 +91,7 @@ namespace Chr.Avro.Serialization.Tests
             new object[] { new Uri("https://host/path") },
             new object[] { new Uri("https://host/path?a=query") },
         };
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         [Theory]
         [MemberData(nameof(DateOnlys))]
@@ -152,7 +152,7 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(value.ToString(), deserialize(ref reader));
         }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         [Theory]
         [MemberData(nameof(TimeOnlys))]
@@ -192,7 +192,7 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(XmlConvert.ToString(value), deserialize(ref reader));
         }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         [Theory]
         [MemberData(nameof(DateOnlys))]
@@ -409,7 +409,7 @@ namespace Chr.Avro.Serialization.Tests
 
             Assert.Equal(value, deserialize(ref reader));
         }
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
 
         [Theory]
         [MemberData(nameof(TimeOnlys))]

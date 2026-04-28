@@ -112,11 +112,11 @@ namespace Chr.Avro.Abstract
                 builder => new ArraySchemaBuilderCase(nullableReferenceTypeBehavior, builder),
 
                 // built-ins:
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
                 builder => new DateSchemaBuilderCase(temporalBehavior),
 #endif
                 builder => new DurationSchemaBuilderCase(),
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER
                 builder => new TimeSchemaBuilderCase(temporalBehavior),
 #endif
                 builder => new TimestampSchemaBuilderCase(temporalBehavior),
