@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Roslyn": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "../../examples/Chr.Avro.SourceGeneratorExample/Chr.Avro.SourceGeneratorExample.csproj"
+    }
+  }
+}
