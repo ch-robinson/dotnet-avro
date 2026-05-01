@@ -1,7 +1,7 @@
 namespace Chr.Avro.Confluent
 {
     using System;
-    using System.IO;
+    using System.Buffers;
     using Chr.Avro.Serialization;
     using global::Confluent.Kafka;
 
@@ -36,15 +36,15 @@ namespace Chr.Avro.Confluent
         }
 
         /// <summary>
-        /// A function that provides the core deserializer implementation.
+        /// A function that provides the core serializer implementation.
         /// </summary>
         /// <param name="value">
         /// The object to be serialized.
         /// </param>
-        /// <param name="stream">
-        /// A <see cref="Stream" /> to write the serialized data to.
+        /// <param name="output">
+        /// An <see cref="IBufferWriter{T}" /> to write the serialized data to.
         /// </param>
-        public delegate void Implementation(T value, Stream stream);
+        public delegate void Implementation(T value, IBufferWriter<byte> output);
 
         /// <summary>
         /// Gets the ID of the schema that the serializer was built against.
@@ -75,15 +75,11 @@ namespace Chr.Avro.Confluent
                 Array.Reverse(header, 1, 4);
             }
 
-            var stream = new MemoryStream();
+            var buffer = new SimpleBufferWriter();
+            buffer.WriteBytes(header, 0, header.Length);
+            @delegate(data, buffer);
 
-            using (stream)
-            {
-                stream.Write(header, 0, header.Length);
-                @delegate(data, stream);
-            }
-
-            return stream.ToArray();
+            return buffer.ToArray();
         }
     }
 }

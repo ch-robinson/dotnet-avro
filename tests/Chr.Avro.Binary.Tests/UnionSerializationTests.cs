@@ -2,7 +2,6 @@ namespace Chr.Avro.Serialization.Tests
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
     using Chr.Avro.Abstract;
     using Xunit;
@@ -16,13 +15,13 @@ namespace Chr.Avro.Serialization.Tests
 
         private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream stream;
+        private readonly TestBufferWriter bufferWriter;
 
         public UnionSerializationTests()
         {
             deserializerBuilder = new BinaryDeserializerBuilder();
             serializerBuilder = new BinarySerializerBuilder();
-            stream = new MemoryStream();
+            bufferWriter = new TestBufferWriter();
         }
 
         public interface IEvent
@@ -75,12 +74,9 @@ namespace Chr.Avro.Serialization.Tests
 
             if (value.HasValue)
             {
-                using (stream)
-                {
-                    serialize(value.Value, new BinaryWriter(stream));
-                }
+                serialize(value.Value, new BinaryWriter(bufferWriter));
 
-                Assert.Equal(encoding, stream.ToArray());
+                Assert.Equal(encoding, bufferWriter.WrittenSpan.ToArray());
             }
 
             Assert.Throws<UnsupportedTypeException>(() => deserializerBuilder.BuildDelegate<int>(schema));
@@ -99,12 +95,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<int?>(schema);
             var serialize = serializerBuilder.BuildDelegate<int?>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var encoded = stream.ToArray();
+            var encoded = bufferWriter.WrittenSpan.ToArray();
             var reader = new BinaryReader(encoded);
 
             Assert.Equal(encoding, encoded);
@@ -137,12 +130,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<string>(schema);
             var serialize = serializerBuilder.BuildDelegate<string>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var encoded = stream.ToArray();
+            var encoded = bufferWriter.WrittenSpan.ToArray();
             var reader = new BinaryReader(encoded);
 
             Assert.Equal(encoding, encoded);
@@ -161,12 +151,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<string>(schema);
             var serialize = serializerBuilder.BuildDelegate<string>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var encoded = stream.ToArray();
+            var encoded = bufferWriter.WrittenSpan.ToArray();
             var reader = new BinaryReader(encoded);
 
             Assert.Equal(encoding, encoded);
@@ -212,12 +199,9 @@ namespace Chr.Avro.Serialization.Tests
                 Total = 40M,
             };
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             var result = deserialize(ref reader);
             Assert.Equal(value.Timestamp, result.Timestamp);
@@ -285,23 +269,20 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            using (stream)
-            {
-                serialize(creation, new BinaryWriter(stream));
+            serialize(creation, new BinaryWriter(bufferWriter));
 
-                var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
-                var result = deserialize(ref reader);
-                Assert.IsType<OrderCreatedEvent>(result.Event);
+            var result = deserialize(ref reader);
+            Assert.IsType<OrderCreatedEvent>(result.Event);
 
-                stream.Position = 0;
-                serialize(cancellation, new BinaryWriter(stream));
+            var bufferWriter2 = new TestBufferWriter();
+            serialize(cancellation, new BinaryWriter(bufferWriter2));
 
-                reader = new BinaryReader(stream.ToArray());
+            reader = new BinaryReader(bufferWriter2.WrittenSpan);
 
-                result = deserialize(ref reader);
-                Assert.IsType<OrderCancelledEvent>(result.Event);
-            }
+            result = deserialize(ref reader);
+            Assert.IsType<OrderCancelledEvent>(result.Event);
         }
 
         [Fact]
@@ -366,23 +347,20 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            using (stream)
-            {
-                serialize(creation, new BinaryWriter(stream));
+            serialize(creation, new BinaryWriter(bufferWriter));
 
-                var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
-                var result = deserialize(ref reader);
-                Assert.IsType<OrderCreatedEvent>(result.Event);
+            var result = deserialize(ref reader);
+            Assert.IsType<OrderCreatedEvent>(result.Event);
 
-                stream.Position = 0;
-                serialize(cancellation, new BinaryWriter(stream));
+            var bufferWriter2 = new TestBufferWriter();
+            serialize(cancellation, new BinaryWriter(bufferWriter2));
 
-                reader = new BinaryReader(stream.ToArray());
+            reader = new BinaryReader(bufferWriter2.WrittenSpan);
 
-                result = deserialize(ref reader);
-                Assert.IsType<OrderCancelledEvent>(result.Event);
-            }
+            result = deserialize(ref reader);
+            Assert.IsType<OrderCancelledEvent>(result.Event);
         }
 
         [Fact]
@@ -435,15 +413,12 @@ namespace Chr.Avro.Serialization.Tests
                 Event = null,
             };
 
-            using (stream)
-            {
-                serialize(empty, new BinaryWriter(stream));
+            serialize(empty, new BinaryWriter(bufferWriter));
 
-                var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
-                var result = deserialize(ref reader);
-                Assert.Null(result.Event);
-            }
+            var result = deserialize(ref reader);
+            Assert.Null(result.Event);
         }
 
         [Theory]
@@ -458,12 +433,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<string>(schema);
             var serialize = serializerBuilder.BuildDelegate<string>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var encoded = stream.ToArray();
+            var encoded = bufferWriter.WrittenSpan.ToArray();
             var reader = new BinaryReader(encoded);
 
             Assert.Equal(encoding, encoded);

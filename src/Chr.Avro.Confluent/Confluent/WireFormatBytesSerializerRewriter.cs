@@ -1,11 +1,10 @@
 namespace Chr.Avro.Confluent
 {
     using System;
+    using System.Buffers;
     using System.Linq.Expressions;
     using Chr.Avro.Abstract;
     using Chr.Avro.Serialization;
-
-    using Stream = System.IO.Stream;
 
     /// <summary>
     /// Rewrites generated serializers for <see cref="BytesSchema" />s to conform to the "raw
@@ -13,19 +12,31 @@ namespace Chr.Avro.Confluent
     /// </summary>
     internal class WireFormatBytesSerializerRewriter : ExpressionVisitor
     {
-        private readonly ParameterExpression stream;
+        private readonly ParameterExpression output;
         private bool isRewriteComplete;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WireFormatBytesSerializerRewriter" />
         /// class.
         /// </summary>
-        /// <param name="stream">
-        /// A <see cref="ParameterExpression" /> representing the stream being serialized to.
+        /// <param name="output">
+        /// A <see cref="ParameterExpression" /> representing the <see cref="IBufferWriter{T}" />
+        /// being serialized to.
         /// </param>
-        public WireFormatBytesSerializerRewriter(ParameterExpression stream)
+        public WireFormatBytesSerializerRewriter(ParameterExpression output)
         {
-            this.stream = stream;
+            this.output = output;
+        }
+
+        /// <summary>
+        /// Writes a byte array directly to an <see cref="IBufferWriter{T}" />.
+        /// Called via expression trees to avoid ref-struct limitations.
+        /// </summary>
+        public static void WriteToBufferWriter(IBufferWriter<byte> output, byte[] data)
+        {
+            var span = output.GetSpan(data.Length);
+            new ReadOnlySpan<byte>(data).CopyTo(span);
+            output.Advance(data.Length);
         }
 
         /// <inheritdoc />
@@ -42,22 +53,20 @@ namespace Chr.Avro.Confluent
         /// <inheritdoc />
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
-            var readBytes = typeof(BinaryWriter)
+            var writeBytes = typeof(BinaryWriter)
                 .GetMethod(nameof(BinaryWriter.WriteBytes), new[] { typeof(byte[]) });
 
-            if (node.Method == readBytes)
+            if (node.Method == writeBytes)
             {
                 isRewriteComplete = true;
 
-                var write = stream.Type
-                    .GetMethod(nameof(Stream.Write), new[] { typeof(byte[]), typeof(int), typeof(int) });
+                var writeToBufferWriter = typeof(WireFormatBytesSerializerRewriter)
+                    .GetMethod(nameof(WriteToBufferWriter), new[] { typeof(IBufferWriter<byte>), typeof(byte[]) });
 
                 return Expression.Call(
-                    stream,
-                    write,
-                    node.Arguments[0],
-                    Expression.Constant(0),
-                    Expression.ArrayLength(node.Arguments[0]));
+                    writeToBufferWriter,
+                    output,
+                    node.Arguments[0]);
             }
 
             return base.VisitMethodCall(node);

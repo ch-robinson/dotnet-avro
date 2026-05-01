@@ -1,7 +1,6 @@
 namespace Chr.Avro.Serialization.Tests
 {
     using System;
-    using System.IO;
     using Chr.Avro.Abstract;
     using Chr.Avro.Fixtures;
     using Xunit;
@@ -15,13 +14,13 @@ namespace Chr.Avro.Serialization.Tests
 
         private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream stream;
+        private readonly TestBufferWriter bufferWriter;
 
         public EnumSerializationTests()
         {
             deserializerBuilder = new BinaryDeserializerBuilder();
             serializerBuilder = new BinarySerializerBuilder();
-            stream = new MemoryStream();
+            bufferWriter = new TestBufferWriter();
         }
 
         [Fact]
@@ -35,12 +34,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<ImplicitEnum>(schema);
             var serialize = serializerBuilder.BuildDelegate<string>(schema);
 
-            using (stream)
-            {
-                serialize("FIFTH", new BinaryWriter(stream));
-            }
+            serialize("FIFTH", new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(ImplicitEnum.None, deserialize(ref reader));
         }
@@ -58,12 +54,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<ImplicitEnum>(schema);
             var serialize = serializerBuilder.BuildDelegate<ImplicitEnum>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -80,10 +73,7 @@ namespace Chr.Avro.Serialization.Tests
             schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST", "SECOND", "THIRD", "FOURTH" });
             var serialize = serializerBuilder.BuildDelegate<ImplicitEnum>(schema);
 
-            using (stream)
-            {
-                Assert.Throws<ArgumentOutOfRangeException>(() => serialize((ImplicitEnum)(-1), new BinaryWriter(stream)));
-            }
+            Assert.Throws<ArgumentOutOfRangeException>(() => serialize((ImplicitEnum)(-1), new BinaryWriter(bufferWriter)));
         }
 
         [Fact]
@@ -92,10 +82,7 @@ namespace Chr.Avro.Serialization.Tests
             var schema = new EnumSchema("ordinal", new[] { "NONE", "FIRST" });
             var serialize = serializerBuilder.BuildDelegate<string>(schema);
 
-            using (stream)
-            {
-                Assert.Throws<ArgumentOutOfRangeException>(() => serialize("SECOND", new BinaryWriter(stream)));
-            }
+            Assert.Throws<ArgumentOutOfRangeException>(() => serialize("SECOND", new BinaryWriter(bufferWriter)));
         }
 
         [Theory]
@@ -111,12 +98,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<ImplicitEnum?>(schema);
             var serialize = serializerBuilder.BuildDelegate<ImplicitEnum>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -134,12 +118,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<string>(schema);
             var serialize = serializerBuilder.BuildDelegate<string>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }

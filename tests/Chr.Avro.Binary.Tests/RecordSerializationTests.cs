@@ -2,7 +2,6 @@ namespace Chr.Avro.Serialization.Tests
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using Chr.Avro.Abstract;
     using Chr.Avro.Fixtures;
     using Xunit;
@@ -16,13 +15,13 @@ namespace Chr.Avro.Serialization.Tests
 
         private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream stream;
+        private readonly TestBufferWriter bufferWriter;
 
         public RecordSerializationTests()
         {
             deserializerBuilder = new BinaryDeserializerBuilder();
             serializerBuilder = new BinarySerializerBuilder();
-            stream = new MemoryStream();
+            bufferWriter = new TestBufferWriter();
         }
 
         [Fact]
@@ -60,24 +59,21 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
             var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new
-                    {
-                        First = new List<bool>() { false },
-                        Second = new List<bool>() { false, false },
-                        Third = new List<bool>() { false, false, false },
-                        Fourth = new List<bool>() { false },
-                        Fifth = new Dictionary<string, int>() { { "first", 1 } },
-                        Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
-                        Seventh = ImplicitEnum.First,
-                        Eighth = ImplicitEnum.None,
-                    },
-                    new BinaryWriter(stream));
-            }
+            serialize(
+                new
+                {
+                    First = new List<bool>() { false },
+                    Second = new List<bool>() { false, false },
+                    Third = new List<bool>() { false, false, false },
+                    Fourth = new List<bool>() { false },
+                    Fifth = new Dictionary<string, int>() { { "first", 1 } },
+                    Sixth = new Dictionary<string, int>() { { "first", 1 }, { "second", 2 } },
+                    Seventh = ImplicitEnum.First,
+                    Eighth = ImplicitEnum.None,
+                },
+                new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var value = deserialize(ref reader);
 
             Assert.Equal(nameof(ImplicitEnum.First), value.Seventh);
@@ -94,42 +90,39 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<Node>(schema);
             var serialize = serializerBuilder.BuildDelegate<Node>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new Node()
+            serialize(
+                new Node()
+                {
+                    Value = 5,
+                    Children = new[]
                     {
-                        Value = 5,
-                        Children = new[]
+                        new Node()
                         {
-                            new Node()
+                            Value = 4,
+                            Children = Array.Empty<Node>(),
+                        },
+                        new Node()
+                        {
+                            Value = 7,
+                            Children = new[]
                             {
-                                Value = 4,
-                                Children = Array.Empty<Node>(),
-                            },
-                            new Node()
-                            {
-                                Value = 7,
-                                Children = new[]
+                                new Node()
                                 {
-                                    new Node()
-                                    {
-                                        Value = 6,
-                                        Children = Array.Empty<Node>(),
-                                    },
-                                    new Node
-                                    {
-                                        Value = 8,
-                                        Children = Array.Empty<Node>(),
-                                    },
+                                    Value = 6,
+                                    Children = Array.Empty<Node>(),
+                                },
+                                new Node
+                                {
+                                    Value = 8,
+                                    Children = Array.Empty<Node>(),
                                 },
                             },
                         },
                     },
-                    new BinaryWriter(stream));
-            }
+                },
+                new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             var n5 = deserialize(ref reader);
 
@@ -169,42 +162,39 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<MappedNode>(schema);
             var serialize = serializerBuilder.BuildDelegate<Node>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new Node()
+            serialize(
+                new Node()
+                {
+                    Value = 5,
+                    Children = new[]
                     {
-                        Value = 5,
-                        Children = new[]
+                        new Node()
                         {
-                            new Node()
+                            Value = 9,
+                            Children = Array.Empty<Node>(),
+                        },
+                        new Node()
+                        {
+                            Value = 3,
+                            Children = new[]
                             {
-                                Value = 9,
-                                Children = Array.Empty<Node>(),
-                            },
-                            new Node()
-                            {
-                                Value = 3,
-                                Children = new[]
+                                new Node()
                                 {
-                                    new Node()
-                                    {
-                                        Value = 2,
-                                        Children = Array.Empty<Node>(),
-                                    },
-                                    new Node()
-                                    {
-                                        Value = 10,
-                                        Children = Array.Empty<Node>(),
-                                    },
+                                    Value = 2,
+                                    Children = Array.Empty<Node>(),
+                                },
+                                new Node()
+                                {
+                                    Value = 10,
+                                    Children = Array.Empty<Node>(),
                                 },
                             },
                         },
                     },
-                    new BinaryWriter(stream));
-            }
+                },
+                new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             var n5 = deserialize(ref reader);
 
@@ -291,12 +281,9 @@ namespace Chr.Avro.Serialization.Tests
                 Seventh = ImplicitEnum.First,
             };
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             var with = deserialize(ref reader);
 
@@ -349,12 +336,9 @@ namespace Chr.Avro.Serialization.Tests
                 Eighth = ImplicitEnum.None,
             };
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value.Seventh.ToString(), deserialize(ref reader).Seventh);
         }
@@ -402,12 +386,9 @@ namespace Chr.Avro.Serialization.Tests
                 Eighth = ImplicitEnum.None,
             };
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value.Seventh, deserialize(ref reader).Seventh);
         }
@@ -442,12 +423,9 @@ namespace Chr.Avro.Serialization.Tests
                 Name = "Bob",
             };
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var deserialized = deserialize(ref reader);
             Assert.Equal(value.Name, deserialized.Name);
             Assert.Empty(deserialized.SubRecordArray);
@@ -495,12 +473,9 @@ namespace Chr.Avro.Serialization.Tests
                 },
             };
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var deserialized = deserialize(ref reader);
             Assert.Equal(value.Name, deserialized.Name);
             Assert.Equal(value.Age, deserialized.Age);
@@ -525,21 +500,18 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<Reference>(schema);
             var serialize = serializerBuilder.BuildDelegate<Reference>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new Reference()
+            serialize(
+                new Reference()
+                {
+                    Node = new Node()
                     {
-                        Node = new Node()
-                        {
-                            Children = Array.Empty<Node>(),
-                        },
-                        RelatedNodes = Array.Empty<Node>(),
+                        Children = Array.Empty<Node>(),
                     },
-                    new BinaryWriter(stream));
-            }
+                    RelatedNodes = Array.Empty<Node>(),
+                },
+                new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             var root = deserialize(ref reader);
 

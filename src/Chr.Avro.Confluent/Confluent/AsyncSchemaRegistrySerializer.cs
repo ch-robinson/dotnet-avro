@@ -1,8 +1,9 @@
 namespace Chr.Avro.Confluent
 {
     using System;
+    using System.Buffers;
     using System.Collections.Generic;
-    using System.IO;
+    using System.Linq;
     using System.Linq.Expressions;
     using System.Threading.Tasks;
     using Chr.Avro.Representation;
@@ -319,47 +320,45 @@ namespace Chr.Avro.Confluent
             }
 
             var inner = SerializerBuilder.BuildDelegateExpression<T>(schema);
-            var stream = Expression.Parameter(typeof(MemoryStream));
+            var buffer = Expression.Variable(typeof(SimpleBufferWriter));
             var value = inner.Parameters[0];
 
-            var streamConstructor = typeof(MemoryStream)
+            var bufferConstructor = typeof(SimpleBufferWriter)
                 .GetConstructor(Type.EmptyTypes);
 
+            // Use GetConstructors().Single() to avoid type-identity issues with System.Buffers
+            // across assembly contexts (e.g., net462 vs netstandard2.0).
             var writerConstructor = inner.Parameters[1].Type
-                .GetConstructor(new[] { typeof(Stream) });
+                .GetConstructors()
+                .Single();
 
-            var dispose = typeof(IDisposable)
-                .GetMethod(nameof(IDisposable.Dispose), Type.EmptyTypes);
+            var writeHeader = typeof(SimpleBufferWriter)
+                .GetMethod(nameof(SimpleBufferWriter.WriteBytes), new[] { typeof(byte[]), typeof(int), typeof(int) });
 
-            var toArray = typeof(MemoryStream)
-                .GetMethod(nameof(MemoryStream.ToArray), Type.EmptyTypes);
-
-            var write = typeof(Stream)
-                .GetMethod(nameof(Stream.Write), new[] { typeof(byte[]), typeof(int), typeof(int) });
+            var toArray = typeof(SimpleBufferWriter)
+                .GetMethod(nameof(SimpleBufferWriter.ToArray), Type.EmptyTypes);
 
             if (schema is BytesSchema)
             {
-                inner = new WireFormatBytesSerializerRewriter(stream)
+                inner = new WireFormatBytesSerializerRewriter(buffer)
                     .VisitAndConvert(inner, GetType().Name);
             }
 
             var writer = Expression.Block(
-                new[] { stream },
-                Expression.Assign(stream, Expression.New(streamConstructor)),
-                Expression.TryFinally(
-                    Expression.Block(
-                        Expression.Call(
-                            stream,
-                            write,
-                            Expression.Constant(header),
-                            Expression.Constant(0),
-                            Expression.Constant(header.Length)),
-                        Expression.Invoke(
-                            inner,
-                            value,
-                            Expression.New(writerConstructor, stream))),
-                    Expression.Call(stream, dispose)),
-                Expression.Call(stream, toArray));
+                new[] { buffer },
+                Expression.Assign(buffer, Expression.New(bufferConstructor)),
+                Expression.Call(
+                    buffer,
+                    writeHeader,
+                    Expression.Constant(header),
+                    Expression.Constant(0),
+                    Expression.Constant(header.Length)),
+                Expression.Invoke(
+                    inner,
+                    value,
+                    Expression.New(writerConstructor,
+                        Expression.Convert(buffer, writerConstructor.GetParameters()[0].ParameterType))),
+                Expression.Call(buffer, toArray));
 
             return Expression.Lambda<Func<T, byte[]>>(writer, value).Compile();
         }

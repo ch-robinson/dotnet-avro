@@ -2,7 +2,6 @@ namespace Chr.Avro.Serialization.Tests
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using Chr.Avro.Abstract;
     using Xunit;
 
@@ -15,13 +14,13 @@ namespace Chr.Avro.Serialization.Tests
 
         private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream stream;
+        private readonly TestBufferWriter bufferWriter;
 
         public DurationSerializationTests()
         {
             deserializerBuilder = new BinaryDeserializerBuilder();
             serializerBuilder = new BinarySerializerBuilder();
-            stream = new MemoryStream();
+            bufferWriter = new TestBufferWriter();
         }
 
         public static IEnumerable<object[]> TimeSpanEncodings => new List<object[]>
@@ -79,10 +78,7 @@ namespace Chr.Avro.Serialization.Tests
 
             var serialize = serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            using (stream)
-            {
-                Assert.Throws<OverflowException>(() => serialize(TimeSpan.FromMilliseconds(-1), new BinaryWriter(stream)));
-            }
+            Assert.Throws<OverflowException>(() => serialize(TimeSpan.FromMilliseconds(-1), new BinaryWriter(bufferWriter)));
         }
 
         [Theory]
@@ -97,12 +93,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<TimeSpan>(schema);
             var serialize = serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var encoded = stream.ToArray();
+            var encoded = bufferWriter.WrittenSpan.ToArray();
             var reader = new BinaryReader(encoded);
 
             Assert.Equal(encoding, encoded);
@@ -121,12 +114,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<TimeSpan?>(schema);
             var serialize = serializerBuilder.BuildDelegate<TimeSpan>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var encoded = stream.ToArray();
+            var encoded = bufferWriter.WrittenSpan.ToArray();
             var reader = new BinaryReader(encoded);
 
             Assert.Equal(encoding, encoded);

@@ -4,7 +4,6 @@ namespace Chr.Avro.Serialization.Tests
     using System.Collections.Generic;
     using System.Collections.Immutable;
     using System.Collections.ObjectModel;
-    using System.IO;
     using System.Linq;
     using Chr.Avro.Abstract;
     using Xunit;
@@ -18,13 +17,13 @@ namespace Chr.Avro.Serialization.Tests
 
         private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream stream;
+        private readonly TestBufferWriter bufferWriter;
 
         public MapSerializationTests()
         {
             deserializerBuilder = new BinaryDeserializerBuilder();
             serializerBuilder = new BinarySerializerBuilder();
-            stream = new MemoryStream();
+            bufferWriter = new TestBufferWriter();
         }
 
         public static IEnumerable<object[]> DateTimeKeyData => new List<object[]>
@@ -63,12 +62,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<Dictionary<DateTime, string>>(schema);
             var serialize = serializerBuilder.BuildDelegate<Dictionary<DateTime, string>>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -82,12 +78,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<dynamic>(schema);
             var serialize = serializerBuilder.BuildDelegate<dynamic>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value.ToDictionary(p => p.Key, p => (object)p.Value), deserialize(ref reader));
         }
@@ -101,12 +94,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<IDictionary<DateTime, string>>(schema);
             var serialize = serializerBuilder.BuildDelegate<IDictionary<DateTime, string>>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -120,12 +110,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<IEnumerable<KeyValuePair<string, double>>>(schema);
             var serialize = serializerBuilder.BuildDelegate<IEnumerable<KeyValuePair<string, double>>>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -139,12 +126,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<IImmutableDictionary<string, double>>(schema);
             var serialize = serializerBuilder.BuildDelegate<IImmutableDictionary<string, double>>(schema);
 
-            using (stream)
-            {
-                serialize(value.ToImmutableDictionary(), new BinaryWriter(stream));
-            }
+            serialize(value.ToImmutableDictionary(), new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -158,12 +142,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<IReadOnlyDictionary<string, double>>(schema);
             var serialize = serializerBuilder.BuildDelegate<IReadOnlyDictionary<string, double>>(schema);
 
-            using (stream)
-            {
-                serialize(value, new BinaryWriter(stream));
-            }
+            serialize(value, new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -177,12 +158,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<ImmutableDictionary<string, double>>(schema);
             var serialize = serializerBuilder.BuildDelegate<ImmutableDictionary<string, double>>(schema);
 
-            using (stream)
-            {
-                serialize(value.ToImmutableDictionary(), new BinaryWriter(stream));
-            }
+            serialize(value.ToImmutableDictionary(), new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -196,12 +174,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<ImmutableSortedDictionary<string, double>>(schema);
             var serialize = serializerBuilder.BuildDelegate<ImmutableSortedDictionary<string, double>>(schema);
 
-            using (stream)
-            {
-                serialize(value.ToImmutableSortedDictionary(), new BinaryWriter(stream));
-            }
+            serialize(value.ToImmutableSortedDictionary(), new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -215,12 +190,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<ReadOnlyDictionary<string, double>>(schema);
             var serialize = serializerBuilder.BuildDelegate<ReadOnlyDictionary<string, double>>(schema);
 
-            using (stream)
-            {
-                serialize(new ReadOnlyDictionary<string, double>(value), new BinaryWriter(stream));
-            }
+            serialize(new ReadOnlyDictionary<string, double>(value), new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -234,12 +206,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<SortedDictionary<string, double>>(schema);
             var serialize = serializerBuilder.BuildDelegate<SortedDictionary<string, double>>(schema);
 
-            using (stream)
-            {
-                serialize(new SortedDictionary<string, double>(value), new BinaryWriter(stream));
-            }
+            serialize(new SortedDictionary<string, double>(value), new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
@@ -253,12 +222,9 @@ namespace Chr.Avro.Serialization.Tests
             var deserialize = deserializerBuilder.BuildDelegate<SortedList<string, double>>(schema);
             var serialize = serializerBuilder.BuildDelegate<SortedList<string, double>>(schema);
 
-            using (stream)
-            {
-                serialize(new SortedList<string, double>(value), new BinaryWriter(stream));
-            }
+            serialize(new SortedList<string, double>(value), new BinaryWriter(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
 
             Assert.Equal(value, deserialize(ref reader));
         }
