@@ -301,52 +301,46 @@ namespace Chr.Avro.Benchmarks.Chr
 
         public override IEnumerable<(string, TimeSpan)> Run()
         {
-            var stream = new MemoryStream();
-            var writer = new BinaryWriter(stream);
+            var bufferWriter = new System.Buffers.ArrayBufferWriter<byte>();
+            var writer = new BinaryWriter(bufferWriter);
 
             var deserialize = new BinaryDeserializerBuilder().BuildDelegate<T>(Schema);
             var serialize = new BinarySerializerBuilder().BuildDelegate<T>(Schema);
 
-            using (stream)
+            foreach (var value in Values)
             {
-                foreach (var value in Values)
-                {
-                    serialize(value, writer);
-                }
+                serialize(value, writer);
             }
 
             var count = Values.Length;
-            var size = stream.ToArray().Length * Iterations / count;
+            var size = bufferWriter.WrittenCount * Iterations / count;
 
-            stream = new MemoryStream(size);
-            writer = new BinaryWriter(stream);
+            bufferWriter = new System.Buffers.ArrayBufferWriter<byte>(size);
+            writer = new BinaryWriter(bufferWriter);
 
-            using (stream)
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            for (int i = 0; i < Iterations; i++)
             {
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
-
-                for (int i = 0; i < Iterations; i++)
-                {
-                    serialize(Values[i % count], writer);
-                }
-
-                stopwatch.Stop();
-                yield return ("serialization", stopwatch.Elapsed);
-                stopwatch.Reset();
-
-                var reader = new Serialization.BinaryReader(stream.ToArray());
-
-                stopwatch.Start();
-
-                for (int i = 0; i < Iterations; i++)
-                {
-                    deserialize(ref reader);
-                }
-
-                stopwatch.Stop();
-                yield return ("deserialization", stopwatch.Elapsed);
+                serialize(Values[i % count], writer);
             }
+
+            stopwatch.Stop();
+            yield return ("serialization", stopwatch.Elapsed);
+            stopwatch.Reset();
+
+            var reader = new Serialization.BinaryReader(bufferWriter.WrittenSpan);
+
+            stopwatch.Start();
+
+            for (int i = 0; i < Iterations; i++)
+            {
+                deserialize(ref reader);
+            }
+
+            stopwatch.Stop();
+            yield return ("deserialization", stopwatch.Elapsed);
         }
     }
 }

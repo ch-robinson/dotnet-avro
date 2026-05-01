@@ -1,7 +1,6 @@
 namespace Chr.Avro.Serialization.Tests
 {
     using System.Collections.Generic;
-    using System.IO;
     using Chr.Avro.Abstract;
     using Xunit;
 
@@ -14,13 +13,13 @@ namespace Chr.Avro.Serialization.Tests
 
         private readonly IBinarySerializerBuilder serializerBuilder;
 
-        private readonly MemoryStream stream;
+        private readonly TestBufferWriter bufferWriter;
 
         public BinarySkipFieldDeserializerBuilderCaseTests()
         {
             deserializerBuilder = new BinaryDeserializerBuilder();
             serializerBuilder = new BinarySerializerBuilder();
-            stream = new MemoryStream();
+            bufferWriter = new TestBufferWriter();
         }
 
         [Fact]
@@ -36,14 +35,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, int>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "hello", SkippedField = 12345, KeptField2 = "world" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "hello", SkippedField = 12345, KeptField2 = "world" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("hello", result.KeptField);
@@ -63,14 +59,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, long>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "world", SkippedField = 9876543210, KeptField2 = "test" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "world", SkippedField = 9876543210, KeptField2 = "test" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("world", result.KeptField);
@@ -90,14 +83,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, float>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "pi", SkippedField = 3.14f, KeptField2 = "math" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "pi", SkippedField = 3.14f, KeptField2 = "math" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("pi", result.KeptField);
@@ -117,14 +107,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, double>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "e", SkippedField = 2.71828, KeptField2 = "euler" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "e", SkippedField = 2.71828, KeptField2 = "euler" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("e", result.KeptField);
@@ -144,14 +131,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, bool>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "flag", SkippedField = true, KeptField2 = "value" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "flag", SkippedField = true, KeptField2 = "value" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("flag", result.KeptField);
@@ -171,14 +155,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, byte[]>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "data", SkippedField = new byte[] { 0xAA, 0xBB, 0xCC }, KeptField2 = "binary" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "data", SkippedField = new byte[] { 0xAA, 0xBB, 0xCC }, KeptField2 = "binary" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("data", result.KeptField);
@@ -198,14 +179,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, string>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "kept", SkippedField = "this_should_be_skipped", KeptField2 = "also_kept" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "kept", SkippedField = "this_should_be_skipped", KeptField2 = "also_kept" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("kept", result.KeptField);
@@ -226,14 +204,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, byte[]>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "fixed", SkippedField = new byte[] { 0x01, 0x02, 0x03, 0x04 }, KeptField2 = "size4" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "fixed", SkippedField = new byte[] { 0x01, 0x02, 0x03, 0x04 }, KeptField2 = "size4" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("fixed", result.KeptField);
@@ -254,14 +229,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, CustomEnum>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "status", SkippedField = CustomEnum.C, KeptField2 = "enum_type" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "status", SkippedField = CustomEnum.C, KeptField2 = "enum_type" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("status", result.KeptField);
@@ -282,14 +254,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, int>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "status", SkippedField = 1, KeptField2 = "value" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "status", SkippedField = 1, KeptField2 = "value" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("status", result.KeptField);
@@ -310,14 +279,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, string>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "status", SkippedField = "A", KeptField2 = "value" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "status", SkippedField = "A", KeptField2 = "value" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("status", result.KeptField);
@@ -338,14 +304,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, int[]>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "array", SkippedField = new[] { 1, 2, 3, 4, 5 }, KeptField2 = "sequence" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "array", SkippedField = new[] { 1, 2, 3, 4, 5 }, KeptField2 = "sequence" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("array", result.KeptField);
@@ -368,14 +331,11 @@ namespace Chr.Avro.Serialization.Tests
 
             var data = new Dictionary<string, int> { { "a", 1 }, { "b", 2 } };
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "map", SkippedField = data, KeptField2 = "dictionary" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "map", SkippedField = data, KeptField2 = "dictionary" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("map", result.KeptField);
@@ -397,19 +357,16 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, EmptyRecord>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new()
-                    {
-                        KeptField = "before",
-                        SkippedField = new EmptyRecord(),
-                        KeptField2 = "after",
-                    },
-                    new(stream));
-            }
+            serialize(
+                new()
+                {
+                    KeptField = "before",
+                    SkippedField = new EmptyRecord(),
+                    KeptField2 = "after",
+                },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("before", result.KeptField);
@@ -434,19 +391,16 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, NestedRecord>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new()
-                    {
-                        KeptField = "outer",
-                        SkippedField = new NestedRecord { NestedField = 999 },
-                        KeptField2 = "nested",
-                    },
-                    new(stream));
-            }
+            serialize(
+                new()
+                {
+                    KeptField = "outer",
+                    SkippedField = new NestedRecord { NestedField = 999 },
+                    KeptField2 = "nested",
+                },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("outer", result.KeptField);
@@ -467,14 +421,11 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<Record<string, string>>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new() { KeptField = "union", SkippedField = "union_value", KeptField2 = "variant" },
-                    new(stream));
-            }
+            serialize(
+                new() { KeptField = "union", SkippedField = "union_value", KeptField2 = "variant" },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("union", result.KeptField);
@@ -495,20 +446,17 @@ namespace Chr.Avro.Serialization.Tests
             var serialize = serializerBuilder.BuildDelegate<MultiFieldRecord>(schema);
             var deserialize = deserializerBuilder.BuildDelegate<Record<string>>(schema);
 
-            using (stream)
-            {
-                serialize(
-                    new()
-                    {
-                        KeptField = "first",
-                        SkippedField = 100,
-                        KeptField2 = "second",
-                        SkippedField2 = 200,
-                    },
-                    new(stream));
-            }
+            serialize(
+                new()
+                {
+                    KeptField = "first",
+                    SkippedField = 100,
+                    KeptField2 = "second",
+                    SkippedField2 = 200,
+                },
+                new(bufferWriter));
 
-            var reader = new BinaryReader(stream.ToArray());
+            var reader = new BinaryReader(bufferWriter.WrittenSpan);
             var result = deserialize(ref reader);
 
             Assert.Equal("first", result.KeptField);

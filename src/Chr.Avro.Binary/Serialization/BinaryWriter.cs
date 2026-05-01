@@ -1,16 +1,16 @@
 namespace Chr.Avro.Serialization
 {
     using System;
+    using System.Buffers;
 #if NET6_0_OR_GREATER
     using System.Buffers.Binary;
 #endif
-    using System.IO;
     using System.Text;
 
     /// <summary>
     /// Writes primitive values to binary Avro data.
     /// </summary>
-    public sealed class BinaryWriter : IDisposable
+    public sealed class BinaryWriter
     {
         /// <summary>
         /// The maximum number of characters encoded per chunk when writing strings.
@@ -19,26 +19,17 @@ namespace Chr.Avro.Serialization
         /// </summary>
         internal const int MaxCharChunk = 64;
 
-        private readonly Stream stream;
+        private readonly IBufferWriter<byte> output;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BinaryWriter" /> class.
         /// </summary>
-        /// <param name="stream">
+        /// <param name="output">
         /// The binary Avro destination.
         /// </param>
-        public BinaryWriter(Stream stream)
+        public BinaryWriter(IBufferWriter<byte> output)
         {
-            this.stream = stream;
-        }
-
-        /// <summary>
-        /// Frees any resources used by the writer and flushes the <see cref="Stream" />. The
-        /// <see cref="Stream" /> is not disposed.
-        /// </summary>
-        public void Dispose()
-        {
-            stream.Flush();
+            this.output = output;
         }
 
         /// <summary>
@@ -49,7 +40,9 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteBoolean(bool value)
         {
-            stream.WriteByte(value ? (byte)0x01 : (byte)0x00);
+            var span = output.GetSpan(1);
+            span[0] = value ? (byte)0x01 : (byte)0x00;
+            output.Advance(1);
         }
 
         /// <summary>
@@ -110,7 +103,9 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteFixed(byte[] value)
         {
-            stream.Write(value, 0, value.Length);
+            var span = output.GetSpan(value.Length);
+            new ReadOnlySpan<byte>(value).CopyTo(span);
+            output.Advance(value.Length);
         }
 #if NET6_0_OR_GREATER
 
@@ -118,11 +113,13 @@ namespace Chr.Avro.Serialization
         /// Writes fixed-length binary data to the current position and advances the writer.
         /// </summary>
         /// <param name="value">
-        /// An array of <see cref="byte" />s.
+        /// A span of <see cref="byte" />s.
         /// </param>
         public void WriteFixed(ReadOnlySpan<byte> value)
         {
-            stream.Write(value);
+            var span = output.GetSpan(value.Length);
+            value.CopyTo(span);
+            output.Advance(value.Length);
         }
 #endif
 
@@ -134,12 +131,10 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteInteger(int value)
         {
-#if NET6_0_OR_GREATER
             var index = 0;
 
             // Max 5 bytes for 32-bit varint
             Span<byte> buffer = stackalloc byte[5];
-#endif
 
             var encoded = (uint)((value << 1) ^ (value >> 31));
 
@@ -153,17 +148,13 @@ namespace Chr.Avro.Serialization
                     current |= 0x80U;
                 }
 
-#if NET6_0_OR_GREATER
                 buffer[index++] = (byte)current;
-#else
-                stream.WriteByte((byte)current);
-#endif
             }
             while (encoded != 0U);
 
-#if NET6_0_OR_GREATER
-            stream.Write(buffer.Slice(0, index));
-#endif
+            var dest = output.GetSpan(index);
+            buffer.Slice(0, index).CopyTo(dest);
+            output.Advance(index);
         }
 
         /// <summary>
@@ -174,12 +165,10 @@ namespace Chr.Avro.Serialization
         /// </param>
         public void WriteInteger(long value)
         {
-#if NET6_0_OR_GREATER
             var index = 0;
 
             // Max 10 bytes for 64-bit varint
             Span<byte> buffer = stackalloc byte[10];
-#endif
 
             var encoded = (ulong)((value << 1) ^ (value >> 63));
 
@@ -193,21 +182,17 @@ namespace Chr.Avro.Serialization
                     current |= 0x80UL;
                 }
 
-#if NET6_0_OR_GREATER
                 buffer[index++] = (byte)current;
-#else
-                stream.WriteByte((byte)current);
-#endif
             }
             while (encoded != 0UL);
 
-#if NET6_0_OR_GREATER
-            stream.Write(buffer.Slice(0, index));
-#endif
+            var dest = output.GetSpan(index);
+            buffer.Slice(0, index).CopyTo(dest);
+            output.Advance(index);
         }
 
         /// <summary>
-        /// Writes a double-precision floating point number to the current position and advances
+        /// Writes a single-precision floating point number to the current position and advances
         /// the writer.
         /// </summary>
         /// <param name="value">
@@ -260,7 +245,7 @@ namespace Chr.Avro.Serialization
 
                 var chunk = value.AsSpan(pos, sliceLength);
                 var written = Encoding.UTF8.GetBytes(chunk, buffer);
-                stream.Write(buffer.Slice(0, written));
+                WriteFixed(buffer.Slice(0, written));
                 pos += sliceLength;
             }
 #else
