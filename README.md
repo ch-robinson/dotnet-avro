@@ -1,5 +1,8 @@
 # Chr.Avro
 
+> [!CAUTION]
+> **This library is no longer actively maintained.** Please consider switching to alternatives such as [Apache.Avro](https://www.nuget.org/packages/Apache.Avro).
+
 Chr.Avro is an Avro implementation for .NET. It’s designed to serve as a flexible alternative to the [Apache implementation](https://github.com/apache/avro/tree/master/lang/csharp/src/apache/main) and integrate seamlessly with [Confluent’s Kafka and Schema Registry clients](https://github.com/confluentinc/confluent-kafka-dotnet).
 
 - [Chr.Avro](src/Chr.Avro): schema models, type resolution, and schema builder
